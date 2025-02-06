@@ -1,4 +1,8 @@
 {
+  "flussu":{
+    "version":"4.2",
+    "release":"20250625"
+  },
   "services": {
     "google":{
         "type": "service_account",

@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.1 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.2 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,13 +28,10 @@
  * CLASS PATH:       /Flussu/Flussuserver
  * -------------------------------------------------------*
  * CREATED DATE:   25.01.2021 - Aldus
- * VERSION REL.:     4.1.20250205
- * UPDATE DATE:      12.01:2025 
+ * VERSION REL.:     4.2.20250625
+ * UPDATES DATE:     25.02:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
- * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
- * Releases/Updates:
- * NEW: added "shorturl" api call - 03-11-2024
  * -------------------------------------------------------*/
 
 /**
@@ -67,7 +64,7 @@ use Flussu\General;
 use Flussu\HttpCaller;
 
 class Environment {
-    private $_version="3.0.4";
+    private $_version="4.2.20250625";
     private $_exitNum=-1;
     private $_media="pc"; 
     private $_channel="web"; 

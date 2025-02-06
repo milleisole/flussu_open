@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.1 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.2 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@
  * FOR ALDUS BEAN:   Databroker.bean
  * -------------------------------------------------------*
  * CREATED DATE:     1.0 28.12:2020 - Aldus
- * VERSION REL.:     4.1.20250205
- * UPDATE DATE:      12.01:2025 
+ * VERSION REL.:     4.2.20250625
+ * UPDATES DATE:     25.02:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * Possibilità di fare ATTACH all'email con una stringa

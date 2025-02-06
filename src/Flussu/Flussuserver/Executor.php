@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.1 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.2 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@
  * CLASS-INTENT:     Work/executor
  * -------------------------------------------------------*
  * CREATED DATE:     25.05:2024 - Aldus - Flussu v3.0
- * VERSION REL.:     4.1.20250205 
- * UPDATE DATE:      12.01:2025 
+ * VERSION REL.:     4.2.20250625
+ * UPDATES DATE:     25.02:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * NEW: add Workflow Absolute Unique ID handling - 15-11-2024
@@ -163,15 +163,17 @@ class Executor{
                         array_push($res,array("exit",$innerParams));
                         break;
                     case "go_to_flussu":
-                        $Sess->recLog("goto flussu".$this->arr_print($innerParams));
+                        $Sess->recLog("goto flussu".json_encode($innerParams));
                         if (!is_array($res)) $res=[];
                         $WID=$Handl->getFlussuWID($innerParams);
+                        General::log(" ---> Goto flussu ".json_encode($WID));
                         array_push($res,array("WID",$WID["WID"]));
                         break;
                     case "back_to_flussu":
                         $Sess->recLog("back to flussu caller".$this->arr_print($innerParams));
                         if (!is_array($res)) $res=[];
                         array_push($res,array("BACK",$innerParams));
+                        General::log(" <--- Back to flussu ".json_encode($innerParams));
                         break;
                     case "reminder_to":
                         if (empty($innerParams)){

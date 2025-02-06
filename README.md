@@ -1,4 +1,4 @@
-# flussuserver 4.1.20250502 Open Source
+# flussuserver 4.2.20250625 Open Source
 
 What you need to put it on work:
 

@@ -1,11 +1,11 @@
 
                            FLUSSU SERVER
-                       Version 3.0, May 2024
+                       Version 4.2, Feb 2025
                        https://www.flussu.com
 
                          from Aldo Prinzi 
            Mille Isole SRL, <https://www.milleisole.com/>
-      Via Giuseppe La Farina, 11, Palermo, 90141 - Italia - EU
+               Palermo(PA) / Parma(PR) - Italia - EU
  
                         Apache License
                       Version 2.0, January 2004
