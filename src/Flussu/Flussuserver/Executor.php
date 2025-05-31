@@ -285,10 +285,14 @@ class Executor{
                     case "sendToAi":
                         // V4.3 - Send to AI
                         $Sess->statusCallExt(true);
-                        $Sess->recLog("call AI: ".$innerParams[0]);
-                        $ctrl=new \Flussu\Controllers\AiChatController();
-                        $reslt=$ctrl->Chat($innerParams[0]);
-                        $Sess->assignVars($innerParams[1],$reslt);
+                        $Sess->recLog("AI provider: ".$innerParams[0]);
+                        $Sess->recLog("call AI: ".$innerParams[1]);
+                        if ($innerParams[0]==0)
+                            $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::CHATGPT );
+                        else
+                            $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::GROK );
+                        $reslt=$ctrl->Chat($innerParams[1]);
+                        $Sess->assignVars($innerParams[2],$reslt);
                         $Sess->recLog("AI response: ".$reslt);
                         break;
 

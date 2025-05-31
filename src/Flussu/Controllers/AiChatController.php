@@ -24,14 +24,23 @@
 namespace Flussu\Controllers;
 use Flussu\General;
 use Flussu\Api\Ai\FlussuOpenAi;
+use Flussu\Api\Ai\FlussuGrokAi;
+use Flussu\Contracts\IAiProvider;
 use Log;
 
+
+enum Platform: int {
+    case CHATGPT = 0;
+    case GROK = 1;
+}
 class AiChatController 
 {
-    private $_aiClient=null;
-    
-    public function __construct($model="",$chat_model=""){
-        $this->_aiClient= new FlussuOpenAi($model,$chat_model);
+    private IAiProvider $_aiClient;
+    public function __construct(Platform $platform=Platform::CHATGPT,$model="",$chat_model=""){
+        if  ($platform->value ==0)
+            $this->_aiClient= new FlussuOpenAi($model,$chat_model);
+        else if ($platform->value == 1)
+            $this->_aiClient= new FlussuGrokAi($model);
     }
 
     function Chat($sendText,$webPreview=false,$role="user"){

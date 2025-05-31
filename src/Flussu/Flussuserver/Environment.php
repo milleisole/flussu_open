@@ -212,7 +212,7 @@ class Environment {
 
 
     // v4.3 Ai Chat
-    public function sendToAi            ($sendText, $varResponseName)  {$this->_addToResArray("sendToAi", array($sendText, $varResponseName));}
+    public function sendToAi            ($sendText, $varResponseName,$provider=0)  {$this->_addToResArray("sendToAi", array($provider,$sendText, $varResponseName));}
 
 
 

@@ -30,8 +30,8 @@ use OpenAI\Client;
 use Log;
 use Exception;
 use OpenAI\OpenAI;
-
-class FlussuOpenAi
+use Flussu\Contracts\IAiProvider;
+class FlussuOpenAi implements IAiProvider
 {
     private $_aiErrorState=false;
     private Client $_open_ai;
@@ -81,7 +81,7 @@ class FlussuOpenAi
         }
     }
 
-    function Chat($sendText,$role="user"){
+    function chat($sendText,$role="user"){
         $result = $this->_open_ai->chat()->create([
             'model' => $this->_open_ai_chat_model,
             'messages' => [
@@ -91,7 +91,7 @@ class FlussuOpenAi
         return $result->choices[0]->message->content; 
     }
 
-    function Chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
+    function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
         $response = $this->_open_ai->responses()->create([
             'model' => $this->_open_ai_chat_model,
             'tools' => [

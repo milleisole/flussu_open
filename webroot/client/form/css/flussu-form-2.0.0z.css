@@ -72,7 +72,7 @@ body {
 }
 
 .flussu_limited_message{
-    max-height: 400px; /* Imposta l'altezza massima del div */
+    max-height: 300px; /* Imposta l'altezza massima del div */
     overflow-y: auto;  /* Abilita la scrollbar verticale quando il contenuto supera l'altezza */
     overflow-x: hidden; 
     background:#fff;
