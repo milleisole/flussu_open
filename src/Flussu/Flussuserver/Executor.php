@@ -281,6 +281,18 @@ class Executor{
                         }
                         $Sess->statusCallExt(false);
                         break;
+
+                    case "sendToAi":
+                        // V4.3 - Send to AI
+                        $Sess->statusCallExt(true);
+                        $Sess->recLog("call AI: ".$innerParams[0]);
+                        $ctrl=new \Flussu\Controllers\AiChatController();
+                        $reslt=$ctrl->Chat($innerParams[0]);
+                        $Sess->assignVars($innerParams[1],$reslt);
+                        $Sess->recLog("AI response: ".$reslt);
+                        break;
+
+                /*
                     case "openAi":
                         // V2.8 - Query openAI
                         $ctrl=new \Flussu\Controllers\OpenAiController();
@@ -313,6 +325,8 @@ class Executor{
                         $reslt=$ctrl->sendChatSessionText($innerParams[0],$csid);
                         $Sess->assignVars($innerParams[1],$reslt);
                         break;
+                */
+
                     case "newMRec":
                         // V2.8 - New MultiRecWorkflow
                         $mwc=new \Flussu\Controllers\MultiWfController();

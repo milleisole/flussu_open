@@ -1,0 +1,140 @@
+<?php
+/* --------------------------------------------------------------------*
+ * Flussu v4.3.0 - Mille Isole SRL - Released under Apache License 2.0
+ * --------------------------------------------------------------------*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * --------------------------------------------------------------------*
+ * TBD- UNFINISHED
+ * 
+ * CLASS-NAME:       Flussu OpenAi interface - v1.0
+ * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.3
+ * VERSION REL.:     4.3.0 20250530 
+ * UPDATE DATE:      30.05:2025 
+ * -------------------------------------------------------*/
+namespace Flussu\Api\Ai;
+use Flussu\General;
+use OpenAI\Resources\Batches;
+use OpenAI\Resources\Completions;
+use OpenAI\Resources\Models;
+use OpenAI\Client;
+use Log;
+use Exception;
+use OpenAI\OpenAI;
+
+class FlussuOpenAi
+{
+    private $_aiErrorState=false;
+    private Client $_open_ai;
+    private $_open_ai_key="";
+    private $_open_ai_model="gpt-3o";
+    private $_open_ai_chat_model="o1-mini";
+    
+    public function __construct($model="",$chat_model=""){
+        if (!isset($this->_open_ai)){
+            $this->_open_ai_key = config("services.ai_provider.open_ai.auth_key");
+            if ($model)
+                $this->_open_ai_model = $model;
+            else {
+                if (!empty(config("services.ai_provider.open_ai.model")))
+                    $this->_open_ai_model=config("services.ai_provider.open_ai.model");
+            }
+            /*
+            if ($chat_model)
+                $this->_open_ai_chat_model = $chat_model;
+            else {
+                if (!empty($_ENV['open_ai_chat_model']))
+                    $this->_open_ai_chat_model=$_ENV['open_ai_chat_model'];
+            }*/
+            $this->_open_ai=\OpenAI::factory()
+                ->withApiKey($this->_open_ai_key)
+                ->withHttpClient($httpClient = new \GuzzleHttp\Client([]))
+                 ->withHttpHeader('X-workflowapp', 'flussu')
+                /*->withOrganization('flussu') 
+                ->withProject('flussu') */
+                /*->withModel($this->_open_ai_model)
+                ->withChatModel($this->_open_ai_chat_model)*/
+                ->make();
+
+/*
+
+            $response = $this->_open_ai->models()->list();
+
+            $response->object; // 'list'
+
+            foreach ($response->data as $result) {
+                $result->id; // 'gpt-3.5-turbo-instruct'
+                $result->object; // 'model'
+                // ...
+            }
+            $response->toArray(); // ['object' => 'list', 'data' => [...]]
+*/
+        }
+    }
+
+    function Chat($sendText,$role="user"){
+        $result = $this->_open_ai->chat()->create([
+            'model' => $this->_open_ai_chat_model,
+            'messages' => [
+                ['role' => $role, 'content' => $sendText],
+            ],
+        ]);
+        return $result->choices[0]->message->content; 
+    }
+
+    function Chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
+        $response = $this->_open_ai->responses()->create([
+            'model' => $this->_open_ai_chat_model,
+            'tools' => [
+                [
+                    'type' => 'web_search_preview'
+                ]
+            ],
+            'input' => $sendText,
+            'temperature' => $temperature,
+            'max_output_tokens' => $max_output_tokens,
+            'tool_choice' => 'auto',
+            'parallel_tool_calls' => true,
+            'store' => true,
+            'metadata' => [
+                /*'user_id' => '123',*/
+                'session_id' => $session
+            ]
+        ]);
+
+        $response->id; // 'resp_67ccd2bed1ec8190b14f964abc054267'
+        $response->object; // 'response'
+        $response->createdAt; // 1741476542
+        $response->status; // 'completed'
+        $response->model; // 'gpt-4o-mini'
+
+        foreach ($response->output as $output) {
+            $output->type; // 'message'
+            $output->id; // 'msg_67ccd2bf17f0819081ff3bb2cf6508e6'
+            $output->status; // 'completed'
+            $output->role; // 'assistant'
+            
+            foreach ($output->content as $content) {
+                $content->type; // 'output_text'
+                $content->text; // The response text
+                $content->annotations; // Any annotations in the response
+            }
+        }
+
+        $response->usage->inputTokens; // 36
+        $response->usage->outputTokens; // 87
+        $response->usage->totalTokens; // 123
+
+        $response->toArray(); // ['id' => 'resp_67ccd2bed1ec8190b14f964abc054267', ...]
+        return $response;
+    }
+}

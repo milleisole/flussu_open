@@ -47,7 +47,7 @@
         "juanantoniodelgado/stopwords": "^1.3",
         "masterminds/html5": "^2.8",
         "nikic/php-parser": "^4.13",
-        "openai-php/client": "^0.7.8",
+        "openai-php/client": "^0.10.3",
         "phpmailer/phpmailer": "^6.5",
         "phpoffice/phpspreadsheet": "^2.1",
         "shuchkin/simplexlsxgen": "^1.2",

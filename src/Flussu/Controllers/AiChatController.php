@@ -1,0 +1,44 @@
+<?php
+/* --------------------------------------------------------------------*
+ * Flussu v4.3.0 - Mille Isole SRL - Released under Apache License 2.0
+ * --------------------------------------------------------------------*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * --------------------------------------------------------------------*
+ * TBD- UNFINISHED
+ * 
+ * CLASS-NAME:       Flussu OpenAi Controller - v3.0
+ * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.2
+ * VERSION REL.:     4.3.0 20250530 
+ * UPDATE DATE:      30.05:2025 
+ * -------------------------------------------------------*/
+namespace Flussu\Controllers;
+use Flussu\General;
+use Flussu\Api\Ai\FlussuOpenAi;
+use Log;
+
+class AiChatController 
+{
+    private $_aiClient=null;
+    
+    public function __construct($model="",$chat_model=""){
+        $this->_aiClient= new FlussuOpenAi($model,$chat_model);
+    }
+
+    function Chat($sendText,$webPreview=false,$role="user"){
+        if (!$webPreview) 
+            return $this->_aiClient->Chat($sendText, $role); 
+        $sess="6768768768768768";
+        return $this->_aiClient->Chat_WebPreview($sendText, $sess,150,0.7); 
+    }
+
+}

@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.2 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.4 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@
  * CLASS PATH:       /Flussu/Flussuserver
  * -------------------------------------------------------*
  * CREATED DATE:   25.01.2021 - Aldus
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     4.3.20250625
+ * UPDATES DATE:     30.05:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * -------------------------------------------------------*/
@@ -64,7 +64,7 @@ use Flussu\General;
 use Flussu\HttpCaller;
 
 class Environment {
-    private $_version="4.2.20250625";
+    private $_version="4.4.20250530";
     private $_exitNum=-1;
     private $_media="pc"; 
     private $_channel="web"; 
@@ -207,6 +207,16 @@ class Environment {
     public function notify              ($dataName,$dataValue)          {$this->_addToResArray("notify", array("N",$dataName,$dataValue));}
     // callingBidIdentifier can be:  "1234-1234-1234-1234" OR "exit(0)" OR "[W456756546AB]"(wid) OR "[W456756546AB]:1234-1234-1234-1234"(wid/bid);
     public function notifyCallback      ($callingBidIdentifier)         {$this->_addToResArray("notify", array("NC","",$callingBidIdentifier));}
+
+
+
+
+    // v4.3 Ai Chat
+    public function sendToAi            ($sendText, $varResponseName)  {$this->_addToResArray("sendToAi", array($sendText, $varResponseName));}
+
+
+
+/*
     // v2.8 OpenAi Query
     public function queryOpenAi         ($textQuery,$varResponseName)   {$this->_addToResArray("openAi", array($textQuery,$varResponseName));}
     public function explainOpenAi       ($textQuery,$varResponseName)   {$this->_addToResArray("explAi", array($textQuery,$varResponseName));}
@@ -215,6 +225,10 @@ class Environment {
     // v2.9 OpenAi Chat
     public function startOpenAiChat     ($initText)                     {$this->_addToResArray("openAi-stsess", array($initText));}
     public function chatOpenAi          ($chatText, $varResponseName)   {$this->_addToResArray("openAi-chat", array($chatText, $varResponseName));}
+*/
+
+
+
     // v2.8 - create MultiRec workflow
     public function createNewMultirecWf ($wid,$uid,$uemail,$arrData,$varName) {$this->_addToResArray("newMRec", array($wid,$uid,$uemail,$arrData,$varName));}
     public function addProcessVariable  ($varName,$varValue)            {$this->_addToResArray("addVarValue", array($varName,$varValue));}
