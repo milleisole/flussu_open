@@ -35,10 +35,25 @@ class AiChatController
     }
 
     function Chat($sendText,$webPreview=false,$role="user"){
+        $result="(no result)";
         if (!$webPreview) 
-            return $this->_aiClient->Chat($sendText, $role); 
-        $sess="6768768768768768";
-        return $this->_aiClient->Chat_WebPreview($sendText, $sess,150,0.7); 
+            $result=$this->_aiClient->Chat($sendText, $role); 
+        else{
+            $sess="6768768768768768";
+            $result= $this->_aiClient->Chat_WebPreview($sendText, $sess,150,0.7); 
+        }
+
+        $result = preg_replace('/\n\s*\n+/', "\n", $result);
+
+        $pattern = '/\*\*(.*?)\*\*/';
+        $replacement = '{b}$1{/b}';
+        $retStr = preg_replace($pattern, $replacement, $result);
+
+        $pattern = '/^###(.*)$/m';
+        $replacement = '\n{t}$1{/t}';
+        $retStr = preg_replace($pattern, $replacement, $retStr);
+
+        return $retStr;
     }
 
 }

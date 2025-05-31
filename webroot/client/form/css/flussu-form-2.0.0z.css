@@ -1,0 +1,383 @@
+/*
+ Flussu v3.0.3
+ form-client style v3.0 
+*/
+
+html {
+    /* nothing to change */
+}
+
+body {
+    background: rgb(4, 29, 56);
+    font-family: 'Gill Sans', 'Gill Sans MT';
+    height: 100vh;
+}
+
+.chat_window {
+    font-size: 1.1rem;
+    background: #E0F4F4;
+    padding: 10px;
+    height: 75vh;
+    width: 95vw;
+    min-height: 300px;
+    min-width: 300px;
+    border-radius: 10px;
+    display: table-cell;
+    vertical-align: middle;
+}
+
+.flussu-title {
+    margin-top: 15px;
+    padding: 5px 0px 5px 0px;
+    color: rgb(250, 255, 208);
+    font-weight: 600;
+}
+
+.flussu-par {
+    margin-left: 10%;
+    padding-right: 50px;
+}
+
+.flussu_form{
+    width:98%;
+    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    font-size: 1.1rem;
+}
+
+.flussu-lbl-chk{
+    font-size: 1.15rem;
+    margin-left:5px;
+}
+
+.flussu-inpArea,
+.flussu-link,
+.flussu-select,
+.flussu-lbl {
+    font-size: 1.3rem;
+    margin-bottom: 5px;
+}
+
+.flussu-lbl {
+    /*font-size: 1.05rem;*/
+    display: block;
+    padding-top: 6px;
+    margin-bottom: -3px;
+}
+
+.flussu-lbl-title{
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+    margin-top: -5px;
+    font-weight: bolder;
+}
+
+.flussu_limited_message{
+    max-height: 400px; /* Imposta l'altezza massima del div */
+    overflow-y: auto;  /* Abilita la scrollbar verticale quando il contenuto supera l'altezza */
+    overflow-x: hidden; 
+    background:#fff;
+    border:solid 1px silver;
+    padding:10px; 
+    margin-bottom:18px; 
+    margin-top:18px;
+    border-radius: 9px;
+}
+
+.flussu-inpArea,
+.flussu-select {
+    font-size: 1.6rem;
+    width: 90%;
+    min-width: 180px;
+    padding:4px;
+}
+
+.flussu-inpText {
+    margin-top: 3px;
+    margin-bottom: 8px;
+    font-size: 1.4rem;
+    width: 100%;
+}
+.flussu-img-wrap{
+    padding:8px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+.flussu-img{
+    height:auto;
+    width:95%;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+.flussu-vid{
+    margin:18px;
+    padding:8px;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+.flussu-btn-img{
+    margin:20px;
+    background:#f0f0f0;
+    border:outset 1px #ffffff
+}
+.flussu-btn-img img{
+    width:100px;
+    padding:5px;
+}
+
+.flussu-btn-redo,
+.flussu-lang-btn,
+.flussu-btn-chk,
+.flussu-btn {
+    font-size: 1.2rem;
+    border-radius: 8px;
+    margin: 8px;
+    padding: 2px 20px 4px 20px;
+    font-weight: 500;
+    white-space: normal;
+    min-width: 100px;
+    max-width: 90%;
+    /*width:200px;*/
+}
+
+.flussu-btn-chk{
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    margin: 2px;
+    padding: 2px 10px 2px 10px;
+}
+.flussu-btn-chk:after {
+    content: '.';
+    font-size: 1.2rem;
+    color: rgb(17, 112, 54);
+}
+.flussu-btn-chk:hover:after {
+    content: '>';
+    font-size: 1.2rem;
+    color:white;
+    font-weight:800;
+    margin-left:-1px
+}
+
+.flussu-lang-btn{
+    font-size: 1.2rem;
+    font-weight: 500;
+    padding: 8px;
+    display: block;
+    border:outset 2px white 
+}
+
+.flussu-btn-row1 {
+    text-align: left;
+}
+
+.flussu-btn-chk,
+.flussu-btn {
+    background-color: rgb(17, 112, 54);
+}
+
+.flussu-btn-chk-redo,
+.flussu-btn-redo {
+    background-color: rgb(149, 172, 158);
+}
+
+.flussu-btn:hover {
+    background-color: rgb(4, 155, 62);
+}
+
+.flussu-btn-redo:hover {
+    background-color: rgb(149, 172, 158);
+}
+
+.flussu-emptyctrl-flash{
+    animation: pulse 1s infinite;
+    padding:5px;
+    margin:5px;
+}
+
+.flussu-emptyctrl{
+    border:solid 3px red;
+}
+
+@-webkit-keyframes pulse {
+    from, to { box-shadow: 0 0 0 0 red;}
+    50% { box-shadow: 0 0 0 4px red; }
+}
+
+.flussu-pic {
+    width: 94%;
+    max-width: 95%;
+    height: auto;
+    vertical-align: middle;
+}
+
+.flussu-med-h {
+    /*vertical-align: middle;*/
+}
+
+.flussu-med-v {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 90%;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    margin-top:15px;
+    margin-bottom:30px;
+}
+
+.flussu-wrap {
+    overflow-wrap: break-word;
+    /*overflow-y: scroll;*/
+}
+
+.flussu-counter{
+    overflow-wrap: break-word;
+    padding-left: 20px;
+    padding-right: 20px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.flussu-lbl a{
+    color:rgb(11, 21, 82);
+    text-decoration: none;
+}
+.flussu-counter-table{
+    /* border: solid 1px gray */
+}
+
+.flussu-counter-title{
+    font-size: 1.4rem;
+    color:cornflowerblue;
+    padding-right: 15px;
+}
+
+.flussu-counter-value{
+    border: solid 1px rgb(70, 70, 70);
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+.flussu-counter-value-full{
+    border: none;
+    margin-left: 2px;
+    margin-right: 2px;
+    background-color: cornflowerblue;
+    color:#ffffff;
+    font-size:1 rem;
+}
+
+.flussu-selrcrow{
+    margin-left:20px;
+}
+.flussu-selrccol_c,
+.flussu-selrccol_r{
+    margin:10px;
+    background-color: rgba(0, 0, 0, 0.1);
+    padding:15px;
+    border-radius: 10px;
+    border:solid 2px silver;
+}
+.flussu-selrccol_r:hover{
+    background-color: rgba(20, 0, 0, 0.05);
+    border:solid 2px gray;
+}
+.flussu-selrccol_c{
+    background-color: rgba(163, 0, 0, 0.1);
+    border:solid 2px rgb(107, 77, 155);
+}
+.flussu-selrccol_c:hover{
+    background-color: rgba(41, 41, 206, 0.1);
+    border:solid 2px rgb(65, 63, 226);
+}
+.flussu-selradio{
+    /*appearance: none;*/
+    background-color: #fff;
+    margin: 0;
+    font: inherit;
+    color: currentColor;
+    width: 1.15em;
+    height: 1.15em;
+    border: 0.15em solid currentColor;
+    border-radius: 50%;
+    transform: translateY(0.2em);
+    display: grid;
+    grid-template-columns: 1em auto;
+}
+.flussu-selcheck{
+    background-color: #fff;
+    margin: 0;
+    font: inherit;
+    color: currentColor;
+    width: 1.15em;
+    height: 1.15em;
+    border: 0.15em solid currentColor;
+    border-radius: 2%;
+    transform: translateY(0.2em);
+    display: grid;
+    grid-template-columns: 1em auto;
+}
+.flussu-selrclab{
+    font-size: 1.15rem;
+    font-weight: 500;
+    padding-left: 1.5em;
+    margin-top:-22px
+}
+
+.flussu-back {
+    /*background: #ffffff;*/
+}
+
+#flussu-overlay{
+    position: fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background: rgba(0,0,0,0.8) none 50% / contain no-repeat;
+    cursor: pointer;
+    transition: 0.3s;
+    visibility: hidden;
+    opacity: 0;
+  }
+  #flussu-overlay.open {
+    visibility: visible;
+    opacity: 1;
+  }
+  
+  #flussu-overlay:after { /* X button icon */
+    content: "\2715";
+    position: absolute;
+    color:#fff;
+    top: 10px;
+    right:20px;
+    font-size: 2em;
+  }
+
+.flussu_notify {
+    position: fixed;
+    top: 20px;
+    left: 10%;
+    width: 75%;
+    background-color: #802c2c;
+    color: #fff;
+    padding: 35px;
+    border-radius: 5px;
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+    text-align: center;
+    font-size:2em;
+    z-index: 9999999;
+}
+
+.flussu_notify.n_visible {
+    opacity: 1;
+}
+
+.flussu_notify.n_hidden {
+    opacity: 0;
+}
