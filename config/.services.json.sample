@@ -26,6 +26,16 @@
       "aws_access_key_id": "AKIAXXXXXXXXEXAMPLE",
       "aws_secret_access_key": "xxxxxx/xxxxxxxxxxxxxx/xxxxxxxxxxxxxxxEXAMPLE",
       "region": "us-east-1"
+    },
+    "ai_provider":{
+      "open_ai":{
+        "auth_key":"sk-876587568657865765765756",
+        "model":"o1-mini"
+      },
+      "xai_grok":{
+        "auth_key":"xai-7687687tyut87t8y7t8t78t8",
+        "model":"grok-3-mini-fast"
+      }
     }
   },
   "webhooks":{
