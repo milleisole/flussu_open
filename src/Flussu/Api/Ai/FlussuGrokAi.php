@@ -16,10 +16,10 @@
  * --------------------------------------------------------------------*
  * TBD- UNFINISHED
  * 
- * CLASS-NAME:       Flussu OpenAi interface - v1.0
+ * CLASS-NAME:       Flussu Grok interface - v1.0
  * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.3
  * VERSION REL.:     4.3.0 20250530 
- * UPDATE DATE:      30.05:2025 
+ * UPDATE DATE:      31.05:2025 
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\General;
@@ -58,6 +58,8 @@ class FlussuGrokAi implements IAiProvider
                     'Authorization' => 'Bearer ' . $this->_grok_ai_key,
                     'Content-Type'  => 'application/json',
                 ],
+                'timeout' => 60, // Total timeout in seconds
+                'connect_timeout' => 30, // Connection timeout in seconds
                 'json' => [
                     'model' => $this->_grok_ai_model, // Specifica il modello, verifica nella documentazione
                     'messages' => [
@@ -78,5 +80,11 @@ class FlussuGrokAi implements IAiProvider
         } catch (Exception $e) {
             return 'Error: ' . $e->getMessage();
         }
+    }
+    function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
+        /*
+
+        */
+        return [];
     }
 }

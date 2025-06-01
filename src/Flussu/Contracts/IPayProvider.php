@@ -20,7 +20,6 @@
  * UPDATES DATE:     25.02:2025 
  * -------------------------------------------------------*/
 namespace Flussu\Contracts;
-
 interface IPayProvider
 {
     /**

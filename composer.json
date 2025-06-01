@@ -42,6 +42,7 @@
         "ext-imagick": "^3.6",
         "ext-zip": "*",
         "dompdf/dompdf": "^2.0",
+        "google-gemini-php/client": "^2.0",
         "guzzlehttp/guzzle": "^7.8.0",
         "guzzlehttp/psr7": "^2.6.1",
         "juanantoniodelgado/stopwords": "^1.3",

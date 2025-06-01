@@ -287,10 +287,17 @@ class Executor{
                         $Sess->statusCallExt(true);
                         $Sess->recLog("AI provider: ".$innerParams[0]);
                         $Sess->recLog("call AI: ".$innerParams[1]);
-                        if ($innerParams[0]==0)
-                            $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::CHATGPT );
-                        else
-                            $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::GROK );
+                        switch  ($innerParams[0]){
+                            case 1:
+                                $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::GROK );
+                                break;
+                            case 2:
+                                $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::GEMINI );
+                                break;
+                            default:
+                                $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::CHATGPT );
+                                break;
+                        }
                         $reslt=$ctrl->Chat($innerParams[1]);
                         $Sess->assignVars($innerParams[2],$reslt);
                         $Sess->recLog("AI response: ".$reslt);

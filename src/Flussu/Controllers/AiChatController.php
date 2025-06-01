@@ -25,6 +25,7 @@ namespace Flussu\Controllers;
 use Flussu\General;
 use Flussu\Api\Ai\FlussuOpenAi;
 use Flussu\Api\Ai\FlussuGrokAi;
+use Flussu\Api\Ai\FlussuGeminAi;
 use Flussu\Contracts\IAiProvider;
 use Log;
 
@@ -32,15 +33,22 @@ use Log;
 enum Platform: int {
     case CHATGPT = 0;
     case GROK = 1;
+    case GEMINI = 2;
 }
 class AiChatController 
 {
     private IAiProvider $_aiClient;
     public function __construct(Platform $platform=Platform::CHATGPT,$model="",$chat_model=""){
-        if  ($platform->value ==0)
-            $this->_aiClient= new FlussuOpenAi($model,$chat_model);
-        else if ($platform->value == 1)
-            $this->_aiClient= new FlussuGrokAi($model);
+        switch ($platform) {
+            case Platform::CHATGPT:
+                $this->_aiClient= new FlussuOpenAi($model,$chat_model);
+                break;
+            case Platform::GROK:
+                $this->_aiClient= new FlussuGrokAi($model);
+                break;
+            case Platform::GEMINI:
+                $this->_aiClient= new FlussuGeminAi($model);
+        }
     }
 
     function Chat($sendText,$webPreview=false,$role="user"){

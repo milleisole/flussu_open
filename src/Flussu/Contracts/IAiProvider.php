@@ -34,4 +34,5 @@ interface IAiProvider
      */
     //public function createPayLink(string $description, string $totalCost, string $image);
     public function chat($text,$role);
+    public function chat_WebPreview($text,$session,$maxTokens,$temperature); 
 }
