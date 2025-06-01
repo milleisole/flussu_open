@@ -86,9 +86,12 @@ body {
 .flussu-inpArea,
 .flussu-select {
     font-size: 1.6rem;
-    width: 90%;
+    width: 100%;
     min-width: 180px;
-    padding:4px;
+    max-height: 100px; /* Imposta l'altezza massima del div */
+    border:solid 1px silver;
+    padding:8px; 
+    border-radius: 6px;
 }
 
 .flussu-inpText {
@@ -276,11 +279,13 @@ body {
 }
 .flussu-selrccol_c,
 .flussu-selrccol_r{
-    margin:10px;
+    margin:5px;
     background-color: rgba(0, 0, 0, 0.1);
-    padding:15px;
+    padding:10px;
     border-radius: 10px;
     border:solid 2px silver;
+    max-width:33%;
+    min-width: 150px;
 }
 .flussu-selrccol_r:hover{
     background-color: rgba(20, 0, 0, 0.05);
