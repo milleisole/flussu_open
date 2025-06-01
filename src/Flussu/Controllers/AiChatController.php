@@ -82,6 +82,14 @@ class AiChatController
         $replacement = '\n{t}$1{/t}';
         $retStr = preg_replace($pattern, $replacement, $retStr);
 
+        $pattern = '/^##(.*)$/m';
+        $replacement = '\n{t}{b}$1{/b}{/t}';
+        $retStr = preg_replace($pattern, $replacement, $retStr);
+
+        $pattern = '/^#(.*)$/m';
+        $replacement = '{hr}{t}{b}$1{/b}{/t}{hr}';
+        $retStr = preg_replace($pattern, $replacement, $retStr);
+
         return $retStr;
     }
 
