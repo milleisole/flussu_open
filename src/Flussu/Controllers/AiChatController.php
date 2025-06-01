@@ -23,12 +23,13 @@
  * -------------------------------------------------------*/
 namespace Flussu\Controllers;
 
-use Flussu\Api\Ai\FlussuDeepSeekAi;
 use Flussu\General;
+use Flussu\Contracts\IAiProvider;
 use Flussu\Api\Ai\FlussuOpenAi;
 use Flussu\Api\Ai\FlussuGrokAi;
 use Flussu\Api\Ai\FlussuGeminAi;
-use Flussu\Contracts\IAiProvider;
+use Flussu\Api\Ai\FlussuClaudeAi;
+use Flussu\Api\Ai\FlussuDeepSeekAi;
 use Log;
 
 
@@ -37,6 +38,7 @@ enum Platform: int {
     case GROK = 1;
     case GEMINI = 2;
     case DEEPSEEK = 3;
+    case CLAUDE = 4;
 }
 class AiChatController 
 {
@@ -51,6 +53,9 @@ class AiChatController
                 break;
             case Platform::GEMINI:
                 $this->_aiClient= new FlussuGeminAi($model);
+                break;
+            case Platform::CLAUDE:
+                $this->_aiClient= new FlussuClaudeAi($model);
                 break;
             case Platform::DEEPSEEK:
                 $this->_aiClient= new FlussuDeepSeekAi($model);

@@ -41,6 +41,7 @@
         "php": "^8.1",
         "ext-imagick": "^3.6",
         "ext-zip": "*",
+        "claude-php/claude-3-api": "^0.1.23",
         "deepseek-php/deepseek-php-client": "^2.0",
         "dompdf/dompdf": "^2.0",
         "google-gemini-php/client": "^2.0",

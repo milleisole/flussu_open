@@ -29,24 +29,6 @@ use DeepSeek\Enums\Models;
 use Log;
 use Exception;
 
-/* 
-
-$yourApiKey = getenv('YOUR_API_KEY');
-$client = Gemini::client($yourApiKey);
-
-$result = $client->generativeModel(model: 'gemini-2.0-flash')->generateContent('Hello');
-$result->text(); // Hello! How can I assist you today?
-
-// Helper method usage
-$result = $client->generativeModel(
-    model: GeminiHelper::generateGeminiModel(
-        variation: ModelVariation::FLASH,
-        generation: 2.5,
-        version: "preview-04-17"
-    ), // models/gemini-2.5-flash-preview-04-17
-);
-$result->text(); // Hello! How can I assist you today
- */
 class FlussuDeepSeekAi implements IAiProvider
 {
     private $_aiErrorState=false;
