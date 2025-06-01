@@ -35,6 +35,14 @@
       "xai_grok":{
         "auth_key":"xai-7687687tyut87t8y7t8t78t8",
         "model":"grok-3-mini-fast"
+      },
+      "ggl_gemini":{
+        "auth_key":"ytuyguyg867t98g876t89y67tg",
+        "model":"gemini-2.0-flash"
+      },
+      "deepseek":{
+        "auth_key":"hiyg96g9ygv97g6978gy69g6",
+        "model":"deepseek-chat"
       }
     }
   },

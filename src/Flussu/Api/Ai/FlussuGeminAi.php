@@ -19,7 +19,7 @@
  * CLASS-NAME:       Flussu Gemini interface - v1.0
  * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.3
  * VERSION REL.:     4.3.0 20250530 
- * UPDATE DATE:      30.05:2025 
+ * UPDATE DATE:      31.05:2025 
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\Contracts\IAiProvider;
@@ -30,24 +30,6 @@ use Gemini;
 use Log;
 use Exception;
 
-/* 
-
-$yourApiKey = getenv('YOUR_API_KEY');
-$client = Gemini::client($yourApiKey);
-
-$result = $client->generativeModel(model: 'gemini-2.0-flash')->generateContent('Hello');
-$result->text(); // Hello! How can I assist you today?
-
-// Helper method usage
-$result = $client->generativeModel(
-    model: GeminiHelper::generateGeminiModel(
-        variation: ModelVariation::FLASH,
-        generation: 2.5,
-        version: "preview-04-17"
-    ), // models/gemini-2.5-flash-preview-04-17
-);
-$result->text(); // Hello! How can I assist you today
- */
 class FlussuGeminAi implements IAiProvider
 {
     private $_aiErrorState=false;

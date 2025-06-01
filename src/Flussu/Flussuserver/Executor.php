@@ -294,6 +294,9 @@ class Executor{
                             case 2:
                                 $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::GEMINI );
                                 break;
+                            case 3:
+                                $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::DEEPSEEK );
+                                break;
                             default:
                                 $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::CHATGPT );
                                 break;
