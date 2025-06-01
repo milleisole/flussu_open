@@ -29,20 +29,24 @@
     },
     "ai_provider":{
       "open_ai":{
-        "auth_key":"sk-876587568657865765765756",
+        "auth_key":"6768-insert-your-api-key-8768",
         "model":"o1-mini"
       },
       "xai_grok":{
-        "auth_key":"xai-7687687tyut87t8y7t8t78t8",
+        "auth_key":"6768-insert-your-api-key-8768",
         "model":"grok-3-mini-fast"
       },
       "ggl_gemini":{
-        "auth_key":"ytuyguyg867t98g876t89y67tg",
+        "auth_key":"6768-insert-your-api-key-8768",
         "model":"gemini-2.0-flash"
       },
       "deepseek":{
-        "auth_key":"hiyg96g9ygv97g6978gy69g6",
+        "auth_key":"6768-insert-your-api-key-8768",
         "model":"deepseek-chat"
+      },
+      "ant_claude":{
+        "auth_key":"6768-insert-your-api-key-8768",
+        "model":"claude-3-5-sonnet-20241022"
       }
     }
   },
