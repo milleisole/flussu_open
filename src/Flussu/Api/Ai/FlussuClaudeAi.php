@@ -28,6 +28,20 @@ use Claude\Claude3Api\Client;
 use Claude\Claude3Api\Config;
 use Log;
 use Exception;
+/*
+curl https://api.anthropic.com/v1/messages \
+        --header "x-api-key: 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" \
+        --header "anthropic-version: 2023-06-01" \
+        --header "content-type: application/json" \
+        --data \
+    '{
+        "model": "claude-3-5-sonnet-20241022",
+        "max_tokens": 1024,
+        "messages": [
+            {"role": "user", "content": "Hello, world"}
+        ]
+    }'
+*/
 
 class FlussuClaudeAi implements IAiProvider
 {
