@@ -51,7 +51,26 @@ class FlussuGrokAi implements IAiProvider
 
         }
     }
-     function chat($sendText,$role="user"){
+    function chat($preChat,$sendText,$role="user"){
+        foreach ($preChat as $message) {
+            if (isset($message["message"]) && !isset($message["content"])) {
+                $message["content"] = $message["message"];
+                unset($message["content"]); 
+            }
+        }
+        $preChat[]= [
+            'role' => $role,
+            'content' => $sendText,
+        ];
+        return $this->_chatContinue($preChat);
+    }
+
+    private function _chatContinue($arrayText){
+        $payload = [
+            'model' => $this->_grok_ai_model,
+            'messages' => $arrayText,
+            'max_tokens' => 2000
+        ];
         try {
             $response = $this->client->post('chat/completions', [ 
                 'headers' => [
@@ -60,25 +79,21 @@ class FlussuGrokAi implements IAiProvider
                 ],
                 'timeout' => 60, // Total timeout in seconds
                 'connect_timeout' => 30, // Connection timeout in seconds
-                'json' => [
-                    'model' => $this->_grok_ai_model, // Specifica il modello, verifica nella documentazione
-                    'messages' => [
-                        [
-                            'role' => $role,
-                            'content' => $sendText,
-                        ],
-                    ],
-                    'max_tokens' => 2000, 
-                ],
+                'json'=>$payload
             ]);
-            $data = json_decode($response->getBody(), true);
-            if (isset($data['choices'][0]['message']['content'])) {
-                return $data['choices'][0]['message']['content'];
-            } else {
-                return "Error: no Grok response. Details: " . print_r($data, true);
-            }
+            $data=$response->getBody();
+
+            if ($response->getStatusCode() !== 200)
+                return [$arrayText,"Error: HTTP status code " . $response->getStatusCode() . ". Details: " . $data];
+
+            $data = json_decode($data, true);
+            if (isset($data['choices'][0]['message']['content'])) 
+                return [$arrayText,$data['choices'][0]['message']['content']];
+            else 
+                return [$arrayText,"Error: no Grok response. Details: " . print_r($data, true)];
+
         } catch (Exception $e) {
-            return 'Error: ' . $e->getMessage();
+            return [$arrayText,'Error: ' . $e->getMessage()];
         }
     }
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){

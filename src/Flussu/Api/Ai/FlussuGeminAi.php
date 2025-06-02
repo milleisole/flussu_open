@@ -26,6 +26,8 @@ use Flussu\Contracts\IAiProvider;
 use Flussu\General;
 use Gemini\Enums\ModelVariation;
 use Gemini\GeminiHelper;
+use Gemini\Data\Content;
+use Gemini\Enums\Role;
 use Gemini;
 use Log;
 use Exception;
@@ -51,15 +53,43 @@ class FlussuGeminAi implements IAiProvider
         }
     }
 
-    function chat($sendText,$role="user"){
+    function chat($preChat,$sendText,$role="user"){
+        foreach ($preChat as $message) {
+            if (isset($message["message"]) && !isset($message["content"])) {
+                $message["content"] = $message["message"];
+                unset($message["content"]); 
+            }
+        }
+        return $this->_chatContinue($preChat,$sendText,$role);
+    }
 
-        $result = $this->_gemini->generativeModel(model: $this->_gemini_model)->generateContent(
-            $sendText /*,
-            role: $role , // 'user' or 'assistant'
-            maxOutputTokens: 500, // Optional, default is 150
-            temperature: 0.7 // Optional, default is 0.7*/
-        );
-        return $result->text();
+    private function _chatContinue($oldMsgArray,$sendText="",$role="user"){
+        // Initialize the Gemini client
+
+        // Converti l'array $messaggi in un array di oggetti Content
+        $history = array_map(function ($msg) {
+            $role = ($msg['role'] === 'user') ? Role::USER : Role::MODEL;
+            return Content::parse(
+                part: $msg['content'],
+                role: $role
+            );
+        }, $oldMsgArray);
+
+        try {
+            // Inizializza la chat con la cronologia
+            $chat = $this->_gemini->generativeModel($this->_gemini_chat_model)->startChat($history);
+
+            $oldMsgArray[] = ['role' => $role, 'content' => $sendText];
+            // Invia il nuovo messaggio
+            $response = $chat->sendMessage($sendText);
+            $responseText=$response->text();
+        } catch (\Exception $e) {
+            $responseText=$e->getMessage();
+        }
+        return [
+            $oldMsgArray,
+            $responseText
+        ];
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){

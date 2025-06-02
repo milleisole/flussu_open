@@ -304,7 +304,7 @@ class Executor{
                                 $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::CHATGPT );
                                 break;
                         }
-                        $reslt=$ctrl->Chat($innerParams[1]);
+                        $reslt=$ctrl->Chat($Sess->getId(), $innerParams[1]);
                         $Sess->assignVars($innerParams[2],$reslt);
                         $Sess->recLog("AI response: ".$reslt);
                         break;

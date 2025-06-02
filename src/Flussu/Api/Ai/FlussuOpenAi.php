@@ -81,14 +81,28 @@ class FlussuOpenAi implements IAiProvider
         }
     }
 
-    function chat($sendText,$role="user"){
+    function chat($preChat,$sendText,$role="user"){
+        foreach ($preChat as $message) {
+            if (isset($message["message"]) && !isset($message["content"])) {
+                $message["content"] = $message["message"];
+                unset($message["content"]); 
+            }
+        }
+        $preChat[]= [
+            'role' => $role,
+            'content' => $sendText,
+        ];
+        return $this->_chatContinue($preChat);
+    }
+
+    private function _chatContinue($arrayText){
         $result = $this->_open_ai->chat()->create([
             'model' => $this->_open_ai_chat_model,
-            'messages' => [
-                ['role' => $role, 'content' => $sendText],
-            ],
+            'messages' => $arrayText,
+            /* 'temperature' => 0.7,*/
+            'stream'      => false,
         ]);
-        return $result->choices[0]->message->content; 
+        return [$arrayText,$result->choices[0]->message->content]; 
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){

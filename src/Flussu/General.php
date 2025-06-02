@@ -204,6 +204,41 @@ class General {
             }
         }
     }
+    static function ObjPersist($id,$obj)
+    {
+        $fname=hash('sha256', $id);
+        $cache_dir=$_SERVER['DOCUMENT_ROOT']."/../Cache/Objects/";
+        $fname=str_replace("//","/",$cache_dir.$fname);
+        try{
+            if (!file_exists($cache_dir."/"))
+                mkdir($cache_dir."/", 0775, true);
+            $cacheContent=self::_smartEncrypt(json_encode($obj));
+            file_put_contents($fname, $cacheContent);
+            self::Log_nocaller(" # OBJ_Persist -> ".$id);  
+        } catch (\Throwable $e) {
+            self::Log("GENERAL: OBJ PERSIST ERROR: ".json_encode($e));
+        }
+    } 
+   
+    static function ObjRestore($id,$associative=false)
+    {
+        $fname=hash('sha256', $id);
+        $cache_dir=$_SERVER['DOCUMENT_ROOT']."/../Cache/Objects/";
+        $fname=str_replace("//","/",$cache_dir.$fname);
+        if (file_exists($fname)){
+            try{
+                $cacheContent=@file_get_contents($fname);
+                if ($cacheContent===false)
+                    return [];
+                self::Log_nocaller(" # OBJ_Restore <- ".$id);  
+                return json_decode(self::_smartDecrypt($cacheContent),$associative);
+            } catch (\Throwable $e) {
+                self::Log("GENERAL: OBJ RESTORE ERROR: ".json_encode($e));
+            }
+        }
+        return [];
+    } 
+
     static private function _smartEncrypt($value){
         return strrev(bin2hex($value));
     }
@@ -240,7 +275,6 @@ class General {
         }
         return false;
     }
-
     static function deleteDirectory($dir) {
         if (!file_exists($dir)) 
             return true;

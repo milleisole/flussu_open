@@ -51,11 +51,24 @@ class FlussuDeepSeekAi implements IAiProvider
         }
     }
 
-    function chat($sendText,$role="user"){
+    function chat($preChat,$sendText,$role="user"){
+        foreach ($preChat as $message) {
+            if (isset($message["message"]) && !isset($message["content"])) {
+                $message["content"] = $message["message"];
+                unset($message["content"]); 
+            }
+        }
+        $preChat[]= [
+            'role' => $role,
+            'content' => $sendText,
+        ];
+        return $this->_chatContinue($preChat);
+    }
 
-        $result = $this->_deepseek->query(json_encode(["role"=>$role,"message"=>$sendText]))->run();
+    private function _chatContinue($arrayText){
+        $result = $this->_deepseek->query(json_encode(["messages"=>$arrayText]))->run();
         $res=json_decode($result, true);
-        return $res["choices"][0]["message"]["content"] ?? "Error: no DeepSeek response. Details: " . $result;
+        return [$arrayText,($res["choices"][0]["message"]["content"] ?? "Error: no DeepSeek response. Details: " . $result)];
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){

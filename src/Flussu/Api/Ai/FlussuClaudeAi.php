@@ -51,13 +51,27 @@ class FlussuClaudeAi implements IAiProvider
         }
     }
 
-    function chat($sendText,$role="user"){
-        $response = $this->_claude3->chat(['role' => $role, "content" => $sendText]);
+    function chat($preChat,$sendText,$role="user"){
+        foreach ($preChat as $message) {
+            if (isset($message["message"]) && !isset($message["content"])) {
+                $message["content"] = $message["message"];
+                unset($message["content"]); 
+            }
+        }
+        $preChat[]= [
+            'role' => $role,
+            'content' => $sendText,
+        ];
+        return $this->_chatContinue($preChat);
+    }
+
+    private function _chatContinue($sendArray){
+        $response = $this->_claude3->chat($sendArray);
         /*if ($response->isError()) {
             //Log::error("Claude API Error: " . $response->getErrorMessage());
             return "Error: no Claude response. Details: " . $response->getErrorMessage();
         } */       
-        return $response->getContent()[0]['text'];
+        return [$sendArray,$response->getContent()[0]['text']];
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){

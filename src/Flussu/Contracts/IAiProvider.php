@@ -33,6 +33,7 @@ interface IAiProvider
      * @return mixed
      */
     //public function createPayLink(string $description, string $totalCost, string $image);
-    public function chat($text,$role);
+    public function chat($preChat,$text,$role);
+    //public function chatContinue($arrayText);
     public function chat_WebPreview($text,$session,$maxTokens,$temperature); 
 }

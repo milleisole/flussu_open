@@ -63,16 +63,28 @@ class AiChatController
         }
     }
 
-    function Chat($sendText,$webPreview=false,$role="user"){
-        $result="(no result)";
-        if (!$webPreview) 
-            $result=$this->_aiClient->Chat($sendText, $role); 
-        else{
-            $sess="6768768768768768";
-            $result= $this->_aiClient->Chat_WebPreview($sendText, $sess,150,0.7); 
+    function Chat($sessId, $sendText,$webPreview=false,$role="user"){
+        
+        // init 
+        $preChat=General::ObjRestore("AiCht".$sessId,true); 
+        if (is_null($preChat) || empty($preChat) || count($preChat)==0){
+            $preChat[]=['role'=>'user','content'=>'You are a Flussu assistant. Flussu is a platform for managing and automating workflows, tasks, and communications, written by Aldo Prinzi, a programmer who had a blog at https://aldo.prinzi.it . You are designed to assist users answering in the samelanguage the users write te questions and also answering questions about Flussu features, and providing guidance on how to use it effectively. Your responses should be clear, concise, and helpful. If you do not know the answer to a question, you should politely inform the user that you do not have that information. The flussu website is https://www.flussu.com . The flussu producer is Mille Isole SRL an italian compay and the website is https://www.milleisole.com .'];
         }
 
-        $result = preg_replace('/\n\s*\n+/', "\n", $result);
+        $result="(no result)";
+        if (!$webPreview) 
+            $result=$this->_aiClient->Chat($preChat,$sendText, $role); 
+        else
+            $result=$this->_aiClient->Chat_WebPreview($sendText, $sessId,150,0.7); 
+
+        $History=$result[0];
+        $History[]= [
+            'role' => 'assistant',
+            'content' => $result[1],
+        ];
+        General::ObjPersist("AiCht".$sessId,$History); 
+
+        $result = preg_replace('/\n\s*\n+/', "\n", $result[1]);
 
         $pattern = '/\*\*(.*?)\*\*/';
         $replacement = '{b}$1{/b}';
