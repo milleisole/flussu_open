@@ -71,7 +71,9 @@ class FlussuClaudeAi implements IAiProvider
             //Log::error("Claude API Error: " . $response->getErrorMessage());
             return "Error: no Claude response. Details: " . $response->getErrorMessage();
         } */       
-        return [$sendArray,$response->getContent()[0]['text']];
+        
+        $resChat=[$sendArray,$response->getContent()[0]['text']];
+        return $resChat;
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
