@@ -1304,7 +1304,7 @@ try {
         } while ($a!==false);
 
         $exec = str_replace("sendEmail","send_Emaaail", str_replace("sendPremiumEmail","sendPremium_Emaaail", $exec));
-        $exec = str_replace(array("`",chr(96)),array("'","'"), $exec);
+        //$exec = str_replace(array("`",chr(96)),array("'","'"), $exec);
         $preExec=$exec;
 
         $search_line=array(

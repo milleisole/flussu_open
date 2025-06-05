@@ -208,13 +208,9 @@ class Environment {
     // callingBidIdentifier can be:  "1234-1234-1234-1234" OR "exit(0)" OR "[W456756546AB]"(wid) OR "[W456756546AB]:1234-1234-1234-1234"(wid/bid);
     public function notifyCallback      ($callingBidIdentifier)         {$this->_addToResArray("notify", array("NC","",$callingBidIdentifier));}
 
-
-
-
-    // v4.3 Ai Chat
+    // v4.3 Ai Agent Chat
+    public function initAiAgent         ($initChatText)  {$this->_addToResArray("initAiAgent", array($initChatText));}
     public function sendToAi            ($sendText, $varResponseName,$provider=0)  {$this->_addToResArray("sendToAi", array($provider,$sendText, $varResponseName));}
-
-
 
 /*
     // v2.8 OpenAi Query
@@ -226,8 +222,6 @@ class Environment {
     public function startOpenAiChat     ($initText)                     {$this->_addToResArray("openAi-stsess", array($initText));}
     public function chatOpenAi          ($chatText, $varResponseName)   {$this->_addToResArray("openAi-chat", array($chatText, $varResponseName));}
 */
-
-
 
     // v2.8 - create MultiRec workflow
     public function createNewMultirecWf ($wid,$uid,$uemail,$arrData,$varName) {$this->_addToResArray("newMRec", array($wid,$uid,$uemail,$arrData,$varName));}

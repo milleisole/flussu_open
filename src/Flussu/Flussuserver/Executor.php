@@ -60,7 +60,8 @@ namespace Flussu\Flussuserver;
 
 use Flussu\General;
 use Flussu\Flussuserver\NC\HandlerNC;
-
+use Flussu\Controllers\Platform;
+use Flussu\Controllers\AiChatController;
 class Executor{
     private $_xcelm=array();
     private $_en=0;
@@ -281,7 +282,12 @@ class Executor{
                         }
                         $Sess->statusCallExt(false);
                         break;
-
+                    case "initAiAgent":
+                        // V4.3 - Init AI Agent
+                        $ctrl=new AiChatController(Platform::INIT );
+                        $ctrl->initAgent($Sess->getId(), $innerParams[0]);
+                        $Sess->recLog("AI inited with ".strlen($innerParams[0])." chars");
+                        break;
                     case "sendToAi":
                         // V4.3 - Send to AI
                         $Sess->statusCallExt(true);
@@ -289,22 +295,22 @@ class Executor{
                         $Sess->recLog("call AI: ".$innerParams[1]);
                         switch  ($innerParams[0]){
                             case 1:
-                                $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::GROK );
+                                $ctrl=new AiChatController(Platform::GROK);
                                 break;
                             case 2:
-                                $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::GEMINI );
+                                $ctrl=new AiChatController(Platform::GEMINI);
                                 break;
                             case 3:
-                                $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::DEEPSEEK );
+                                $ctrl=new AiChatController(Platform::DEEPSEEK);
                                 break;
                             case 4:
-                                $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::CLAUDE );
+                                $ctrl=new AiChatController(Platform::CLAUDE);
                                 break;
                             default:
-                                $ctrl=new \Flussu\Controllers\AiChatController(\Flussu\Controllers\Platform::CHATGPT );
+                                $ctrl=new AiChatController(Platform::CHATGPT);
                                 break;
                         }
-                        $reslt=$ctrl->Chat($Sess->getId(), $innerParams[1]);
+                        $reslt=$ctrl->chat($Sess->getId(), $innerParams[1]);
                         $Sess->assignVars($innerParams[2],$reslt);
                         $Sess->recLog("AI response: ".$reslt);
                         break;

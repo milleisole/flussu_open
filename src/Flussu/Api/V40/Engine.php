@@ -230,8 +230,6 @@ class Engine {
                 }
             }
             $frmBid=General::getGetOrPost("BID");
-
-            
             $res=$this->execWorker($wid,$sid,$frmBid,$terms,$cmd);
         }
         return $res; 
