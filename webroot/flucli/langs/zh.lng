@@ -1,0 +1,19 @@
+{
+  "language": "chinese",
+  "values": {
+    "send": "发送",
+    "upload": "添加文件",
+    "languages": "语言",
+    "reset": "重置",
+    "privacy": "<a href=\"/flucli/privacy/priv.php?lang=zh&tit=隐私政策\">有关隐私信息，请点击 这里</a>",
+    "write_message": "输入消息...",
+    "user": "用户",
+    "session": "会话",
+    "select_language": "选择语言",
+    "ok": "确定",
+    "abort": "取消",
+    "confirm_restart": "您确定要重新开始会话吗？",
+    "remove": "删除"
+  }
+}
+

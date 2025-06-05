@@ -1,0 +1,19 @@
+{
+  "language":"italian",
+  "values": {
+    "send": "Invia",
+    "upload": "Aggiungi file",
+    "languages": "Lingue",
+    "reset": "Ricomincia",
+    "privacy": "<a href=\"/flucli/privacy/priv.php?lang=it&tit=Privacy%20Policy\">Clicca qui per le informazioni sulla privacy</a>",
+    "write_message": "Scrivi un messaggio...",
+    "user": "Utente",
+    "session": "Sessione",
+    "select_language": "Seleziona lingua",
+    "ok": "OK",
+    "abort":"Annulla",
+    "confirm_restart": "Vuoi davvero ricominciare la sessione?",
+    "remove": "Rimuovi"
+  }
+}
+

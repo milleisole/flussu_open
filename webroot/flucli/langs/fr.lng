@@ -1,0 +1,18 @@
+{
+  "language": "french",
+  "values": {
+    "send": "Envoyer",
+    "upload": "Ajouter un fichier",
+    "languages": "Langues",
+    "reset": "Redémarrer",
+    "privacy": "<a href=\"/flucli/privacy/priv.php?lang=fr&tit=Confidentialité\">Cliquez pour les informations sur la confidentialité</a>",
+    "write_message": "Écrivez un message...",
+    "user": "Utilisateur",
+    "session": "Session",
+    "select_language": "Choisir la langue",
+    "ok": "OK",
+    "abort":"Annuler",
+    "confirm_restart": "Voulez-vous vraiment recommencer la session ?",
+    "remove": "Supprimer"
+  }
+}

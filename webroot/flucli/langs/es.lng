@@ -1,0 +1,18 @@
+{
+  "language":"spanish",
+  "values": {
+    "send": "Enviar",
+    "upload": "Añadir archivo",
+    "languages": "Idiomas",
+    "reset": "Reiniciar",
+    "privacy": "<a href=\"/flucli/privacy/priv.php?lang=es&tit=Privacidad\">Clic para información sobre privacidad</a>",
+    "write_message": "Escribe un mensaje...",
+    "user": "Usuario",
+    "session": "Sesión",
+    "select_language": "Selecciona idioma",
+    "ok": "OK",   
+    "abort":"Cancelar",
+    "confirm_restart": "¿Realmente quieres reiniciar la sesión?",
+    "remove": "Eliminar"
+  }
+}

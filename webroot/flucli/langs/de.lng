@@ -1,0 +1,17 @@
+{
+  "language": "german",
+  "values": {
+    "send": "Senden",
+    "upload": "Datei hinzufügen",
+    "languages": "Sprachen",
+    "reset": "Neu starten",
+    "privacy": "<a href=\"/flucli/privacy/priv.php?lang=de&tit=Datenschutzinformationen\">Klicken sie für Datenschutzinformationen</a>",
+    "write_message": "Nachricht schreiben...",
+    "user": "Benutzer",
+    "session": "Sitzung",
+    "select_language": "Sprache auswählen",
+    "ok": "OK",   
+    "confirm_restart": "Möchten Sie die Sitzung wirklich neu starten?",
+    "remove": "Entfernen"
+  }
+}

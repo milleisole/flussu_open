@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.2 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
  * -------------------------------------------------------*
  * CREATED:  25.01.2021 - Aldus - Flussu v2.0
  * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * UPDATES DATE:     04.06:2025 
  * -------------------------------------------------------*/
 /**
  * The Engine class is responsible for handling the core execution flow of the Flussu API within the Flussu server.
@@ -171,6 +171,7 @@ class Engine {
 
         $wid=General::getGetOrPost("WID");
         $sid=General::getGetOrPost("SID");
+        if ($sid=="null") $sid="";
 
         if (is_numeric($wid)){
             $wid=HandlerNC::Wofoid2WID($wid);
