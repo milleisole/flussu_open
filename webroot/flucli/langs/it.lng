@@ -5,7 +5,7 @@
     "upload": "Aggiungi file",
     "languages": "Lingue",
     "reset": "Ricomincia",
-    "privacy": "<a href=\"/flucli/privacy/priv.php?lang=it&tit=Privacy%20Policy\">Clicca qui per le informazioni sulla privacy</a>",
+    "privacy": "<a href=\"/flucli/privacy/priv.php?lang=it&tit=Privacy%20Policy\">Clicca qui per la privacy policy</a>",
     "write_message": "Scrivi un messaggio...",
     "user": "Utente",
     "session": "Sessione",
@@ -13,6 +13,7 @@
     "ok": "OK",
     "abort":"Annulla",
     "confirm_restart": "Vuoi davvero ricominciare la sessione?",
+    "confirm_exipred": "La sessione è scaduta. Vuoi ricominciare?",
     "remove": "Rimuovi"
   }
 }

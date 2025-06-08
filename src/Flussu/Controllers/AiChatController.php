@@ -55,7 +55,7 @@ class AiChatController
                 break;
             case Platform::GEMINI:
                 $this->_aiClient= new FlussuGeminAi($model);
-                $this->_linkify=1;
+                $this->_linkify=0;
                 break;
             case Platform::CLAUDE:
                 $this->_aiClient= new FlussuClaudeAi($model);
@@ -124,6 +124,19 @@ class AiChatController
             General::ObjPersist("AiCht".$sessId,$preChat); 
         }
     }
+
+    /**
+     * @param string $sessId
+     * @param string $sendText
+     * @param bool $webPreview
+     * @param string $role
+     * @param int $maxTokens
+     * @param float $temperature
+     * @return :
+     *      string: textual reply
+     *      array: command for the client
+     * 
+     */
     function chat($sessId, $sendText, $webPreview=false, $role="user", $maxTokens=150, $temperature=0.7) {
         $result="(no result)";
         
@@ -137,50 +150,72 @@ class AiChatController
         else
             $result=$this->_aiClient->Chat_WebPreview($sendText, $sessId,$maxTokens,$temperature); 
 
-        $History=$result[0];
-        $History[]= [
-            'role' => 'assistant',
-            'content' => $result[1],
-        ];
-        General::ObjPersist("AiCht".$sessId,$History); 
 
-        $result = preg_replace('/\n\s*\n+/', "\n", $result[1]);
-
-        $pattern = '/\*\*(.*?)\*\*/';
-        $replacement = '{b}$1{/b}';
-        $retStr = preg_replace($pattern, $replacement, $result);
-
-        $pattern = '/^###(.*)$/m';
-        $replacement = '\n{t}$1{/t}';
-        $retStr = preg_replace($pattern, $replacement, $retStr);
-
-        $pattern = '/^##(.*)$/m';
-        $replacement = '\n{t}{b}$1{/b}{/t}';
-        $retStr = preg_replace($pattern, $replacement, $retStr);
-
-        $pattern = '/^#(.*)$/m';
-        $replacement = '{hr}{t}{b}$1{/b}{/t}{hr}';
-        $retStr = preg_replace($pattern, $replacement, $retStr);
-
-        if ($this->_linkify==1) 
-            $retStr = $this->linkifyUrls($retStr);
-
-        return $retStr;
+        $res=$this->replyIsCommand($result[1]);
+        if (!$res[0]){
+            $History=$result[0];
+            $History[]= [
+                'role' => 'assistant',
+                'content' => $result[1],
+            ];
+            General::ObjPersist("AiCht".$sessId,$History); 
+            return "{MD}".$result[1]."{/MD}";
+        } 
+        return $res[1];
     }
 
-    function linkifyUrls(string $input): string
-    {
-        $pattern = '~\bhttps?://[^\s<>"\'()]+~i';        // URL “grezzo” (fuori da virgolette, parentesi, ecc.)
-        $callback = function ($match) {
-            $url = $match[0];                            // l’URL trovato
-            $safe = htmlspecialchars($url, ENT_QUOTES);  // evita XSS
-            return "[A]{$safe}[/A]";
-        };
-        $res= preg_replace_callback($pattern, $callback, $input);
-        $res=str_replace(["[A]","[/A]"], ["{a}","{/a}"], $res);
-
-        return $res;
+    function replyIsCommand(string $text): array {
+        try{
+            if (!is_null($text) && strlen($text)>10) {
+                $text=$this->extractFlussuJson($text);   
+                if (!is_null($text) && strlen($text)>10 && strlen($text)<300) {
+                    $abc=json_decode($text,true);
+                    if (count($abc)>0 && is_array($abc) && isset($abc['FLUSSU_CMD']) )
+                        return [true, $abc]; // not a command
+                }
+            }
+        } catch (\Throwable $e){
+            // do nothing... $e is just a debuggable point
+        }
+        return [false, $text]; // not a command
     }
 
+    function extractFlussuJson($inputString) {
+        // Trova la posizione di "FLUSSU_CMD" nella stringa
+        $flussuPos = strpos($inputString, '"FLUSSU_CMD"');
+        if ($flussuPos === false) {
+            return ""; // "FLUSSU_CMD" non trovato
+        }
 
+        // Trova la parentesi graffa aperta più vicina prima di "FLUSSU_CMD"
+        $startPos = strrpos($inputString, '{', $flussuPos - strlen($inputString));
+        if ($startPos === false) {
+            return ""; // Nessuna parentesi graffa aperta trovata
+        }
+
+        // Conta le parentesi graffe per trovare la chiusura corrispondente
+        $braceCount = 1;
+        $currentPos = $startPos + 1;
+        $length = strlen($inputString);
+
+        while ($currentPos < $length && $braceCount > 0) {
+            if ($inputString[$currentPos] === '{') {
+                $braceCount++;
+            } elseif ($inputString[$currentPos] === '}') {
+                $braceCount--;
+            }
+            $currentPos++;
+        }
+
+        // Se braceCount è 0, abbiamo trovato la chiusura corrispondente
+        if ($braceCount === 0) {
+            $jsonString = substr($inputString, $startPos, $currentPos - $startPos);
+            // Verifica se il JSON è valido
+            if (json_decode($jsonString) !== null) {
+                return $jsonString;
+            }
+        }
+
+        return "";
+    }
 }

@@ -206,6 +206,9 @@ document.addEventListener('click', function(e) {
 document.getElementById('theme-toggle-switch').addEventListener('click', function () {
   toggleTheme();
   updateThemeSwitch();
+  setTimeout(() => {
+    setHighlightTheme(document.documentElement.classList.contains('dark'));
+  }, 300);
 });
 function toggleTheme() {
   document.documentElement.classList.toggle('dark');
@@ -236,20 +239,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 
-function showAlert(msg, callback) {
-  const modal = document.getElementById('custom-alert');
-  const content = document.getElementById('custom-alert-content');
-  const okBtn = document.getElementById('custom-alert-ok');
-  const abortBtn = document.getElementById('custom-alert-abort');
-  content.textContent = msg;
-  modal.classList.remove('hidden');
-  okBtn.onclick = () => {
-    modal.classList.add('hidden');
-    if (callback) callback();
-  };
-  abortBtn.onclick = () => {
-    modal.classList.add('hidden');
-  };
+function showAlert(msg, callback,noButtons=false) {
+    const modal = document.getElementById('custom-alert');
+    const content = document.getElementById('custom-alert-content');
+    const okBtn = document.getElementById('custom-alert-ok');
+    const abortBtn = document.getElementById('custom-alert-abort');
+    content.textContent = msg;
+    modal.classList.remove('hidden');
+    if (noButtons==true) {
+        okBtn.style.display="none";
+        abortBtn.style.display="none";
+    } else {
+        okBtn.style.display="";
+        abortBtn.style.display="";
+    }
+    okBtn.onclick = () => {
+        modal.classList.add('hidden');
+        if (callback) callback();
+    };
+    abortBtn.onclick = () => {
+        modal.classList.add('hidden');
+    };
 }
 
 window.addEventListener('resize', ()=> {
@@ -432,10 +442,19 @@ function setCookie(name, value, maxAgeSeconds) {
 }
 
 function checkPrivacyCookie() {
-  const accepted = getCookie('privacy_accepted');
-  if (!accepted) {
-    document.getElementById('privacy-modal').classList.remove('hidden');
-  }
+    const urlParams = new URLSearchParams(window.location.search);
+    const ifraValue = urlParams.get('ifra');
+
+    // Se ifra è presente e vale "1", non mostrare il modale della privacy
+    if (ifraValue === '1') {
+        console.log('Parametro ifra=1 rilevato, richiesta di accettazione privacy bypassata.');
+        return; // Esce dalla funzione senza mostrare il modale
+    }
+
+    const accepted = getCookie('privacy_accepted');
+    if (!accepted) {
+        document.getElementById('privacy-modal').classList.remove('hidden');
+    }
 }
 
 function updatePrivacyTexts(lang) {
@@ -471,4 +490,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+function setHighlightTheme(dark) {
+  const oldTheme = document.getElementById('hljs-theme');
+  if (oldTheme) oldTheme.remove();
+
+  const link = document.createElement('link');
+  link.id = 'hljs-theme';
+  link.rel = 'stylesheet';
+  link.href = dark
+    ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css'
+    : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+
+  document.head.appendChild(link);
+}
 

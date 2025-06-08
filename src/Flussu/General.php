@@ -197,7 +197,7 @@ class General {
                     return null;
                 // ------------------------------------------------------------
 
-                self::Log_nocaller(" #".self::getCaller(debug_backtrace())."# - Deserialize <- ".$objId);   
+                //self::Log_nocaller(" #".self::getCaller(debug_backtrace())."# - Deserialize <- ".$objId);   
                 return self::_smartDecrypt(json_decode($cacheContent)->image);
             } catch (\Throwable $e) {
                 self::Log("GENERAL:DESERIALIZE ERROR: ".json_encode($e));
@@ -214,7 +214,7 @@ class General {
                 mkdir($cache_dir."/", 0775, true);
             $cacheContent=self::_smartEncrypt(json_encode($obj));
             file_put_contents($fname, $cacheContent);
-            self::Log_nocaller(" # OBJ_Persist -> ".$id);  
+            //self::Log_nocaller(" # OBJ_Persist -> ".$id);  
         } catch (\Throwable $e) {
             self::Log("GENERAL: OBJ PERSIST ERROR: ".json_encode($e));
         }
@@ -230,7 +230,7 @@ class General {
                 $cacheContent=@file_get_contents($fname);
                 if ($cacheContent===false)
                     return [];
-                self::Log_nocaller(" # OBJ_Restore <- ".$id);  
+                //self::Log_nocaller(" # OBJ_Restore <- ".$id);  
                 return json_decode(self::_smartDecrypt($cacheContent),$associative);
             } catch (\Throwable $e) {
                 self::Log("GENERAL: OBJ RESTORE ERROR: ".json_encode($e));

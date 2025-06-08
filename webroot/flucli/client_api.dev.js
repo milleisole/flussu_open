@@ -4,7 +4,6 @@
 // se una label ha una classe "onchat" on viene visualizzata sulla form ma sulo stream di chat
 // se una label o un pulsante ha valore "noshow" non viene visualizzato nell'area di chat
 
-
 // TODO:
 // Inputbox: se il pulsante è uno al ENTER premere il pulsante
 // Language: all'init abilitare i pulsanti della lingua previsti
@@ -25,6 +24,7 @@ LNG = "it";
 let defaultChatBarHTML = null;
 let lastPressedTerm = null;
 let lastFormElms = null;
+let lastPressedSkipValidation = false;
 let theCallerUri=window.location.href;
 const params = new URLSearchParams(window.location.search);
 let outerFrameUri = decodeURIComponent(params.get('OFU') || "");
@@ -94,15 +94,28 @@ async function sendStepData(termObj = {}, callback = null) {
   if (!res.ok) throw new Error("Errore comunicazione server: " + res.status);
   const json = await res.json();
 
-  if (json.sid) { 
-    SID = json.sid;
-    document.getElementById("sessioncode-footer").innerHTML  = "<span style='font-size:0.6em'>"+SID+"</span>";
-  }
-  if (json.bid) BID = json.bid;
-  if (json.lng) LNG = json.lng;
+    if (json.error) {
+        console.error("Errore server:", json.error);
+        if (json.error === "This session has expired - E89") {
+            showAlert(LNG['confirm_exipred'] || 'La sessione è terminata. Vuoi ricominciare?', () => {
+                resetFlussuSession();
+            });
+            return null;
+        } else {
+            alert("Errore: " + json.error);
+            return null;
+        }
+    } else {
+        if (json.sid) { 
+            SID = json.sid;
+            document.getElementById("sessioncode-footer").innerHTML  = "<span style='font-size:0.6em'>"+SID+"</span>";
+        }
+        if (json.bid) BID = json.bid;
+        if (json.lng) LNG = json.lng;
 
-  if (callback) callback(json);
-  return json;
+        if (callback) callback(json);
+        return json;
+    }
 }
 
 
@@ -130,7 +143,8 @@ async function submitFormStep(termObj) {
   await sendStepData(termObj, (json) => {
     if (json.sid) SID = json.sid;
     if (SID) setCookie(SID_COOKIE, SID); 
-    renderFormFlussu(json);     
+    renderFormFlussu(json); 
+    
     hideFormSpinner();          
     abilitaChatBar();           
   });
@@ -179,7 +193,7 @@ function renderFormFlussu(json) {
   let btnGroup = null;
     if (itbKeys.length > 1) {
         btnGroup = document.createElement('div');
-        btnGroup.className = "flex flex-wrap gap-2 mt-2 justify-end";
+        btnGroup.className = "flex flex-wrap gap-2 mt-2 items-end";
   }
 
   Object.keys(json.elms).forEach((k, idx) => {
@@ -220,7 +234,7 @@ function renderFormFlussu(json) {
       if (arr[1] && arr[1].display_info && arr[1].display_info.subtype=="textarea"){
             const textarea = document.createElement('textarea');
             textarea.name = k;
-            textarea.className = "w-full px-3 py-2 rounded border mt-1 mb-2 dark:bg-gray-700 dark:text-gray-100";
+            textarea.className = "w-full px-2 py-2 rounded border mt-1 mb-1 dark:bg-gray-700 dark:text-gray-100";
             if (arr[1] && arr[1].display_info && arr[1].display_info.mandatory)
                 textarea.required = true;
             textarea.placeholder = arr[0] || "";
@@ -229,7 +243,7 @@ function renderFormFlussu(json) {
             const input = document.createElement('input');
             input.name = k;
             input.type = "text";
-            input.className = "w-full px-3 py-2 rounded border mt-1 mb-2 dark:bg-gray-700 dark:text-gray-100";
+            input.className = "w-full px-2 py-2 rounded border mt-1 mb-1 dark:bg-gray-700 dark:text-gray-100";
             if (arr[1] && arr[1].display_info && arr[1].display_info.mandatory)
                 input.required = true;
             input.placeholder = arr[0] || "";
@@ -329,43 +343,20 @@ function renderFormFlussu(json) {
       newBar.appendChild(input);
       return;
     }
-
-    /* OLD VERSION 
-    // Bottone submit (ITB$)
-    if (/^ITB\$/.test(k)) {
-      const btn = document.createElement('button');
-      btn.type = "submit";
-      btn.name = k;
-      btn.addEventListener('click', () => { lastPressedTerm = btn.name; });
-
-      if (onlyOkButton) {
-        btn.className = "px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-800 flex items-center gap-2 ml-auto";
-        btn.innerHTML = `
-          <svg viewBox="0 0 20 20" fill="none" class="w-5 h-5" stroke="currentColor" stroke-width="2">
-            <path d="M2.5 17.5l15-7.5-15-7.5v6l10 1.5-10 1.5z" fill="currentColor"/>
-          </svg>
-          <span>${arr[0] || "OK"}</span>
-        `;
-        newBar.appendChild(btn);
-      } else if (btnGroup) {
-        btn.className = "px-6 py-2 rounded bg-blue-600 text-white hover:bg-blue-800";
-        btn.textContent = arr[0] || "OK";
-        btnGroup.appendChild(btn);
-      } else {
-        btn.className = "px-6 py-2 mt-4 rounded bg-blue-600 text-white hover:bg-blue-800";
-        btn.textContent = arr[0] || "OK";
-        newBar.appendChild(btn);
-      }
-      return;
-    }
-    */
+    
     // Bottone submit (ITB$)
     if (/^ITB\$/.test(k)) {
         const btn = document.createElement('button');
         btn.type = "submit";
         btn.name = k;
-        btn.addEventListener('click', () => { lastPressedTerm = btn.name; });
-
+        btn.addEventListener('click', () => { 
+            lastPressedTerm = btn.name; 
+            lastPressedSkipValidation = (arr[1].display_info.subtype || "").split(/\s+/).includes("skip-validation");
+        });
+        if ((arr[1].display_info.subtype || "").split(/\s+/).includes("skip-validation")) {
+            btn.setAttribute('formnovalidate', 'formnovalidate');
+            btn.formNoValidate = true;
+        }
         if (onlyOkButton) {
             /* ------------------- NOVITÀ ------------------- */
             // ① Creo una riga flex
@@ -400,21 +391,17 @@ function renderFormFlussu(json) {
             newBar.appendChild(actionRow);
             /* ---------------------------------------------- */
         } else if (btnGroup) {
-            btn.className = "px-6 py-2 rounded bg-blue-600 text-white hover:bg-blue-800";
+            btn.className = "px-5 py-1 rounded bg-blue-600 text-white hover:bg-blue-800";
             btn.textContent = arr[0] || "OK";
             btnGroup.appendChild(btn);
         } else {
-            btn.className = "px-6 py-2 mt-4 rounded bg-blue-600 text-white hover:bg-blue-800";
+            btn.className = "px-5 py-1 mt-4 rounded bg-blue-600 text-white hover:bg-blue-800";
             btn.textContent = arr[0] || "OK";
             newBar.appendChild(btn);
         }
         return;
     }
-
-
-
   }
-
 );
 
     if (btnGroup && btnGroup.childElementCount) {
@@ -431,13 +418,21 @@ function renderFormFlussu(json) {
     e.preventDefault();
     const trmObj = {};
     let pressedTerm = lastPressedTerm;
+    let skipValidation = lastPressedSkipValidation;
     lastPressedTerm = null;
+    lastPressedSkipValidation = false;
+
+    if (skipValidation) {
+        newBar.querySelectorAll('input[required], textarea[required], select[required]').forEach(el => {
+            el.removeAttribute('required');
+        });
+    }
 
     if (!pressedTerm) {
-      const submitBtn = newBar.querySelector('button[type="submit"]');
-      if (submitBtn && submitBtn.name && /^ITB\$/.test(submitBtn.name)) {
-        pressedTerm = submitBtn.name;
-      }
+        const submitBtn = newBar.querySelector('button[type="submit"]');
+        if (submitBtn && submitBtn.name && /^ITB\$/.test(submitBtn.name)) {
+            pressedTerm = submitBtn.name;
+        }
     }
 
     new FormData(chatForm).forEach((value, key) => {
@@ -458,6 +453,9 @@ function renderFormFlussu(json) {
     }
     submitFormStep(trmObj);
   };
+    
+  fixPreBlocksAndHighlight();
+
 }
 
 function attivaUploadEsterno(term, arr) {
@@ -491,87 +489,90 @@ function estraiValore(elem) {
 }
 
 function appendUserFormCard(elms, trmObj) {
-  const chatArea = document.getElementById('chat-area');
-  const card = document.createElement('div');
-
-  let html = '<div class="w-full flex justify-start mb-3">';
-    html += `<div class="w-full sm:w-[85%]     
-              text-left px-4 py-3 text-gray-900 dark:text-gray-100">`;
-
+    const chatArea = document.getElementById('chat-area'); // Per lo scroll
+    const msgArea = document.getElementById('msg-area'); // Contenitore per i messaggi
+    if (!msgArea) {
+        console.error('Contenitore msg-area non trovato!');
+        return; // Esci se il contenitore non esiste
+    }
+    done=false;
+    let html="";
+    let starthtml = '<div class="w-full flex flex-col justify-start mb-2">';
     Object.keys(elms).forEach((k) => {
-        const arr = elms[k];
-        // Label domanda
-        if (/^L\$/.test(k)) {
-            if (!trmObj || !hasOnChat(arr)){
-                if (!hasNoDisp(arr)){ 
-                    const raw = (arr[0] || "").trim();
-                    const hasMedia = /<(img|iframe|video|audio|svg)\b/i.test(raw);
-                    const plain = raw
-                                    .replace(/<\/?[^>]+(>|$)/g, "")   // via tutti i tag
-                                    .replace(/[:：]\s*$/, "")         // via ":" finale
-                                    .trim();
-                    if (hasMedia || plain) {
-                        const content = hasMedia ? raw : `${plain}:`;
-                        html += `<div class="text-sm text-left text-gray-700 dark:text-gray-200 mb-1">`+markdownLinksToHtml(raw)+`</div>`;
-                    }
+    const arr = elms[k];
+    // Label domanda
+    if (/^L\$/.test(k)) {
+        if (!trmObj || !hasOnChat(arr)) {
+            if (!hasNoDisp(arr)) {
+            const raw = (arr[0] || "").trim();
+            const hasMedia = /<(img|iframe|video|audio|svg)\b/i.test(raw);
+            const plain = raw
+                .replace(/<\/?[^>]+(>|$)/g, "") // via tutti i tag
+                .replace(/[:：]\s*$/, "") // via ":" finale
+                .trim();
+                if (hasMedia || plain) {
+                    const content = hasMedia ? raw : `${plain}:`;
+                    html += starthtml+`<div class="text-sm text-left text-gray-700 dark:text-gray-200 mb-1">${markdownLinksToHtml(raw)}</div>`;
+                    done=true;
+                    starthtml="";   
                 }
             }
         }
-    });
+    }
+  });
+  if (done)
+    html += '</div>';
 
-    html += '</div></div>';
-    if (trmObj){    
-        html += `<div class="w-full flex justify-end mb-3"><div class="w-full sm:w-[85%]
-                bg-blue-100 dark:bg-blue-900
-                text-gray-900 dark:text-gray-100
-                px-4 py-3 rounded-2xl
-                text-left shadow">`;
-
+  if (trmObj) {
+    starthtml = `<div class="w-full flex flex-col items-end mb-2">`;
+    done=false;
     Object.keys(elms).forEach((k) => {
-        const arr = elms[k];
-        // Label domanda
-        if (/^IT[T]?\$/.test(k)) {
+      const arr = elms[k];
+      if (/^IT[T]?\$/.test(k)) {
         const label = arr[0] || "";
         let cleanKey = k.replace(/^(IT[T|S|B]?\$)/, "$");
         const val = trmObj[cleanKey] || "";
-        html += `<div class="font-semibold">${label ? label + ": " : ""}<span class="inline-block bg-white/70 dark:bg-gray-700/80 rounded px-2 py-1">${val}</span></div>`;
-        }
-        // Select (ITS$)
-        if (/^ITS\$/.test(k)) {
+        html += starthtml+`<div class="font-semibold">${label ? label + ": " : ""}<span class="inline-block bg-white/70 dark:bg-gray-700/80 rounded px-2 py-1">${val}</span></div>`;
+        done=true;
+        starthtml="";
+      }
+      if (/^ITS\$/.test(k)) {
         let cleanKey = k.replace(/^(ITS\$)/, "$");
         const val = trmObj[cleanKey] || "";
-
-            const obj = JSON.parse(arr[0]);
-            const label = Object.entries(obj).find(([k]) => k.split(',')[0] === val)?.[1];
-
-        html += `<div class="font-semibold">${label}</div>`;
-        }
-        // Altri tipi da aggiungere (radio, check, ecc.)
-        // ...
-        // Bottoni (ITB$)
+        const obj = JSON.parse(arr[0]);
+        const label = Object.entries(obj).find(([k]) => k.split(',')[0] === val)?.[1];
+        html += starthtml+`<div class="font-semibold">${label}</div>`;
+        done=true;
+        starthtml="";
+      }
+    });
+    if (done)
+        html += "</div>";
+    Object.keys(elms).forEach((k) => {
+        starthtml = `<div class="w-full flex flex-col items-end mb-2">`;
+        done=false;
         if (/^ITB\$/.test(k)) {
-            if (hideSingleButton){
-                // Cerca la chiave premuta ($ex!n)
+            if (hideSingleButton) {
                 const idx = k.match(/ITB\$(\d+)/);
                 let key = "$ex!0";
                 if (idx && idx[1]) key = `$ex!${idx[1]}`;
                 if (trmObj[key]) {
-                    if (Object.keys(elms).filter(k => k.startsWith('ITB$')).length>1){
-                        if (!hasNoDisp(elms[k]))
-                            html += `<div><button disabled class="px-3 py-1 rounded-xl bg-blue-600 text-white text-sm cursor-not-allowed opacity-70">${trmObj[key]}</button></div>`;
+                    if (Object.keys(elms).filter(k => k.startsWith('ITB$')).length > 1) {
+                        if (!hasNoDisp(elms[k])){
+                            html += starthtml+`<div><button disabled class="px-3 py-1 rounded-xl bg-blue-600 text-white text-sm cursor-not-allowed opacity-70">${trmObj[key]}</button></div>`;
+                            done=true;
+                            starthtml="";
+                        }
                     }
                 }
             }
         }
     });
-    html += "</div></div>";
-} else {
-    // do something?
-
-}
-  card.innerHTML = html;
-  chatArea.appendChild(card);
-  chatArea.scrollTop = chatArea.scrollHeight;
+    if (done)
+        html += "</div>";
+  } 
+  msgArea.innerHTML += html;
+  chatArea.scrollTop = chatArea.scrollHeight; // Scorri in fondo
 }
 
 function scrollChatBottom() {
@@ -597,10 +598,10 @@ function showFormSpinner(formEl) {
         cursor-wait select-none
     `;
     overlay.innerHTML = `
-        <svg class="w-16 h-16 animate-spin text-blue-600 dark:text-blue-300"
+        <svg class="w-12 h-12 animate-spin text-blue-600 dark:text-blue-300"
             xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10"
-                    stroke="currentColor" stroke-width="4"></circle>
+                    stroke="currentColor" stroke-width="6"></circle>
             <path class="opacity-75" fill="currentColor"
                 d="M4 12a8 8 0 018-8v4a4 4 0 000 8v4a8 8 0 01-8-8z"></path>
         </svg>
@@ -695,6 +696,15 @@ function markdownLinksToHtml(str) {
     '<a class="text-[#000080] dark:text-blue-300 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70" target="_blank" rel="noopener noreferrer" href="$2">$1</a>'
   );
 }
+
+function fixPreBlocksAndHighlight() {
+
+document.querySelectorAll('pre code').forEach((el) => {
+  hljs.highlightElement(el);
+});
+
+}
+
 
 // EXPORT
 window.startWorkflow = startWorkflow;

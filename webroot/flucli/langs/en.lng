@@ -5,7 +5,7 @@
     "upload": "Upload",
     "languages": "Languages",
     "reset": "Reset",
-    "privacy": "<a href=\"/flucli/privacy/priv.php?lang=en&tit=Privacy%20Policy\">click for privacy information</a>",
+    "privacy": "<a href=\"/flucli/privacy/priv.php?lang=en&tit=Privacy%20Policy\">click for privacy policy</a>",
     "write_message": "Type a message...",
     "user": "User",
     "session": "Session",
@@ -13,6 +13,7 @@
     "ok": "OK",
     "abort":"Abort",
     "confirm_restart": "Do you really want to restart the session?",
+    "confirm_exipred": "The session has expired. Do you want to start over?",
     "remove": "Remove"
   }
 }

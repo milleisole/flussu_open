@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.2 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,9 +28,10 @@
  * -------------------------------------------------------*
  * CREATED DATE:     10.01.2021 - Aldus
  * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * UPDATES DATE:     06.06:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
+ *   - v4.3.20250606 - Aldus - Added support for long text variables needed by AI-chatbots
  * --------------------------------------------------------*/
 
 /*
@@ -1067,7 +1068,24 @@ class Session {
                             if ((strpos($vValue,"->setDataJson")!==false || substr(trim($vValue),0,1)=="$") || $is_numero) 
                                 $this->_wofoVars.=$vKey."=".$vValue.";\r\n";
                             else{
-                                $this->_wofoVars.=$vKey."=\"".addslashes(stripslashes($vValue))."\";\r\n";
+                                $hasNewLine = (strpos($vValue, "\n") !== false || strpos($vValue, "\r") !== false);
+                                $isVeryLong = (strlen($vValue) > 300);            // soglia a tuo piacere
+
+                                if ($hasNewLine || $isVeryLong) {
+                                    // 1) scegli un delimitatore che NON compaia nel testo
+                                    $delim = 'TXT';
+                                    while (strpos($vValue, "\n{$delim}") !== false) {
+                                        $delim .= '_';
+                                    }
+
+                                    // 2) usa un NOWDOC per evitare interpolazioni indesiderate
+                                    $this->_wofoVars .= $vKey."=<<<'{$delim}'\n{$vValue}\n{$delim};\r\n";
+                                } else {
+                                    // ----- FINE NUOVO BLOCCO -----
+
+                                    // stringa "normale" con escape delle virgolette
+                                    $this->_wofoVars .= $vKey."=\"".addslashes(stripslashes($vValue))."\";\r\n";
+                                }
                             }
                         }
                     }

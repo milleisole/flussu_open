@@ -12,6 +12,7 @@
     "select_language": "Sprache auswählen",
     "ok": "OK",   
     "confirm_restart": "Möchten Sie die Sitzung wirklich neu starten?",
+    "confirm_exipred": "Die Sitzung ist abgelaufen. Möchten Sie neu starten?",
     "remove": "Entfernen"
   }
 }

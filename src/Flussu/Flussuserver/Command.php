@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.2 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,12 +26,13 @@
  * FOR ALDUS BEAN:   Databroker.bean
  * -------------------------------------------------------*
  * CREATED DATE:     1.0 28.12:2020 - Aldus
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     4.3.20250606
+ * UPDATES DATE:     06.06:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * Possibilità di fare ATTACH all'email con una stringa
  * Arr$Attach["filename"] Arr$Attach["filetype"] Arr$Attach["filecontent"];
+ * Handles MARKDOWN messsage format
  * -------------------------------------------------------*/
 
   /**
@@ -340,6 +341,14 @@ class Command {
     public static function htmlSanitize($message,$suppressSpecial=false) {
         if (!empty($message)){
 
+            // MARKDOWN format
+            if (strpos($message,"{MD}")===0 && strpos($message,"{/MD}")===strlen($message)-5){
+                $message=substr($message,4,strlen($message)-9);
+                $Parsedown = new \Parsedown();
+                $Parsedown->setSafeMode(true);
+                return $Parsedown->text($message);
+            }
+
             $message=str_replace("\r\n","<br>",htmlentities($message, ENT_HTML5|ENT_SUBSTITUTE|ENT_NOQUOTES , 'UTF-8'));
             $message=str_replace("&#039;","'",$message);
             $message=str_replace("&newline;","<br>",$message);
@@ -348,6 +357,11 @@ class Command {
             $message=str_replace("&bsol;r","",$message);
             $message=str_replace("&NewLine;","<br>",$message);
             $message=str_replace("&lbrace;\/","&lbrace;&sol;",$message);
+            
+            //$message=str_replace("&lbrace;br&bsol;","<br>",$message);
+
+            $message=str_replace("&lbrace;pre&rcub;","<pre flussu-data-code class='flussu_code_snippet'>",str_replace("&lbrace;&sol;pre&rcub;","</pre>",$message));
+            $message=str_replace("&lbrace;code&rcub;","<pre flussu-text-code class='flussu_code_txt'>",str_replace("&lbrace;&sol;code&rcub;","</pre>",$message));
 
             if (!$suppressSpecial){
                 $message=str_replace("&lbrace;pl1&rcub;","<div style='padding-left:10px'>",str_replace("&lbrace;&sol;pl1&rcub;","</div>",$message));
@@ -373,18 +387,29 @@ class Command {
 
             $message=str_replace("&lbrace;w&rcub;","<strong style='color:red'>",str_replace("&lbrace;&sol;w&rcub;","</strong>",$message));
             $message=str_replace("&lbrace;b&rcub;","<strong>",str_replace("&lbrace;&sol;b&rcub;","</strong>",$message));
+            $message=str_replace("&lbrace;ar&rcub;","<div style='float:right;'>",str_replace("&lbrace;&sol;ar&rcub;","</div>",$message));
             $message=str_replace("&lbrace;d&rcub;","<table width='100%'><tr><td width='1%' style='align:center;width:1%;border:solid 1px silver;padding:4px;margin:4px'>",str_replace("&lbrace;&sol;d&rcub;","</td><td width='99%'>&nbsp;</td></tr></table>",$message));
 
             $message=str_replace("&lbrace;img&rcub;","<div style='padding:5px;margin:5px;'><img ",str_replace("&lbrace;&sol;img&rcub;"," ></div>",$message));
 
             if (!$suppressSpecial){
-                $message=str_replace("&lbrace;t&rcub;","<div style='font-size:1.2em;font-weight:800' class=\"flussu-lbl-title\">",str_replace("&lbrace;&sol;t&rcub;","</div>",$message));
-                $message=str_replace("&lbrace;h&rcub;","<h1 class=\"flussu-lbl-title\">",str_replace("&lbrace;&sol;h&rcub;","</h1>",$message));
+                $message=str_replace("&lbrace;t&rcub;","<div style='font-size:1.2em;font-weight:800' class=\"flussu-lbl-title flussu_title2\">",str_replace("&lbrace;&sol;t&rcub;","</div>",$message));
+                $message=str_replace("&lbrace;h1&rcub;","<h1 class=\"flussu-lbl-title flussu_title1\">",str_replace("&lbrace;&sol;h1&rcub;","</h1>",$message));
+                $message=str_replace("&lbrace;h&rcub;","<h2 class=\"flussu-lbl-title flussu_title2\">",str_replace("&lbrace;&sol;h&rcub;","</h2>",$message));
+                $message=str_replace("&lbrace;h2&rcub;","<h2 class=\"flussu-lbl-title flussu_title2\">",str_replace("&lbrace;&sol;h2&rcub;","</h2>",$message));
+                $message=str_replace("&lbrace;h3&rcub;","<h3 class=\"flussu-lbl-title flussu_title3\">",str_replace("&lbrace;&sol;h3&rcub;","</h3>",$message));
+                $message=str_replace("&lbrace;h4&rcub;","<h4 class=\"flussu-lbl-title flussu_title4\">",str_replace("&lbrace;&sol;h4&rcub;","</h4>",$message));
             } else {
                 $message=str_replace("&lbrace;t&rcub;","<strong>",str_replace("&lbrace;&sol;t&rcub;","</strong><br>",$message));
                 $message=str_replace("&lbrace;h&rcub;","<strong>",str_replace("&lbrace;&sol;h&rcub;","</strong><br>",$message));
             }
             
+            $message=str_replace("&lbrace;ul&rcub;","<ul>",str_replace("&lbrace;&sol;ul&rcub;","</ul>",$message));
+            $message=str_replace("&lbrace;ol&rcub;","<ol>",str_replace("&lbrace;&sol;ol&rcub;","</ol>",$message));
+            $message=str_replace("&lbrace;li&rcub;","<li>",str_replace("&lbrace;&sol;li&rcub;","</li>",$message));
+
+
+            $message=str_replace("&lbrace;p&rcub;","<p>",str_replace("&lbrace;&sol;p&rcub;","</p>",$message));
             $message=str_replace("&lbrace;i&rcub;","<i>",str_replace("&lbrace;&sol;i&rcub;","</i>",$message));
             $message=str_replace("&lbrace;s&rcub;","<s>",str_replace("&lbrace;&sol;s&rcub;","</s>",$message));
             $message=str_replace("&lbrace;u&rcub;","<u>",str_replace("&lbrace;&sol;u&rcub;","</u>",$message));

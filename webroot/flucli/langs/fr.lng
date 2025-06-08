@@ -5,7 +5,7 @@
     "upload": "Ajouter un fichier",
     "languages": "Langues",
     "reset": "Redémarrer",
-    "privacy": "<a href=\"/flucli/privacy/priv.php?lang=fr&tit=Confidentialité\">Cliquez pour les informations sur la confidentialité</a>",
+    "privacy": "<a href=\"/flucli/privacy/priv.php?lang=fr&tit=Confidentialité\">Cliquez pour la confidentialité</a>",
     "write_message": "Écrivez un message...",
     "user": "Utilisateur",
     "session": "Session",
@@ -13,6 +13,7 @@
     "ok": "OK",
     "abort":"Annuler",
     "confirm_restart": "Voulez-vous vraiment recommencer la session ?",
+    "confirm_exipred": "La session a expiré. Voulez-vous recommencer ?",
     "remove": "Supprimer"
   }
 }

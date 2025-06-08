@@ -44,6 +44,7 @@
         "claude-php/claude-3-api": "^0.1.23",
         "deepseek-php/deepseek-php-client": "^2.0",
         "dompdf/dompdf": "^2.0",
+        "erusev/parsedown": "^1.7",
         "google-gemini-php/client": "^2.0",
         "guzzlehttp/guzzle": "^7.8.0",
         "guzzlehttp/psr7": "^2.6.1",
