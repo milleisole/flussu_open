@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.2 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,10 +29,11 @@
  * -------------------------------------------------------*
  * CREATED DATE:     25.05:2024 - Aldus - Flussu v3.0
  * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * UPDATES DATE:     09.06:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * NEW: add Workflow Absolute Unique ID handling - 15-11-2024
+ * Log bug solved
  * -------------------------------------------------------*/
 
 /**
@@ -312,7 +313,7 @@ class Executor{
                         }
                         $reslt=$ctrl->chat($Sess->getId(), $innerParams[1]);
                         $Sess->assignVars($innerParams[2],$reslt);
-                        $Sess->recLog("AI response: ".$reslt);
+                        $Sess->recLog("AI response: ".json_encode($reslt));
                         break;
 
                 /*
