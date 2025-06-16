@@ -155,6 +155,9 @@ function setLanguage(lang) {
   sendStepData({}, renderFormFlussu);
 }
 
+  var submitClicked="";
+
+
 function renderFormFlussu(json) {
 
   if (json.bid) BID = json.bid;
@@ -348,6 +351,13 @@ function renderFormFlussu(json) {
     if (/^ITB\$/.test(k)) {
         const btn = document.createElement('button');
         btn.type = "submit";
+        //var genBtn=null;
+        //genBtn=k.split(";");
+        //var btnCont=null;
+        //if (genBtn.length > 1) {
+        //    k=genBtn[0];
+        //    btnCont = genBtn[1];
+        //
         btn.name = k;
         btn.addEventListener('click', () => { 
             lastPressedTerm = btn.name; 
@@ -392,7 +402,11 @@ function renderFormFlussu(json) {
             /* ---------------------------------------------- */
         } else if (btnGroup) {
             btn.className = "px-5 py-1 rounded bg-blue-600 text-white hover:bg-blue-800";
-            btn.textContent = arr[0] || "OK";
+            //if (btnCont) {
+            //    btn.textContent = btnCont;
+            //} else {
+                btn.textContent = arr[0] || "OK";
+            //}
             btnGroup.appendChild(btn);
         } else {
             btn.className = "px-5 py-1 mt-4 rounded bg-blue-600 text-white hover:bg-blue-800";
@@ -446,10 +460,17 @@ function renderFormFlussu(json) {
     });
 
     if (pressedTerm) {
-      const idx = pressedTerm.match(/ITB\$(\d+)/);
-      let key = "$ex!0";
-      if (idx && idx[1]) key = `$ex!${idx[1]}`;
-      trmObj[key] = e.submitter ? e.submitter.textContent : "OK";
+        const idx = pressedTerm.match(/ITB\$(\d+)/);
+        let key = "$ex!0";
+        if (idx && idx[1]) key = `$ex!${idx[1]}`;
+
+        var genBtn=pressedTerm.split(";");
+        submitClicked = e.submitter.textContent;
+        if (genBtn.length > 1) 
+            key=key+";"+genBtn[1];
+        //} else {
+            trmObj[key] = e.submitter ? e.submitter.textContent : "OK";
+        //}
     }
     submitFormStep(trmObj);
   };
@@ -556,10 +577,15 @@ function appendUserFormCard(elms, trmObj) {
                 const idx = k.match(/ITB\$(\d+)/);
                 let key = "$ex!0";
                 if (idx && idx[1]) key = `$ex!${idx[1]}`;
+
+                var parts=k.split(";");
+                if (parts.length > 1) 
+                    key=key+";"+parts[1];
+
                 if (trmObj[key]) {
                     if (Object.keys(elms).filter(k => k.startsWith('ITB$')).length > 1) {
-                        if (!hasNoDisp(elms[k])){
-                            html += starthtml+`<div><button disabled class="px-3 py-1 rounded-xl bg-blue-600 text-white text-sm cursor-not-allowed opacity-70">${trmObj[key]}</button></div>`;
+                        if (!hasNoDisp(elms[k]) && elms[k][0]==submitClicked){
+                            html += starthtml+`<div><button disabled class="px-3 py-1 rounded-xl bg-blue-600 text-white text-sm cursor-not-allowed opacity-70">${elms[k][0]}</button></div>`;
                             done=true;
                             starthtml="";
                         }
@@ -668,7 +694,8 @@ async function loadWorkflowInfo({ titElemId, butElemId, flussuId }) {
                       .filter(Boolean);          // ["it","en",…]
 
     const wrap = document.getElementById(butElemId);
-    wrap.innerHTML = '';                         // svuota
+    if (wrap)
+        wrap.innerHTML = '';                         // svuota
     allowed.forEach(lg => {
       const btn = document.createElement('button');
       btn.className =

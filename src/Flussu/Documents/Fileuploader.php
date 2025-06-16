@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.2 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -690,7 +690,6 @@ class Fileuploader {
                 $ret="coreldraw.png";
                 break;
         }
-
         if ($ret=="" && substr(strtolower($mimetype), 0, 5) === "audio"){
             $ret="audio.png";
         } elseif ($ret=="" && substr(strtolower($mimetype), 0, 5) === "image"){
@@ -700,11 +699,18 @@ class Fileuploader {
         } elseif ($ret=="" && substr(strtolower($mimetype), 0, 5) === "video"){
             $ret="video.png";
         }
-
         if ($ret=="")
             $ret="default.png";
-
         return $ret;
     }
-
 }
+ //---------------
+ //    _{()}_    |
+ //    --[]--    |
+ //      ||      |
+ //  AL  ||  DVS |
+ //  \\__||__//  |
+ //   \__||__/   |
+ //      \/      |
+ //   @INXIMKR   |
+ //--------------- 

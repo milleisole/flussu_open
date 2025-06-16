@@ -37,3 +37,13 @@ interface IAiProvider
     //public function chatContinue($arrayText);
     public function chat_WebPreview($text,$session,$maxTokens,$temperature); 
 }
+ //---------------
+ //    _{()}_    |
+ //    --[]--    |
+ //      ||      |
+ //  AL  ||  DVS |
+ //  \\__||__//  |
+ //   \__||__/   |
+ //      \/      |
+ //   @INXIMKR   |
+ //--------------- 
