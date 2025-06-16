@@ -36,8 +36,8 @@ class FlussuOpenAi implements IAiProvider
     private $_aiErrorState=false;
     private Client $_open_ai;
     private $_open_ai_key="";
-    private $_open_ai_model="gpt-3o";
-    private $_open_ai_chat_model="o1-mini";
+    private $_open_ai_model="";
+    private $_open_ai_chat_model="";
     
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_open_ai)){
@@ -48,20 +48,19 @@ class FlussuOpenAi implements IAiProvider
                 if (!empty(config("services.ai_provider.open_ai.model")))
                     $this->_open_ai_model=config("services.ai_provider.open_ai.model");
             }
-            /*
             if ($chat_model)
                 $this->_open_ai_chat_model = $chat_model;
             else {
-                if (!empty($_ENV['open_ai_chat_model']))
-                    $this->_open_ai_chat_model=$_ENV['open_ai_chat_model'];
-            }*/
+                if (!empty(config("services.ai_provider.open_ai.chat-model")))
+                    $this->_open_ai_chat_model=config("services.ai_provider.open_ai.chat-model");
+            }
             $this->_open_ai=\OpenAI::factory()
                 ->withApiKey($this->_open_ai_key)
                 ->withHttpClient($httpClient = new \GuzzleHttp\Client([]))
                  ->withHttpHeader('X-workflowapp', 'flussu')
                 /*->withOrganization('flussu') 
-                ->withProject('flussu') */
-                /*->withModel($this->_open_ai_model)
+                ->withProject('flussu') 
+                ->withModel($this->_open_ai_model)
                 ->withChatModel($this->_open_ai_chat_model)*/
                 ->make();
 
@@ -152,3 +151,13 @@ class FlussuOpenAi implements IAiProvider
         return $response;
     }
 }
+ //---------------
+ //    _{()}_    |
+ //    --[]--    |
+ //      ||      |
+ //  AL  ||  DVS |
+ //  \\__||__//  |
+ //   \__||__/   |
+ //      \/      |
+ //   @INXIMKR   |
+ //--------------- 

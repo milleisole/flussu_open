@@ -34,8 +34,8 @@ class FlussuClaudeAi implements IAiProvider
     private $_aiErrorState=false;
     private $_claude3;
     private $_claude_key="";
-    private $_claude_model="claude-3-5-sonnet-20241022";
-    private $_claude_chat_model="claude-3-5-sonnet-20241022";
+    private $_claude_model="";
+    private $_claude_chat_model="";
     
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_claude3)){
@@ -46,6 +46,13 @@ class FlussuClaudeAi implements IAiProvider
                 if (!empty(config("services.ai_provider.ant_claude.model")))
                     $this->_claude_model=config("services.ai_provider.ant_claude.model");
             }
+            if ($chat_model)
+                $this->_claude_chat_model = $chat_model;
+            else {
+                if (!empty(config("services.ai_provider.ant_claude.chat-model")))
+                    $this->_claude_chat_model=config("services.ai_provider.ant_claude.chat-model");
+            }
+
             $config = new Config($this->_claude_key );
             $this->_claude3 = new Client($config);
         }
@@ -83,3 +90,13 @@ class FlussuClaudeAi implements IAiProvider
         return [];
     }
 }
+ //---------------
+ //    _{()}_    |
+ //    --[]--    |
+ //      ||      |
+ //  AL  ||  DVS |
+ //  \\__||__//  |
+ //   \__||__/   |
+ //      \/      |
+ //   @INXIMKR   |
+ //--------------- 

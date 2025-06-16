@@ -34,9 +34,8 @@ class FlussuDeepSeekAi implements IAiProvider
     private $_aiErrorState=false;
     private $_deepseek;
     private $_deepseek_key="";
-    private $_deepseek_model="deepseek-reasoner
-";
-    private $_deepseek_chat_model="deepseek-chat";
+    private $_deepseek_model="";
+    private $_deepseek_chat_model="";
     
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_deepseek)){
@@ -46,6 +45,12 @@ class FlussuDeepSeekAi implements IAiProvider
             else {
                 if (!empty(config("services.ai_provider.deepseek.model")))
                     $this->_deepseek_model=config("services.ai_provider.deepseek.model");
+            }
+            if ($chat_model)
+                $this->_deepseek_chat_model = $chat_model;
+            else {
+                if (!empty(config("services.ai_provider.deepseek.chat-model")))
+                    $this->_deepseek_chat_model=config("services.ai_provider.deepseek.chat-model");
             }
             $this->_deepseek=DeepSeekClient::build($this->_deepseek_key, timeout:60);
         }
@@ -76,3 +81,13 @@ class FlussuDeepSeekAi implements IAiProvider
         return $result;
     }
 }
+ //---------------
+ //    _{()}_    |
+ //    --[]--    |
+ //      ||      |
+ //  AL  ||  DVS |
+ //  \\__||__//  |
+ //   \__||__/   |
+ //      \/      |
+ //   @INXIMKR   |
+ //--------------- 

@@ -35,7 +35,6 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * -------------------------------------------------------*/
-
 /*
     In pratica la classe WORKER è il cuore dell'elaborazione di Flussu, in questa classe infatti
     si inizia e si conclude ogni elaborazione di uno step. 
@@ -1168,6 +1167,7 @@ try {
                     $_rres=$this->_ExecR->outputProcess($this->_WofoS,$this->_WofoD,$evalRet,$_rres,$block,$this->_WofoS->getWid());
 
                 } catch (\Throwable $e){
+                    General::Log("Worker error: ".$e->getMessage());
                     $this->_WofoS->recLog($e->getMessage());
                     $this->_WofoS->statusError(true);
                     $msg=$e->getMessage();
@@ -1400,3 +1400,13 @@ try {
         return json_last_error() === JSON_ERROR_NONE;
     }
 }
+ //---------------
+ //    _{()}_    |
+ //    --[]--    |
+ //      ||      |
+ //  AL  ||  DVS |
+ //  \\__||__//  |
+ //   \__||__/   |
+ //      \/      |
+ //   @INXIMKR   |
+ //--------------- 

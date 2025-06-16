@@ -1,13 +1,25 @@
 
                            FLUSSU SERVER
-                       Version 4.2, Feb 2025
+                       Version 4.3, Jun 2025
                        https://www.flussu.com
+
+ 
+                        o--------------o
+                        |    _{()}_    |
+                        |    --[]--    |
+                        |      ||      |
+                        |  AL  ||  DVS |
+                        |  \\__||__//  |
+                        |   \__||__/   |
+                        |      \/      |
+                        |   @INXIMKR   |
+                        o--------------o 
 
                          from Aldo Prinzi 
            Mille Isole SRL, <https://www.milleisole.com/>
                Palermo(PA) / Parma(PR) - Italia - EU
- 
-                        Apache License
+
+                          Apache License
                       Version 2.0, January 2004
               https://www.apache.org/licenses/LICENSE-2.0
 

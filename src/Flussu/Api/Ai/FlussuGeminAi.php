@@ -37,8 +37,8 @@ class FlussuGeminAi implements IAiProvider
     private $_aiErrorState=false;
     private $_gemini;
     private $_gemini_key="";
-    private $_gemini_model="gemini-2.0-flash";
-    private $_gemini_chat_model="gemini-2.0-flash";
+    private $_gemini_model=""; // ex: gemini-2.0-flash
+    private $_gemini_chat_model=""; // ex: gemini-2.0-flash
     
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_gemini)){
@@ -48,6 +48,12 @@ class FlussuGeminAi implements IAiProvider
             else {
                 if (!empty(config("services.ai_provider.ggl_gemini.model")))
                     $this->_gemini_model=config("services.ai_provider.ggl_gemini.model");
+            }
+            if ($chat_model)
+                $this->_gemini_chat_model = $chat_model;
+            else {
+                if (!empty(config("services.ai_provider.ggl_gemini.chat-model")))
+                    $this->_gemini_chat_model=config("services.ai_provider.ggl_gemini.chat-model");
             }
             $this->_gemini=Gemini::client($this->_gemini_key);
         }
@@ -99,3 +105,13 @@ class FlussuGeminAi implements IAiProvider
         return [];
     }
 }
+ //---------------
+ //    _{()}_    |
+ //    --[]--    |
+ //      ||      |
+ //  AL  ||  DVS |
+ //  \\__||__//  |
+ //   \__||__/   |
+ //      \/      |
+ //   @INXIMKR   |
+ //--------------- 

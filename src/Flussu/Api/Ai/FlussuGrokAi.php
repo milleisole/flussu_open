@@ -32,7 +32,7 @@ class FlussuGrokAi implements IAiProvider
     private $_aiErrorState=false;
     private $_grok_ai;
     private $_grok_ai_key="";
-    private $_grok_ai_model="grok-3";
+    private $_grok_ai_model="";
     private $client;
 
     public function __construct($model=""){
@@ -103,3 +103,13 @@ class FlussuGrokAi implements IAiProvider
         return [];
     }
 }
+ //---------------
+ //    _{()}_    |
+ //    --[]--    |
+ //      ||      |
+ //  AL  ||  DVS |
+ //  \\__||__//  |
+ //   \__||__/   |
+ //      \/      |
+ //   @INXIMKR   |
+ //--------------- 
