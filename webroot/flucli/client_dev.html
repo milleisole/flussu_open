@@ -8,6 +8,9 @@
         <script src="https://cdn.tailwindcss.com"></script>
         <script src="/flucli/client_api.dev.js"></script>
         <script>
+            urlParams = new URLSearchParams(window.location.search);
+            const headParam = urlParams.get('head');
+            const widParam = urlParams.get('wid');
             tailwind.config = { darkMode: 'class' }
             if (localStorage.getItem("theme") === "dark" || (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
                 document.documentElement.classList.add("dark");
@@ -15,8 +18,7 @@
                 document.documentElement.classList.remove("dark");
             }
             function initWorkflow(){
-                urlParams = new URLSearchParams(window.location.search);
-                wid = urlParams.get('wid');
+                wid = widParam;
                 if (wid) {
                     startWorkflow(wid);
                 } else {

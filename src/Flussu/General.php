@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.4 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@
  * CLASS-NAME:       General.class
  * -------------------------------------------------------*
  * RELEASED DATE:    07.01:2022 - Aldus - Flussu v2.0
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     4.4.20250621
+ * UPDATES DATE:     21.06:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
+ *  4.4 - introducing code error handling
  * -------------------------------------------------------*/
 
 /*
@@ -101,22 +102,10 @@ class General {
             if (isset($_SESSION["FlussuSid"]))
                 $now.=" S:".$_SESSION["FlussuSid"];
             $now.="| ";
-
             if ($_ENV["debug_path"])
                 $log_dir=$_SERVER['DOCUMENT_ROOT']."/../".$_ENV["debug_path"];
             try{
-                if (!file_exists($log_dir))
-                    mkdir($log_dir, 0777, true);
-                $log_filename = str_replace("//","/",$log_dir.'/log_' . date('d-M-Y') . '.log');
-                $oldlog= $log_dir.'log_' . date('d-M-Y', strtotime('-1 month')). '.log';
-                if (file_exists($oldlog)){
-                    try{
-                        unlink($oldlog);
-                    } catch (\Throwable $e) {
-                        // do nothing.
-                        $e->getMessage();
-                    }
-                }
+                $log_filename =self::getLogFile($log_dir);
                 $res=file_put_contents($log_filename, $now.$log_msg."\n", FILE_APPEND);
             } catch (\Throwable $e) {
                 $res=file_put_contents($log_filename, $now." ERRORE!: ".json_encode($e)."\n", FILE_APPEND);
@@ -124,6 +113,52 @@ class General {
         }
         return $res;
     }
+    static function Log2($log_msg,$logDir="")
+    {
+        // SYSTEM-SERVICE LOG
+        if (!file_exists($logDir))
+            $res=mkdir($logDir, 0777, true);
+        $now = (\DateTime::createFromFormat('U.u', microtime(true)))->format("H:i:s.u");
+        try{
+            $log_filename =self::getLogFile($logDir);
+            $res=file_put_contents($log_filename, $now." ".$log_msg."\n", FILE_APPEND);
+        } catch (\Throwable $e) {
+            $res=file_put_contents($log_filename, $now." ERRORE!: ".json_encode($e)."\n", FILE_APPEND);
+        }
+        return $res;
+    }
+
+    static private function getLogFile($logDir)
+    {
+        $log_filename ="";
+        if ($logDir!=""){
+            if (!file_exists($logDir))
+                mkdir($logDir, 0777, true);
+            $log_filename = str_replace("//","/",$logDir.'/log_' . date('d-M-Y') . '.log');
+            $oldlog= $logDir.'log_' . date('d-M-Y', strtotime('-1 month')). '.log';
+            if (file_exists($oldlog)){
+                try{
+                    unlink($oldlog);
+                } catch (\Throwable $e) {
+                    $e->getMessage();
+                }
+            }
+            // elimima anche il 31 se il mese è di 30.
+            if (date("d")==1){
+                $oldlog=$logDir.'log_31' . date('-M-Y', strtotime('-1 month')). '.log';
+                if (file_exists($oldlog)){
+                    try{
+                        unlink($oldlog);
+                    } catch (\Throwable $e) {
+                        $e->getMessage();
+                    }
+                }
+            }
+        }
+        return $log_filename;
+    }
+
+
     static function Log($log_msg,$forced=false)
     {
         $debug=isset($_ENV["debug_log"])?$_ENV["debug_log"]:false;
@@ -264,9 +299,9 @@ class General {
     static function DelCache($refType,$refId){
         self::$cache_dir=$_SERVER['DOCUMENT_ROOT']."/../Cache/";
         try{
-            if(self::deleteDirectory(self::$cache_dir.$refType."_".$refId."/"))
-                self::Log("Removed ".$refType.":".$refId);   
-            else
+            if(self::deleteDirectory(self::$cache_dir.$refType."_".$refId."/")){
+                //self::Log("Removed ".$refType.":".$refId);   
+            } else
                 self::Log("NOT REMOVED!!! ".$refType.":".$refId);   
 
             //return rmdir(self::$cache_dir.$refType."_".$refId."/");
@@ -724,9 +759,35 @@ class General {
             case "ES": return "Español";
             case "SV": return "Svenska";
             case "NO": return "Norsk";
+            case "ZH": return "(中文)";
             default:return "";
         }
     }
+
+    static function hasScriptErrors($code,$description="") {
+        /* create lint result using a temporary file */
+        $log_dir=$_SERVER['DOCUMENT_ROOT']."/../Logs/";
+        $tmpfname = tempnam($log_dir, "phpcheck");
+        file_put_contents($tmpfname, "<?php    ".$code);
+        $ret="";
+        $output = [];
+        $return_var = 0;
+        $ris=exec("php -el " . escapeshellarg($tmpfname)." 2>&1", $output, $return_var);
+        unlink($tmpfname);
+        try{
+            $ret=str_replace("  "," ",str_replace(" in ".explode(" ",$ris)[2],"",str_replace(" ".$ris,"",implode(" ",$output))));
+        } catch (\throwable $e){
+            $ret=implode("\r\n",$output);
+        }
+        if ($return_var !== 0) {
+            self::Log("PHP LINT ERROR: ".$ret."\r\n\t\t\t\t\t\t\t\t\t\t\t\t".$description);
+        }
+        return [
+            'ok' => ($return_var === 0),
+            'output' => $ret
+        ];
+    }
+
 }
 
 

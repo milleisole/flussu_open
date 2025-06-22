@@ -312,10 +312,14 @@ class Executor{
                                 break;
                         }
                         $reslt=$ctrl->chat($Sess->getId(), $innerParams[1]);
-                        $Sess->assignVars($innerParams[2],$reslt);
-                        $Sess->recLog("AI response: ".json_encode($reslt));
+                        if ($reslt[0]!="Ok"){
+                            $Sess->recLog("AI response: ".json_encode($reslt[1]));
+                            $Sess->statusError(true);
+                            $reslt[1]="[ERROR]";
+                            break;
+                        } 
+                        $Sess->assignVars($innerParams[2],$reslt[1]);
                         break;
-
                 /*
                     case "openAi":
                         // V2.8 - Query openAI
@@ -426,7 +430,7 @@ class Executor{
                             else
                                 $elem_arr=[];
                         }
-                        $elem_arr[]=["type"=>"B","text"=>$innerParams[2],"value"=>$innerParams[1],"varname"=>$innerParams[0],"exit"=>$innerParams[3]];
+                        $elem_arr[]=["type"=>"B","text"=>$innerParams[2],"value"=>$innerParams[1],"varname"=>$innerParams[0],"exit"=>$innerParams[3],"css"=>$innerParams[4]];
                         $res["addElements"]=$elem_arr;
                         break;
 

@@ -1,4 +1,4 @@
-// Nuovo client API per Flussu v4.3 - Client UNICO (chat+form)
+// Nuovo client API per Flussu v4.4 - Client UNICO (chat+form)
 // SCRIPT FUNZIONALE
 
 // se una label ha una classe "onchat" on viene visualizzata sulla form ma sulo stream di chat
@@ -26,6 +26,8 @@ let lastPressedTerm = null;
 let lastFormElms = null;
 let lastPressedSkipValidation = false;
 let theCallerUri=window.location.href;
+let calendarHtml = '';
+let lastOptionMaps = {};
 const params = new URLSearchParams(window.location.search);
 let outerFrameUri = decodeURIComponent(params.get('OFU') || "");
 
@@ -164,7 +166,8 @@ function renderFormFlussu(json) {
   if (json.sid) SID = json.sid;
   if (json.lng) LNG = json.lng;
 
-  lastFormElms = json.elms;
+  calendarHtml = '';  // reset ogni volta!
+  lastFormElms = extractCalendar(json.elms); // qui si fa la “magia”
 
   if (!json.elms || !Object.keys(json.elms).length) {
     restoreDefaultChatBarHTML();
@@ -183,7 +186,7 @@ function renderFormFlussu(json) {
     ].join(' ');
 
 
-  newBar.innerHTML = "";
+  newBar.innerHTML = calendarHtml;
 
   let foundFileRequest = false;
 
@@ -309,8 +312,9 @@ function renderFormFlussu(json) {
             });
             newBar.appendChild(select);
         }
+        lastOptionMaps[k] = opts; 
         return;
-}
+    }
 
     // File richiesto dal server (ITM$): gestito solo via upload esterno!
     if (/^ITM\$/.test(k)) {
@@ -431,7 +435,7 @@ function renderFormFlussu(json) {
   chatForm.onsubmit = function(e) {
     e.preventDefault();
     const trmObj = {};
-    let pressedTerm = lastPressedTerm;
+    let pressedTerm =lastPressedTerm;
     let skipValidation = lastPressedSkipValidation;
     lastPressedTerm = null;
     lastPressedSkipValidation = false;
@@ -451,20 +455,33 @@ function renderFormFlussu(json) {
 
     new FormData(chatForm).forEach((value, key) => {
         let cleanKey = key.replace(/^(IT[T|S|B]?\$)/, "$");
-        if (trmObj[cleanKey]) {
-            if (!Array.isArray(trmObj[cleanKey])) trmObj[cleanKey] = [trmObj[cleanKey]];
-            trmObj[cleanKey].push(value);
+        if (lastOptionMaps[key]) {
+            // Esiste una mappa opzioni per questo campo (radio/select)
+            let label = null;
+            for (let optKey in lastOptionMaps[key]) {
+                if (optKey.startsWith(value)) {
+                    label = lastOptionMaps[key][optKey];
+                    break;
+                }
+            }
+            trmObj[cleanKey] = `@OPT["${value}","${label}"]`;
         } else {
-            trmObj[cleanKey] = value;
+            if (trmObj[cleanKey]) {
+                if (!Array.isArray(trmObj[cleanKey])) trmObj[cleanKey] = [trmObj[cleanKey]];
+                trmObj[cleanKey].push(value);
+            } else {
+                trmObj[cleanKey] = value;
+            }
         }
     });
 
-    if (pressedTerm) {
-        const idx = pressedTerm.match(/ITB\$(\d+)/);
+
+    if (e.submitter) {
+        const idx = e.submitter.name.match(/ITB\$(\d+)/);
         let key = "$ex!0";
         if (idx && idx[1]) key = `$ex!${idx[1]}`;
 
-        var genBtn=pressedTerm.split(";");
+        var genBtn=e.submitter.name.split(";");
         submitClicked = e.submitter.textContent;
         if (genBtn.length > 1) 
             key=key+";"+genBtn[1];
@@ -478,6 +495,51 @@ function renderFormFlussu(json) {
   fixPreBlocksAndHighlight();
 
 }
+
+function extractCalendar(elms) {
+    // 1. Trova tutti gli ITB$ con [clndr]
+    let dateToSlots = {};
+    let toRemove = [];
+    Object.keys(elms).forEach(k => {
+        if (/^ITB\$/.test(k)) {
+            const arr = elms[k];
+            const cls = arr[1]?.class || "";
+            const m = cls.match(/^\[clndr\](\d{4}\/\d{2}\/\d{2}) (\d{2}:\d{2}:\d{2})/);
+            if (m) {
+                const date = m[1];
+                const hour = m[2].slice(0,5); // HH:MM
+                if (!dateToSlots[date]) dateToSlots[date] = [];
+                dateToSlots[date].push({ k, arr, hour, label: arr[0] });
+                toRemove.push(k);
+            }
+        }
+    });
+    // 2. Rimuovi dal json.elms tutti quelli usati
+    toRemove.forEach(k => delete elms[k]);
+    // 3. Costruisci il markup solo se ci sono slot calendario
+    if (Object.keys(dateToSlots).length) {
+        let html = `<div class="w-full my-4 flex flex-wrap gap-4">`;
+        Object.keys(dateToSlots).sort().forEach(date => {
+            html += `<div class="bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 min-w-[210px] shadow flex flex-col items-center">`;
+            // Formatta data in modo leggibile
+            let dateObj = new Date(date.replace(/\//g, "-"));
+            html += `<div class="font-bold mb-2 text-blue-900 dark:text-blue-200">${dateObj.toLocaleDateString("it-IT", { weekday: "short", year: "numeric", month: "short", day: "numeric" })}</div>`;
+            // Bottoni slot
+            dateToSlots[date].forEach(slot => {
+                // Costruisci bottone, ma senza event, perché il bottone verrà reinserito dalla routine principale!
+                pippo=slot.label.split(/\s+/)[4];
+                html += `<button type="submit" name="${slot.k}" class="my-1 px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-800 w-full">${pippo}</button>`;
+            });
+            html += `</div>`;
+        });
+        html += `</div>`;
+        calendarHtml = html;
+    }
+    return elms;
+}
+
+
+
 
 function attivaUploadEsterno(term, arr) {
   const fileBtn = document.getElementById("file-btn");
@@ -548,24 +610,31 @@ function appendUserFormCard(elms, trmObj) {
     starthtml = `<div class="w-full flex flex-col items-end mb-2">`;
     done=false;
     Object.keys(elms).forEach((k) => {
-      const arr = elms[k];
-      if (/^IT[T]?\$/.test(k)) {
-        const label = arr[0] || "";
-        let cleanKey = k.replace(/^(IT[T|S|B]?\$)/, "$");
-        const val = trmObj[cleanKey] || "";
-        html += starthtml+`<div class="font-semibold">${label ? label + ": " : ""}<span class="inline-block bg-white/70 dark:bg-gray-700/80 rounded px-2 py-1">${val}</span></div>`;
-        done=true;
-        starthtml="";
-      }
-      if (/^ITS\$/.test(k)) {
-        let cleanKey = k.replace(/^(ITS\$)/, "$");
-        const val = trmObj[cleanKey] || "";
-        const obj = JSON.parse(arr[0]);
-        const label = Object.entries(obj).find(([k]) => k.split(',')[0] === val)?.[1];
-        html += starthtml+`<div class="font-semibold">${label}</div>`;
-        done=true;
-        starthtml="";
-      }
+        const arr = elms[k];
+        if (/^IT[T]?\$/.test(k)) {
+            const label = arr[0] || "";
+            let cleanKey = k.replace(/^(IT[T|S|B]?\$)/, "$");
+            const val = trmObj[cleanKey] || "";
+            html += starthtml+`<div class="font-semibold">${label ? label + ": " : ""}<span class="inline-block bg-white/70 dark:bg-gray-700/80 rounded px-2 py-1">${val}</span></div>`;
+            done=true;
+            starthtml="";
+        }
+        if (/^ITS\$/.test(k)) {
+            let cleanKey = k.replace(/^(ITS\$)/, "$");
+            let val = trmObj[cleanKey] || "";
+            // Gestione formato speciale @OPT["valore","etichetta"]
+            let v = val;
+            if (/^@OPT\[".*?",".*?"\]$/.test(val)) {
+                try {
+                    v = JSON.parse(val.replace(/^@OPT/, ''))[0];
+                } catch(e) { v = val; }
+            }
+            const obj = JSON.parse(arr[0]);
+            const label = Object.entries(obj).find(([k]) => k.split(',')[0] === v)?.[1];
+            html += starthtml+`<div class="font-semibold">${label}</div>`;
+            done=true;
+            starthtml="";
+        }
     });
     if (done)
         html += "</div>";

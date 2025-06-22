@@ -30,7 +30,7 @@
     "ai_provider":{
       "open_ai":{
         "auth_key":"6768-insert-your-api-key-8768",
-        "model":"o1-mini"
+        "model":"o1-mini",
         "chat-model":"o3"
       },
       "xai_grok":{

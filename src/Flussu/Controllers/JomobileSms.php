@@ -20,6 +20,9 @@
  * UPDATES DATE:     25.02:2025 
  * -------------------------------------------------------*/
 namespace Flussu\Controllers;
+
+use Flussu\General;
+
 /**
  * Provides functionality to send SMS messages using the JoMobile API.
  */
@@ -40,12 +43,12 @@ class JomobileSms extends AbsSmsSender
         $res[0]=str_replace('"','',$res[0]);
         $res[1]=str_replace('"','',$res[1]);
         $ret=["status"=>0,"message"=>"error","ticket"=>"","sent"=>0];
-        
         if (count($res)>1){
             if ($res[0]=="error"){
                 //errore
                 if (isset($res[1]))
                     $ret["message"]=$res0;
+                General::log("JomobileSms SMS ERROR ( to ".$toNumber.") - ".$res0, true);
             } else {
                 if (strpos($res[0],$toNumber)!==false || strpos($toNumber,$res[0])!==false){
                     // ha spedito.
@@ -55,7 +58,7 @@ class JomobileSms extends AbsSmsSender
                     $ret["ticket"]=$res[1];
                     $ret["sent"]=1;
                 }
-
+                General::log("JomobileSms SMS OK (to ".$toNumber.")  - ".$res0, true);
             }
         }
         return json_encode($ret);

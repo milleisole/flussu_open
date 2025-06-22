@@ -256,7 +256,7 @@ class Environment {
     public function excelAddRow     ($fileName,$arrData)                {$this->_addToResArray("excelAddRow", array($fileName,$arrData));}
     // v2.0 batchExec 
     public function getHtmlFromFlussuText($theFlussuText)       {return Command::htmlSanitize($theFlussuText,$this->_mySess->getVarValue("$"."isTelegram"));}
-    public function createButton   ($buttonVarName,$clickValue, $buttonText, $buttonExit=0) {$this->_addToResArray("createButton", array($buttonVarName,$clickValue,$buttonText,$buttonExit));}
+    public function createButton   ($buttonVarName,$clickValue, $buttonText, $buttonExit=0, $buttonCss="") {$this->_addToResArray("createButton", array($buttonVarName,$clickValue,$buttonText,$buttonExit,$buttonCss));}
     public function createLabel    ($labelText)                         {$this->_addToResArray("createLabel", array($labelText));}
     public function execBatch           ($batchName)                    {
         $fname=$_SERVER['DOCUMENT_ROOT']."/../Uploads/scripts/".str_replace("/"," ",str_replace("\\"," ",$batchName));

@@ -28,8 +28,8 @@ usato va aggiunto un comando dentro il timer di Linux:
 * USE ALDUS BEAN:   Databroker.bean
 * -------------------------------------------------------*
 * CREATED DATE:     21.02:2024 - Aldus - Flussu v3.0
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     4.4.20250621
+ * UPDATES DATE:     21.06:2025 
 * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
 * Releases/Updates:
 * -------------------------------------------------------*/
@@ -97,8 +97,10 @@ $tcall->exec();
 class Timedcall
 {
     private $_WofoD;
+    private $_logDir=""; 
     public function __construct()
     {
+        $this->_logDir = $_ENV["syslogdir"];
         $this->_WofoD = new HandlerNC();
         $vc = new \Flussu\Controllers\VersionController();
         $vcbv = $vc->getDbVersion();
@@ -106,6 +108,9 @@ class Timedcall
         echo " sv:\033[01;32mv" . $_ENV["major"] . "." . $_ENV["minor"] . "." . $_ENV["release"] . "  \033[0m\r\n";
         echo " sn:\033[01;32m" . $_ENV["server"] . "\033[0m\r\n";
         echo " db:" . $_ENV["db_name"] . " [\033[01;32mv" . $vcbv . "\033[0m]\r\n";
+        if (!empty($this->_logDir)) {
+            echo " lg:".$this->_logDir;
+        }
         if ($vcbv < 7) {
             echo "\033[01;31mERROR: Database version < 7 !\033[0m\r\nYou must update your DB, please use \033[01;32mhttps://" . $_ENV["server"] . "/checkversion\033[0m\r\n---------------------------\r\n";
             die();
@@ -114,7 +119,7 @@ class Timedcall
     }
     public function exec()
     {
-        General::Log("Timedcall: exec start");
+        General::Log2("Timedcall: exec start",$this->_logDir);
         echo "\033[01;32m" . date("Y-m-d H:i:s") . "\033[0m - start\r\n";
         $rows = $this->_WofoD->getTimedCalls(true);
         $srvCall = "https://" . $_ENV["server"] . "/flussueng.php?TCV=1&WID={{wid}}&SID={{sid}}&BID={{bid}}&£is_timed_call=1{{data}}";
@@ -149,6 +154,7 @@ class Timedcall
                         echo "                     - " . $uri . "\r\n";
                         $result = $this->_sendRequest($uri);
                         echo "                     - " . $result . "\r\n";
+                        General::Log2("\t\t\t\t\t\t\t\t\t\t\t\t".$uri." -> ".$result,$this->_logDir);
                     } else {
                         $result = "ERROR:[0]:Session expired";
                         echo "                     - SESSION EXPIRED!\r\n";
@@ -164,19 +170,21 @@ class Timedcall
                     echo "                     - " . $uri . "\r\n";
                     $result = $this->_sendRequest($uri);
                     echo "                     - " . $result . "\r\n";
+                    General::Log2("\t\t\t\t\t\t\t\t\t\t\t\t".$uri." -> ".$result,$this->_logDir);
                 }
                 $this->_WofoD->updateTimedCall($row["seq"], $result);
             } else {
                 echo $m_time->format("Y-m-d H:i:s") . " is in the future.\r\n";
             }
         }
+        General::Log2("Timedcall: end",$this->_logDir);
         echo "\r\n\033[01;32m" . date("Y-m-d H:i:s") . "\033[0m - end\r\n---------------------------\r\n";
     }
 
 
     public function completeExec()
     {
-        General::Log("Timedcall: exec start");
+        General::Log2("Timedcall: exec start",$this->_logDir);
         echo "\033[01;32m" . date("Y-m-d H:i:s") . "\033[0m - start\r\n";
         $rows = $this->_WofoD->getTimedCalls(true);
         $srvCall = "https://" . $_ENV["server"] . "/flussueng.php?TCV=1&WID={{wid}}&SID={{sid}}&BID={{bid}}&£is_timed_call=1{{data}}";
@@ -204,6 +212,7 @@ class Timedcall
                     echo "                     - " . $uri . "\r\n";
                     $result = $this->_sendRequest($uri);
                     echo "                     - " . $result . "\r\n";
+                    General::Log2("\t\t\t\t\t\t\t\t\t\t\t\t".$uri." -> ".$result,$this->_logDir);
                 } else {
                     $result = "ERROR:[0]:Session expired";
                     echo "                     - SESSION EXPIRED!\r\n";
@@ -213,6 +222,7 @@ class Timedcall
                 echo $m_time->format("Y-m-d H:i:s") . " is in the future.\r\n";
             }
         }
+        General::Log2("Timedcall: end",$this->_logDir);
         echo "\r\n\033[01;32m" . date("Y-m-d H:i:s") . "\033[0m - end\r\n---------------------------\r\n";
     }
 

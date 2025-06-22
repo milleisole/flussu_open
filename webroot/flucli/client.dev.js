@@ -1,4 +1,4 @@
-// Nuovo client API per Flussu v4.3 - Client UNICO (chat+form)
+// Nuovo client API per Flussu v4.4 - Client UNICO (chat+form)
 // SCRIPT DELL?INTERFACCIA
 
 const chatArea = document.getElementById('chat-area');
@@ -225,18 +225,18 @@ function updateThemeSwitch() {
   }
 }
 document.addEventListener('DOMContentLoaded', () => {
-  updateThemeSwitch();
-
-  document.querySelectorAll('.lang-choice').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const lang = btn.getAttribute('data-lang');
-      loadLanguage(lang);
-      langDropdown.classList.add('hidden');
+    if (headParam=="none"){
+        document.getElementsByTagName("header")[0].style.display="none";
+    }
+    updateThemeSwitch();
+    document.querySelectorAll('.lang-choice').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const lang = btn.getAttribute('data-lang');
+            loadLanguage(lang);
+            langDropdown.classList.add('hidden');
+        });
     });
-  });
-
-  loadLanguage("it");
-
+    loadLanguage("it");
 });
 
 function showAlert(msg, callback,noButtons=false) {
@@ -427,6 +427,9 @@ const privacyTexts = {
 };
 
 function getCookie(name) {
+  
+  if (name=="privacy_accepted" && iframecookie) return true;
+
   const cookieArr = document.cookie.split(';');
   for (let i = 0; i < cookieArr.length; i++) {
     let c = cookieArr[i].trim();
@@ -440,6 +443,14 @@ function getCookie(name) {
 function setCookie(name, value, maxAgeSeconds) {
   document.cookie = `${name}=${value};max-age=${maxAgeSeconds};path=/;SameSite=Lax`;
 }
+
+var iframecookie=false;
+window.addEventListener('message', function(event) {
+    if (event.data === 'cookieAlreadyAccepted') {
+        iframecookie=true;
+        document.getElementById('privacy-modal').classList.add('hidden');
+    }
+});
 
 function checkPrivacyCookie() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -482,6 +493,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const threeMonthsInSec = 90 * 24 * 60 * 60;
         setCookie('privacy_accepted', new Date().toISOString(), threeMonthsInSec);
         document.getElementById('privacy-modal').classList.add('hidden');
+        try{
+            window.parent.postMessage('cookieAccepted', '*');
+        } catch (e) {
+            console.warn('Impossibile inviare il messaggio al parent:', e);
+        }
     });
     // Bottone “Non accetto”
     document.getElementById('privacy-decline').addEventListener('click', () => {

@@ -19,8 +19,8 @@
  *      to handle all the requests to this server. 
  * 
  * --------------------------------------------------------------------
- * VERSION REL.:     4.3.20250530
- * UPDATES DATE:     30.05:2025 
+ * VERSION REL.:     4.4.20250621
+ * UPDATES DATE:     21.06:2025 
  * --------------------------------------------------------------------*/
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -33,7 +33,7 @@ use Flussu\General;
 use Flussu\Config;
 
 // VERSION
-$FlussuVersion="4.3.20250530";
+$FlussuVersion="4.4.20250621";
 $FVP=explode(".",$FlussuVersion);
 $v=$FVP[0];
 $m=$FVP[1];
@@ -63,6 +63,8 @@ if (isset($argv) && is_array($argv)){
         switch($argv[1]){
             case "-curt":
                 die(General::curtatone(999,$argv[2])."\n");
+            case "-mont":
+                die(General::montanara($argv[2],999)."\n");
             case "-iscu":
                 die(General::isCurtatoned($argv[2])?"yes\n":"no\n");
             default:
@@ -175,3 +177,13 @@ function checkUnattendedWebHookCall($req,$apiPage){
     return false;
 
 }
+ //---------------
+ //    _{()}_    |
+ //    --[]--    |
+ //      ||      |
+ //  AL  ||  DVS |
+ //  \\__||__//  |
+ //   \__||__/   |
+ //      \/      |
+ //   @INXIMKR   |
+ //--------------- 

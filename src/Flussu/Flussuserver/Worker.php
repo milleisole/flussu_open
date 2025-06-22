@@ -66,10 +66,14 @@
  */
 
 namespace Flussu\Flussuserver;
-
 use \Throwable;
 use Flussu\Flussuserver\Handler;
 use Flussu\General;
+use PhpParser\ParserFactory;
+use PhpParser\Node;
+use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitorAbstract;
+use PhpParser\PrettyPrinter;
 
 class Worker {
   
@@ -121,6 +125,7 @@ class Worker {
     public function __destruct(){
         //if (\General::$Debug) echo "[Distr Databroker ]<br>";
     }
+    
 
 /*-------------------------------------------------------------------------------------------------------
     DATA/VARS/PREP
@@ -548,7 +553,12 @@ class Worker {
                                 $newElemGen["elem_id"]=str_replace(".","-",uniqid("a7D0-",true))."-FEDE";
                                 $newElemGen["e_order"]=$order++;
                                 $newElemGen["langs"][$lng]["label"]=$newElem["text"];
-                                $newElemGen["css"]["class"]="";
+                                
+                                if (isset($newElem["css"]))
+                                    $newElemGen["css"]["class"]=$newElem["css"];
+                                else
+                                    $newElemGen["css"]["class"]="";
+                                
                                 $newElemGen["css"]["display_info"]=[];
                                 $newElemGen["note"]="generated";
                                 $newElemGen["exit_num"]="0";
@@ -1347,11 +1357,17 @@ try {
             'unlink'
         );
 
+        /*
         foreach ($search_line as $line)
             $exec=str_ireplace($line,"DoNotUse",$exec);
         foreach ($search_line as $line)
             $exec=str_ireplace($line,"BadCommand",$exec);
-            
+        */
+
+
+        $exec = $this->_trovaFunzioniProibite($exec, $search_line);
+
+        //$exec=str_ireplace($search_line,"[DoNotUse]",$exec);
         $exec = str_replace(array("`",chr(96)),array("'","'"), $exec);
 
         // eliminazione word "mail"
@@ -1379,6 +1395,52 @@ try {
         $exec = str_replace("\$wofoEnv-","wofoEnv-",$exec);
         $exec = str_replace("wofoEnv-","\$wofoEnv-",$exec);
         return $exec;
+    }
+
+    private function _trovaFunzioniProibite($code, $proibite = []) {
+        $parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
+        try {
+            $stmts = $parser->parse($code);
+        } catch (\Throwable $e) {
+            return ['parse_error' => $e->getMessage(), 'codice_sostituito' => null];
+        }
+
+        $trovate = [];
+
+        $traverser = new NodeTraverser();
+        $traverser->addVisitor(new class($proibite, $trovate) extends NodeVisitorAbstract {
+            private $proibite;
+            public $trovate;
+            public function __construct($proibite, &$trovate) {
+                $this->proibite = array_map('strtolower', $proibite);
+                $this->trovate = &$trovate;
+            }
+            public function enterNode(Node $node) {
+                // Cerca chiamate a funzioni proibite (tipo system(), exec(), ecc)
+                if ($node instanceof Node\Expr\FuncCall) {
+                    $name = $node->name instanceof Node\Name ? strtolower($node->name->toString()) : '';
+                    if (in_array($name, $this->proibite)) {
+                        $this->trovate[] = $name;
+                        // Sostituisci la chiamata con la stringa 'DoNotUse!'
+                        return new Node\Expr\ConstFetch(new Node\Name('DoNotUse!'));
+                    }
+                }
+            }
+        });
+
+        $stmtsModificati = $traverser->traverse($stmts);
+
+        // Ricostruisci il codice (pretty print)
+        $printer = new PrettyPrinter\Standard();
+        $codice_sostituito = $printer->prettyPrintFile($stmtsModificati);
+
+        return $codice_sostituito;
+
+
+        return [
+            'proibite_trovate' => array_unique($traverser->visitors[0]->trovate),
+            'codice_sostituito' => $codice_sostituito,
+        ];
     }
 
    /**

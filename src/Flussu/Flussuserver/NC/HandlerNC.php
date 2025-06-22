@@ -1144,7 +1144,7 @@ class HandlerNC extends HandlerBaseNC {
                                         break;
                                     }
                                 }
-                                $this->updateFlofoBlock($blockData,$id);
+                                $this->updateFlofoBlock($blockData,$id,$workflowData->name);
                             }
                             for($i=0;$i<count($b_list);$i++){
                                 if ($b_list[$i]["bid"]!=""){
@@ -1397,7 +1397,7 @@ class HandlerNC extends HandlerBaseNC {
     }
 
 
-    function updateFlofoBlock($blockData,$wid=0){
+    function updateFlofoBlock($blockData,$wid=0,$wfName=""){
         $res=array("result"=>"ERR:-5","message"=>"Cannot update/create a Block...");
         if (isset($blockData->block_id)){
             //General::DelCache("blk",$blockData->block_id);
@@ -1408,11 +1408,20 @@ class HandlerNC extends HandlerBaseNC {
             $exist=$this->execSql($SQL,array($blockData->block_id));
             $arres=$this->getData();
             $e_list=[];
+
+            $exec=$blockData->exec;
+            if (!empty(trim($exec))){
+                $ret=General::hasScriptErrors(str_replace("wofoEnv","$"."wofoEnv",$exec), $wfName." -> ".$blockData->description." (id:".$blockData->block_id.")");
+                if ($ret["ok"]==false){
+                    $exec="/*\r\nERROR \r\n".$ret["output"]."\r\n*/\r\n".$exec;
+                }
+            }
+
             if (count($arres)>0 && $arres[0]["uuid"]==$blockData->block_id){
+                // ESISTE, SI DEVE UPDATARE
                 try{General::DelCache("blk",$blockData->block_id);}catch(\Throwable $e){}
                 $bid=$arres[0]["bid"];
                 $errPos="B";
-                // ESISTE, SI DEVE UPDATARE
 
                 // il blocco potrebbe avere decine di elementi
                 // e alcuni potrebbero essere stati cancellati
@@ -1421,13 +1430,15 @@ class HandlerNC extends HandlerBaseNC {
                 $e_list=$this->getData();
                 if (!isset($blockData->type))
                     $blockData->type="";
+                $params=array($blockData->description,$exec,$blockData->type,$blockData->x_pos,$blockData->y_pos); 
+                $SQL="update t20_block set c20_desc=?,c20_exec=?,c20_type=?,c20_xpos=?,c20_ypos=?";
                 if (isset($blockData->note)){
-                    $SQL="update t20_block set c20_desc=?,c20_exec=?,c20_type=?,c20_xpos=?,c20_ypos=?,c20_note=?,c20_modified=CURRENT_TIMESTAMP where c20_uuid=?";
-                    $params=array($blockData->description,$blockData->exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$blockData->note,$blockData->block_id); 
-                } else {
-                    $SQL="update t20_block set c20_desc=?,c20_exec=?,c20_type=?,c20_xpos=?,c20_ypos=?,c20_modified=CURRENT_TIMESTAMP where c20_uuid=?";
-                    $params=array($blockData->description,$blockData->exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$blockData->block_id); 
-                }
+                    $params[]=$blockData->note;
+                    $SQL.=",c20_note=?";
+                    //$params=array($blockData->description,$blockData->exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$blockData->note,$blockData->block_id); 
+                } 
+                $params[]=$blockData->block_id;
+                $SQL.=",c20_modified=CURRENT_TIMESTAMP where c20_uuid=?";
                 $p_res=$this->execSql($SQL,$params);
             } else {
                 $errPos="C";
@@ -1446,12 +1457,12 @@ class HandlerNC extends HandlerBaseNC {
                         $blockData->block_id=General::getUuidv4();
                     if (isset($blockData->note)){
                         $SQL="insert into t20_block (c20_flofoid,c20_desc,c20_exec,c20_type,c20_xpos,c20_ypos,c20_note,c20_uuid,c20_start) values (?,?,?,?,?,?,?,?,?)";
-                        $params=array($wid,$blockData->description,$blockData->exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$blockData->note,$blockData->block_id,$blockData->is_start); 
+                        $params=array($wid,$blockData->description,$exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$blockData->note,$blockData->block_id,$blockData->is_start); 
                     } else {
                         if (!isset($blockData->type))
                             $blockData->type="";
                         $SQL="insert into t20_block (c20_flofoid,c20_desc,c20_exec,c20_type,c20_xpos,c20_ypos,c20_uuid,c20_start) values (?,?,?,?,?,?,?,?)";
-                        $params=array($wid,$blockData->description,$blockData->exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$blockData->block_id,$blockData->is_start); 
+                        $params=array($wid,$blockData->description,$exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$blockData->block_id,$blockData->is_start); 
                     }
                     $p_res=$this->execSql($SQL,$params);
                     $errPos="M";

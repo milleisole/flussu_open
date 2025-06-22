@@ -66,6 +66,7 @@ class AiChatController
                 $this->_linkify=0;
                 break;
         }
+        //$this->_aiClient= new FlussuOpenAi($model,$chat_model);
     }
 
     function initAgent($sessId,$initChatText="") {
@@ -157,23 +158,28 @@ TXT;
         if (is_null($preChat) || empty($preChat))
             $preChat=[];
 
-        if (!$webPreview) 
-            $result=$this->_aiClient->Chat($preChat,$sendText, $role); 
-        else
-            $result=$this->_aiClient->Chat_WebPreview($sendText, $sessId,$maxTokens,$temperature); 
 
+        try{
+            if (!$webPreview) 
+                $result=$this->_aiClient->Chat($preChat,$sendText, $role); 
+            else
+                $result=$this->_aiClient->Chat_WebPreview($sendText, $sessId,$maxTokens,$temperature); 
 
-        $res=$this->replyIsCommand($result[1]);
-        if (!$res[0]){
-            $History=$result[0];
-            $History[]= [
-                'role' => 'assistant',
-                'content' => $result[1],
-            ];
-            General::ObjPersist("AiCht".$sessId,$History); 
-            return "{MD}".$result[1]."{/MD}";
-        } 
-        return $res[1];
+            $res=$this->replyIsCommand($result[1]);
+            $ret=$res[1];
+            if (!$res[0]){
+                $History=$result[0];
+                $History[]= [
+                    'role' => 'assistant',
+                    'content' => $result[1],
+                ];
+                General::ObjPersist("AiCht".$sessId,$History); 
+                $ret="{MD}".$result[1]."{/MD}";
+            } 
+            return ["Ok",$ret];
+        } catch (\Throwable $e) {
+            return ["Error: ",$e->getMessage()];
+        }
     }
 
     function replyIsCommand(string $text): array {
