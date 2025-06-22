@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.4 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,10 +29,11 @@
  * -------------------------------------------------------*
  * CREATED DATE:     (09.03.2023) - Aldus
  * FOR ALDUS BEAN:   Databroker.bean
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     4.4.20250621
+ * UPDATES DATE:     21.06:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
+ * Added version 11 - Error field in t20_block
  * -------------------------------------------------------*/
 
  /*
@@ -46,11 +47,8 @@ use Flussu\Beans\Databroker;
 use Flussu\Flussuserver\Request;
 
  class VersionController {
-
     private $_UBean;
-
     private $_thisVers=0;
-
     public function getDbVersion(){
         $this->_UBean = new Databroker(General::$DEBUG);
         $this->execSql("select * from t00_version");
@@ -390,11 +388,33 @@ use Flussu\Flussuserver\Request;
         } else {
             $res.="not needed";
         }
-        //if ($ret)
-        //   $res.="<hr>".$this->_checkVersion11();
+        if ($ret)
+           $res.="<hr>".$this->_checkVersion11();
         return $res;
     }
 
+    private function _checkVersion11(){
+        /* V11 - v4.4.5 - 
+        aggiunto campo errore alla tabella t30_block
+        */
+        $newVer=11;
+        $res="Update V".$newVer.":";
+        $ret=true;
+        if ($this->_thisVers<$newVer){
+            $SQL="
+              ALTER TABLE t20_block 
+                ADD COLUMN c20_error TEXT CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_unicode_ci' DEFAULT '' AFTER c20_note;
+            ";
+            $this->execSql($SQL);
+            $ret=$this->_execVersion($newVer,null,[[$SQL,null]]);
+            $res.=($ret?"OK":"Error");
+        } else {
+            $res.="not needed";
+        }
+        //if ($ret)
+        //   $res.="<hr>".$this->_checkVersion12();
+        return $res;
+    }
 
     private function _checkQuery($checkQuery){
         // checkquery MUST return 1 for true or 0 for false
@@ -429,15 +449,6 @@ use Flussu\Flussuserver\Request;
         }
         return $res;
     }
-
-
-
-
-
-
-
-
-
 
     public function refreshViews(){
         $res="D10_T:".$this->execSql("DROP TABLE IF EXISTS `v10_wf_prj`;");

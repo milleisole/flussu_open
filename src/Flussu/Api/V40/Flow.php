@@ -76,7 +76,6 @@ class Flow {
 
         $_debug=[];
 
-
         $CMD=General::getGetOrPost("C");
         $LNG=General::getGetOrPost("L");
         $UUID=General::getGetOrPost("UUID");
@@ -89,7 +88,6 @@ class Flow {
 
         $_debug["DATE"]=date("Y-m-d H:i:s");
         $_debug["RCV"]="CMD=".$CMD."|UUID=".$UUID."|WID=".$WID."|WFAUID=".$WFAUID."|ON_UUID=".$ON_UUID."|CWID=".$CWID."|NAM=".$NAM."|LNG=".$LNG;
-
 
         $ccwid=$CWID;
         if (!empty($CWID)){

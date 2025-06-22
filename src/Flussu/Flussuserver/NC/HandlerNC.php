@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.4 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,10 +30,11 @@
  * FOR ALDUS BEAN:   Databroker.bean
  * -------------------------------------------------------*
  * CREATED DATE:     (04.11.2020) 25.01:2021 - Aldus
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     4.4.20250621
+ * UPDATES DATE:     22.06:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
+ * Added error handling for exec scripts
  * -------------------------------------------------------*/
 
 /**
@@ -904,7 +905,7 @@ class HandlerNC extends HandlerBaseNC {
     // Flofo CREATE
     //----------------------
     function createFlofo($newWorkflowData,$userId=0){
-        $res=array("result"=>"ERR ","message"=>"Can't create this workflow");
+        $res=array("result"=>"ERR","message"=>"Can't create this workflow");
         $langs="";  //lingue supportate
         $lang="";   //lingua di default
         $alng=$newWorkflowData->supp_langs;
@@ -951,7 +952,7 @@ class HandlerNC extends HandlerBaseNC {
                     $this->execSql($SQL,array(0,$newBlockId,0));
                     $this->execSql($SQL,array(0,$newBlockId,1));
                     $wid=General::camouf($newWfId);
-                    $res=array("result"=>"DONE ","WID"=>$wid);
+                    $res=array("result"=>"OK","WID"=>$wid);
                     if ($res){
                         $this->_handleSvcChanges(1,"",$svc1,$wid);
                         $this->_handleSvcChanges(2,"",$svc2,$wid);
@@ -970,7 +971,7 @@ class HandlerNC extends HandlerBaseNC {
         // 1 recupera tutti i blockId da t310
         // 2 elimina i blocks usando l'apposita funzione
         // 3 elimina il workflow
-        $res=array("result"=>"ERR ","message"=>"Workflow ".$WID." not deleted.");
+        $res=array("result"=>"ERR","message"=>"Workflow ".$WID." not deleted.");
         $wfid=General::demouf($WID);
         $SQL="select c20_uuid as id from t20_block where c20_flofoid=?";
         if ($this->execSql($SQL,array($wfid))){
@@ -993,7 +994,7 @@ class HandlerNC extends HandlerBaseNC {
                     $ress=$this->execSql($SQL,array($wfid));
                 }
                 if ($ress){
-                    $res=array("result"=>"DONE ","message"=>"Workflow ".$WID." has been deleted.");
+                    $res=array("result"=>"OK","message"=>"Workflow ".$WID." has been deleted.");
 
                     $this->_handleSvcChanges(1,$svc1,"",$WID);
                     $this->_handleSvcChanges(2,$svc2,"",$WID);
@@ -1007,7 +1008,7 @@ class HandlerNC extends HandlerBaseNC {
     function deleteFlofoBlock($blockUuid){
         General::DelCache("blk",$blockUuid);
 
-        $res=array("result"=>"ERR ","message"=>"block ".$blockUuid." not deleted.");
+        $res=array("result"=>"ERR","message"=>"block ".$blockUuid." not deleted.");
         $blid=$this->getBlockIdFromUUID($blockUuid);
         // DELETE ALL EXITS CONNECTIONS
         $SQL="update t25_blockexit set c25_direction=0 where c25_direction=?";
@@ -1025,7 +1026,7 @@ class HandlerNC extends HandlerBaseNC {
             $SQL="delete from t20_block where c20_id=?";
             $res2=$this->execSql($SQL,array($blid));
 
-            $res=array("result"=>"DONE ","message"=>"block ".$blockUuid." has deleted.");
+            $res=array("result"=>"OK","message"=>"block ".$blockUuid." has deleted.");
         }
         return $res;
     }
@@ -1043,9 +1044,9 @@ class HandlerNC extends HandlerBaseNC {
             $this->execSql($SQL,array($elid));
             $SQL="delete from t30_blk_elm where c30_elemid=? and c30_blockid=?";
             $this->execSql($SQL,array($elid,$blid));
-            $res=array("result"=>"DONE ","message"=>"element ".$elementUuid." from block ".$blockUuid." has deleted.");
+            $res=array("result"=>"OK","message"=>"element ".$elementUuid." from block ".$blockUuid." has deleted.");
         } else
-            $res=array("result"=>"ERR ","message"=>"Element ".$elementUuid." not found");
+            $res=array("result"=>"ERR","message"=>"Element ".$elementUuid." not found");
         return $res;
     }
 
@@ -1054,7 +1055,7 @@ class HandlerNC extends HandlerBaseNC {
         $blid=$this->getBlockIdFromUUID($blockUuid);
         $SQL="delete from t25_blockexit where c25_blockid=? and c25_nexit=?";
         if (!$this->execSql($SQL,array($blid,$exitNum))){
-            $res=array("result"=>"ERR ","message"=>"Cannot delete exit ".$exitNum." from block ".$blockUuid);
+            $res=array("result"=>"ERR","message"=>"Cannot delete exit ".$exitNum." from block ".$blockUuid);
         } else {
             $SQL="select * from t25_blockexit where c25_blockid=? order by c25_nexit";
             $this->execSql($SQL,array($blid));
@@ -1066,7 +1067,7 @@ class HandlerNC extends HandlerBaseNC {
                 $id=$recs[$i]["c25_id"];
                 $ret=$this->execSql($SQL,array($j++,$dir,$id));
             }
-            $res=array("result"=>"DONE ","message"=>"exit ".$exitNum." from block ".$blockUuid." has deleted.");
+            $res=array("result"=>"OK","message"=>"exit ".$exitNum." from block ".$blockUuid." has deleted.");
         }
         return $res;
     }
@@ -1075,9 +1076,9 @@ class HandlerNC extends HandlerBaseNC {
     //----------------------
     function updateFlofo($workflowData,$OptionalWID=null,$doNotBackup=false){
         $id=0;
-        $res=array("result"=>"OK ");
+        $res=array("result"=>"OK");
         if (empty($workflowData)){
-            $res=array("result"=>"ERR ","message"=>"No workflow data received");
+            $res=array("result"=>"ERR","message"=>"No workflow data received");
         } else {
             if (isset($workflowData->workflow) && is_array($workflowData->workflow))
                 $workflowData=$workflowData->workflow[0];
@@ -1162,17 +1163,21 @@ class HandlerNC extends HandlerBaseNC {
                         $this->_handleSvcChanges(2,$pre_svc2,$svc2,$WID);
                         $this->_handleSvcChanges(3,$pre_svc3,$svc3,$WID);
 
+                        $returnFlofo=$this->getWorkflow($id,$WID, "", false, true);
+
+                        $res=array("result"=>"OK","message"=>"Workflow ".$WID." has been updated.","workflow"=>($returnFlofo["workflow"][0]));
+
                     } else {
-                        $res=array("result"=>"ERR ","message"=>"If you want to persist a new workflow you must use a 'Create Workflow' command");
+                        $res=array("result"=>"ERR","message"=>"If you want to persist a new workflow you must use a 'Create Workflow' command");
                     }
                 } else {
-                    $res=array("result"=>"ERR ","message"=>"If you want to persist a new workflow you must use a 'Create Workflow' command");
+                    $res=array("result"=>"ERR","message"=>"If you want to persist a new workflow you must use a 'Create Workflow' command");
                 }
             } elseif ($WID=="0") {
                 $errPos="Q";
                 // NON ESISTE, SI DEVE CREARE
             } else {
-                $res=array("result"=>"ERR ","message"=>"To persist a new workflow must use a 'create new workflow' command");
+                $res=array("result"=>"ERR","message"=>"To persist a new workflow must use a 'create new workflow' command");
             }
         }
         return $res;
@@ -1184,18 +1189,18 @@ class HandlerNC extends HandlerBaseNC {
     // Se è necessario il WfAUId può essere cambiato per contenere i dati del producer/versione/release/ecc.
     // Per poterlo cambiare bisogna verificare se su quetso DB c'è già lo stesso workflow ma con id diverso.
     function change_wfAUId($wid,$newWfAUId){
-        $res=array("result"=>"OK ","message"=>"Workflow AUId changed");
+        $res=array("result"=>"OK","message"=>"Workflow AUId changed");
         $SQL="select c10_id,c10_wf_auid,c10_description,c10_name from t10_workflow where c10_wf_auid=?";
         $chk=$this->execSql($SQL,array($newWfAUId));
         $dres=$this->getData();
         if (count($dres)>0 && $dres["c10_id"]!=$wid){
-            $res=array("result"=>"ERR ","message"=>"You can't assign this WfAUId because it's already assigned to another workflow. Name:'".$dres[0]["c10_name"]." Description:(".$dres[0]["c10_description"].")'.");
+            $res=array("result"=>"ERR","message"=>"You can't assign this WfAUId because it's already assigned to another workflow. Name:'".$dres[0]["c10_name"]." Description:(".$dres[0]["c10_description"].")'.");
         } else { 
             $SQL="update t10_workflow set c10_wf_auid=? where c10_wf_auid=?";
             $chk=$this->execSql($SQL,array($wid,$newWfAUId));
             if (!$chk){
                 $dbErr=$this->getError();
-                $res=array("result"=>"ERR ","message"=>"Error changing WfAUId:".json_encode($dbErr));
+                $res=array("result"=>"ERR","message"=>"Error changing WfAUId:".json_encode($dbErr));
             }
         }
         return $res;
@@ -1207,9 +1212,9 @@ class HandlerNC extends HandlerBaseNC {
     //          e controllo inesistenza dello stesso workflow su questo server con id diverso.
     function importFlofo($workflowData,$WID){
         $id=0;
-        $res=array("result"=>"OK ");
+        $res=array("result"=>"OK");
         if (empty($workflowData)){
-            $res=array("result"=>"ERR ","message"=>"No workflow data received");
+            $res=array("result"=>"ERR","message"=>"No workflow data received");
         } else {
             if (!empty($WID) && $WID!="" && $WID!="0" && strlen($WID)>10){
                 if (isset($workflowData->workflow) && is_array($workflowData->workflow))
@@ -1254,7 +1259,7 @@ class HandlerNC extends HandlerBaseNC {
                         $chk=$this->execSql($SQL,array($uuid));
                         $dres=$this->getData();
                         if (count($dres)>0 && $dres["c10_id"]!=$id){
-                            $res=array("result"=>"ERR ","message"=>"This workflow is already stored on this server. Name:'".$dres[0]["c10_name"]." Description:(".$dres[0]["c10_description"].")'. Before importing this workflow, you must delete the existing one.");
+                            $res=array("result"=>"ERR","message"=>"This workflow is already stored on this server. Name:'".$dres[0]["c10_name"]." Description:(".$dres[0]["c10_description"].")'. Before importing this workflow, you must delete the existing one.");
                         } else { 
                             // ------------------------------------------------------------
                             // Prima il backup (max ultimi 10 save)
@@ -1270,7 +1275,7 @@ class HandlerNC extends HandlerBaseNC {
                             $p_res=$this->execSql($SQL,$params);
                             if (!$p_res){
                                 $err=$this->getError();
-                                $res=array("result"=>"ERR ","message"=>$err->getMessage());
+                                $res=array("result"=>"ERR","message"=>$err->getMessage());
                             } else {
                                 $workflowData->wid=str_replace("_","]","[w".substr("$WID", 1));
                                 $workflowData=$this->_replaceAllUUIDs($workflowData);
@@ -1278,13 +1283,13 @@ class HandlerNC extends HandlerBaseNC {
                             }
                         }
                     } else {
-                        $res=array("result"=>"ERR ","message"=>"Cannot import a Workflow on a database where the original one does not exists.");
+                        $res=array("result"=>"ERR","message"=>"Cannot import a Workflow on a database where the original one does not exists.");
                     }
                 } else {
-                    $res=array("result"=>"ERR ","message"=>"If you want to persist a new workflow you must use a 'Create Workflow' command");
+                    $res=array("result"=>"ERR","message"=>"If you want to persist a new workflow you must use a 'Create Workflow' command");
                 }
             } else {
-                $res=array("result"=>"ERR ","message"=>"To substitute a Workflow, you must provide a Workflow ID.");
+                $res=array("result"=>"ERR","message"=>"To substitute a Workflow, you must provide a Workflow ID.");
             }
         }
         return $res;
@@ -1296,9 +1301,9 @@ class HandlerNC extends HandlerBaseNC {
     //----------------------
     function addToFlofo($workflowData,$WID){
         $id=0;
-        $res=array("result"=>"OK ");
+        $res=array("result"=>"OK");
         if (empty($workflowData)){
-            $res=array("result"=>"ERR ","message"=>"No workflow data received");
+            $res=array("result"=>"ERR","message"=>"No workflow data received");
         } else {
             if (!empty($WID) && $WID!="" && $WID!="0" && strlen($WID)>10){
                 if (isset($workflowData->workflow) && is_array($workflowData->workflow))
@@ -1333,13 +1338,13 @@ class HandlerNC extends HandlerBaseNC {
                             $this->updateFlofoExit($blockData);
 
                     } else {
-                        $res=array("result"=>"ERR ","message"=>"Cannot import a Workflow on a database where the original one does not exixt.");
+                        $res=array("result"=>"ERR","message"=>"Cannot import a Workflow on a database where the original one does not exixt.");
                     }
                 } else {
-                    $res=array("result"=>"ERR ","message"=>"If you want to persist a new workflow you must use a 'Create Workflow' command");
+                    $res=array("result"=>"ERR","message"=>"If you want to persist a new workflow you must use a 'Create Workflow' command");
                 }
             } else {
-                $res=array("result"=>"ERR ","message"=>"To import new blocks on a existing Workflow, you must provide the Workflow ID.");
+                $res=array("result"=>"ERR","message"=>"To import new blocks on a existing Workflow, you must provide the Workflow ID.");
             }
         }
         return $res;
@@ -1408,13 +1413,12 @@ class HandlerNC extends HandlerBaseNC {
             $exist=$this->execSql($SQL,array($blockData->block_id));
             $arres=$this->getData();
             $e_list=[];
-
             $exec=$blockData->exec;
+            $error="";
             if (!empty(trim($exec))){
                 $ret=General::hasScriptErrors(str_replace("wofoEnv","$"."wofoEnv",$exec), $wfName." -> ".$blockData->description." (id:".$blockData->block_id.")");
-                if ($ret["ok"]==false){
-                    $exec="/*\r\nERROR \r\n".$ret["output"]."\r\n*/\r\n".$exec;
-                }
+                if ($ret["ok"]==false)
+                    $error=$ret["output"];
             }
 
             if (count($arres)>0 && $arres[0]["uuid"]==$blockData->block_id){
@@ -1430,8 +1434,9 @@ class HandlerNC extends HandlerBaseNC {
                 $e_list=$this->getData();
                 if (!isset($blockData->type))
                     $blockData->type="";
-                $params=array($blockData->description,$exec,$blockData->type,$blockData->x_pos,$blockData->y_pos); 
-                $SQL="update t20_block set c20_desc=?,c20_exec=?,c20_type=?,c20_xpos=?,c20_ypos=?";
+
+                $params=array($blockData->description,$exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$error); 
+                $SQL="update t20_block set c20_desc=?,c20_exec=?,c20_type=?,c20_xpos=?,c20_ypos=?,c20_error=?";
                 if (isset($blockData->note)){
                     $params[]=$blockData->note;
                     $SQL.=",c20_note=?";
@@ -1456,13 +1461,13 @@ class HandlerNC extends HandlerBaseNC {
                     if ($blockData->block_id=="" || $blockData->block_id=="0")
                         $blockData->block_id=General::getUuidv4();
                     if (isset($blockData->note)){
-                        $SQL="insert into t20_block (c20_flofoid,c20_desc,c20_exec,c20_type,c20_xpos,c20_ypos,c20_note,c20_uuid,c20_start) values (?,?,?,?,?,?,?,?,?)";
-                        $params=array($wid,$blockData->description,$exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$blockData->note,$blockData->block_id,$blockData->is_start); 
+                        $SQL="insert into t20_block (c20_flofoid,c20_desc,c20_exec,c20_type,c20_xpos,c20_ypos,c20_error,c20_note,c20_uuid,c20_start) values (?,?,?,?,?,?,?,?,?)";
+                        $params=array($wid,$blockData->description,$exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$error,$blockData->note,$blockData->block_id,$blockData->is_start); 
                     } else {
                         if (!isset($blockData->type))
                             $blockData->type="";
-                        $SQL="insert into t20_block (c20_flofoid,c20_desc,c20_exec,c20_type,c20_xpos,c20_ypos,c20_uuid,c20_start) values (?,?,?,?,?,?,?,?)";
-                        $params=array($wid,$blockData->description,$exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$blockData->block_id,$blockData->is_start); 
+                        $SQL="insert into t20_block (c20_flofoid,c20_desc,c20_exec,c20_type,c20_xpos,c20_ypos,c20_error,c20_uuid,c20_start) values (?,?,?,?,?,?,?,?)";
+                        $params=array($wid,$blockData->description,$exec,$blockData->type,$blockData->x_pos,$error,$blockData->y_pos,$blockData->block_id,$blockData->is_start); 
                     }
                     $p_res=$this->execSql($SQL,$params);
                     $errPos="M";
@@ -1470,10 +1475,10 @@ class HandlerNC extends HandlerBaseNC {
                     $this->execSql($SQL,array($blockData->block_id));
                     $bid=$this->getData()[0]["id"];
 
-                    $res=array("result"=>"DONE ","message"=>"Added block with UUID:".$blockData->block_id.".");
+                    $res=array("result"=>"OK","message"=>"Added block with UUID:".$blockData->block_id.".");
                 } else {
                     $p_res=false;
-                    $res=array("result"=>"ERR ","message"=>"Cannot add block without a valid workflow id.");
+                    $res=array("result"=>"ERR","message"=>"Cannot add block without a valid workflow id.");
                 }
             }
             if ($p_res){
@@ -1503,7 +1508,7 @@ class HandlerNC extends HandlerBaseNC {
                 $res="";
             }
             else 
-                $res=array("result"=>"ERR ".$errPos."1","message"=>"NOT executed at BLOCK level");
+                $res=array("result"=>"ERR".$errPos."1","message"=>"NOT executed at BLOCK level");
         } else {
             if ($blockData->blocks ==null || count($blockData->blocks)<1){
                 //creare un primo blocco di START
@@ -1751,7 +1756,7 @@ class HandlerNC extends HandlerBaseNC {
         if (!$getJustFlowExec){
             $SQL.="b1.c20_start as is_start ";
             if ($forEditingPurpose){
-                $SQL.=",b1.c20_note as note, b1.c20_xpos as x_pos, b1.c20_ypos as y_pos, b1.c20_modified as last_mod ";
+                $SQL.=",b1.c20_note as note, b1.c20_xpos as x_pos, b1.c20_ypos as y_pos,b1.c20_error as error, b1.c20_modified as last_mod ";
             }
         } else {
             $SQL.="b1.c20_start as is_start ";
@@ -1777,6 +1782,7 @@ class HandlerNC extends HandlerBaseNC {
             if (!$getJustFlowExec)
                 $retBlk["is_start"]=$blk[0]["is_start"];
             if ($forEditingPurpose){
+                $retBlk["error"]=$blk[0]["error"];
                 $retBlk["x_pos"]=$blk[0]["x_pos"];
                 $retBlk["y_pos"]=$blk[0]["y_pos"];
                 $retBlk["last_mod"]=$blk[0]["last_mod"];
@@ -1892,10 +1898,10 @@ class HandlerNC extends HandlerBaseNC {
         // receive a workflow from an external entity
         date_default_timezone_set('Europe/Rome');
         $id=0;
-        $res=array("result"=>"OK ");
+        $res=array("result"=>"OK");
         $log=date('m/d/Y h:i:s a', time())."- start";
         if (empty($workflowData)){
-            $res=array("result"=>"ERR ","message"=>"No workflow data received");
+            $res=array("result"=>"ERR","message"=>"No workflow data received");
             $log=date('m/d/Y h:i:s a', time())."- Error: no workflow data received ";
         } else {
             if (isset($workflowData->workflow) && is_array($workflowData->workflow))
