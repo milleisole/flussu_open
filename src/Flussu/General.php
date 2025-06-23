@@ -780,6 +780,13 @@ class General {
             $ret=implode("\r\n",$output);
         }
         if ($return_var !== 0) {
+            /*
+            if (preg_match('/unexpected variable "\$wofoEnv"/i', $description)) {
+                echo "Trovata la variabile \$wofoEnv!";
+            } else {
+                echo "Nessun errore trovato.";
+            }
+            */
             self::Log("PHP LINT ERROR: ".$ret."\r\n\t\t\t\t\t\t\t\t\t\t\t\t".$description);
         }
         return [

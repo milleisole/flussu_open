@@ -406,7 +406,7 @@ use Flussu\Flussuserver\Request;
                 ADD COLUMN c20_error TEXT CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_unicode_ci' DEFAULT '' AFTER c20_note;
             ";
             $this->execSql($SQL);
-            $ret=$this->_execVersion($newVer,null,[[$SQL,null]]);
+            $ret=$this->_execVersion($newVer,null);
             $res.=($ret?"OK":"Error");
         } else {
             $res.="not needed";
