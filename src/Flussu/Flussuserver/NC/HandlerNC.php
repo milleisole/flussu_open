@@ -1237,6 +1237,8 @@ class HandlerNC extends HandlerBaseNC {
                         $workflowData->svc3=$res[0]["svc3"];
                         $workflowData->name=$res[0]["name"];
                         $workflowData->description=$res[0]["description"]." \r\n(imported from ".$workflowData->description.")";
+                        if (strlen($workflowData->description)>254)
+                            $workflowData->description=substr($workflowData->description,0,254);
                         $workflowData->lang=\strtoupper($workflowData->lang);
                         $workflowData->supp_langs=\strtoupper($workflowData->supp_langs);
                         if (!strpos($workflowData->lang,$workflowData->supp_langs)===false){
@@ -1461,13 +1463,13 @@ class HandlerNC extends HandlerBaseNC {
                     if ($blockData->block_id=="" || $blockData->block_id=="0")
                         $blockData->block_id=General::getUuidv4();
                     if (isset($blockData->note)){
-                        $SQL="insert into t20_block (c20_flofoid,c20_desc,c20_exec,c20_type,c20_xpos,c20_ypos,c20_error,c20_note,c20_uuid,c20_start) values (?,?,?,?,?,?,?,?,?)";
+                        $SQL="insert into t20_block (c20_flofoid,c20_desc,c20_exec,c20_type,c20_xpos,c20_ypos,c20_error,c20_note,c20_uuid,c20_start) values (?,?,?,?,?,?,?,?,?,?)";
                         $params=array($wid,$blockData->description,$exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$error,$blockData->note,$blockData->block_id,$blockData->is_start); 
                     } else {
                         if (!isset($blockData->type))
                             $blockData->type="";
-                        $SQL="insert into t20_block (c20_flofoid,c20_desc,c20_exec,c20_type,c20_xpos,c20_ypos,c20_error,c20_uuid,c20_start) values (?,?,?,?,?,?,?,?)";
-                        $params=array($wid,$blockData->description,$exec,$blockData->type,$blockData->x_pos,$error,$blockData->y_pos,$blockData->block_id,$blockData->is_start); 
+                        $SQL="insert into t20_block (c20_flofoid,c20_desc,c20_exec,c20_type,c20_xpos,c20_ypos,c20_error,c20_uuid,c20_start) values (?,?,?,?,?,?,?,?,?)";
+                        $params=array($wid,$blockData->description,$exec,$blockData->type,$blockData->x_pos,$blockData->y_pos,$error,$blockData->block_id,$blockData->is_start); 
                     }
                     $p_res=$this->execSql($SQL,$params);
                     $errPos="M";
