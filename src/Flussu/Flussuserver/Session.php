@@ -858,12 +858,12 @@ class Session {
             $var->value=null;
             $var->jValue="[]";
             $var->isNull=true;
-            $var->isObject=$isObject;
         } else{
             if ($exist && $var->value===$orig_varValue)
                 return true;
         }
 
+        $var->isObject=$isObject;
         $var->value=$orig_varValue;
         if (is_null($var->value))
             $var->isNull=true;

@@ -520,10 +520,10 @@ function extractCalendar(elms) {
     if (Object.keys(dateToSlots).length) {
         let html = `<div class="w-full my-4 flex flex-wrap gap-4">`;
         Object.keys(dateToSlots).sort().forEach(date => {
-            html += `<div class="bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 min-w-[180px] shadow flex flex-col items-center">`;
+            html += `<div class="bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 min-w-[150px] shadow flex flex-col items-center">`;
             // Formatta data in modo leggibile
             let dateObj = new Date(date.replace(/\//g, "-"));
-            html += `<div class="font-bold mb-2 text-blue-900 dark:text-blue-200">${dateObj.toLocaleDateString("it-IT", { weekday: "short", year: "short", month: "short", day: "numeric" })}</div>`;
+            html += `<div class="font-bold mb-2 text-blue-900 dark:text-blue-200">${dateObj.toLocaleDateString("it-IT", { weekday: "short", year: "2-digit", month: "short", day: "numeric" })}</div>`;
             // Bottoni slot
             dateToSlots[date].forEach(slot => {
                 // Costruisci bottone, ma senza event, perché il bottone verrà reinserito dalla routine principale!
@@ -537,9 +537,6 @@ function extractCalendar(elms) {
     }
     return elms;
 }
-
-
-
 
 function attivaUploadEsterno(term, arr) {
   const fileBtn = document.getElementById("file-btn");

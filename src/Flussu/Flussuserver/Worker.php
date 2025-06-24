@@ -392,7 +392,7 @@ class Worker {
                                 $WID2=\Flussu\Flussuserver\NC\HandlerNC::WID2Wofoid($this->_WofoS->getVarValue("$"."_MemSeStat")->Wwid);
                                 $newFrmXctdBid=$this->_WofoD->getBlockUuidFromDescription($WID2,$parts[1]);
                             } catch (\Throwable $e){
-
+                                $this->_WofoS->recLog($e->getMessage());
                             }
                             if ($newFrmXctdBid!=null && !empty($newFrmXctdBid))
                                 $frmXctdBid=$newFrmXctdBid;
