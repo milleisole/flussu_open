@@ -1,26 +1,18 @@
 (function () {
-    // Funzione principale che verrà eseguita quando il DOM è pronto
+    let overlayDiv = null;
     function initFlussuChatbot() {
-        // Leggi gli attributi 'server' e 'wid' dal tag <script> con id="flussu_chatbot"
         const scriptTag = document.getElementById('flussu_chatbot');
         if (!scriptTag) {
             console.error('Flussu Chatbot: tag script con id="flussu_chatbot" non trovato.');
             return;
         }
-        
         const server = scriptTag.getAttribute('server') || 'default-server.com';
         const wid = scriptTag.getAttribute('wid') || 'default-wid';
-        
-        // Crea il link del chatbot usando server e wid
         const chatbotUrl = `https://${server}/flucli/client_dev.html?wid=${wid}&ifra=1`;
+        const reduceIconPath = `https://${server}/flucli/images/reduce.png`;
+        const enlargeIconPath = `https://${server}/flucli/images/enlarge.png`;
 
-        // Verifica che document.head esista
-        if (!document.head) {
-            console.error('Flussu Chatbot: document.head non trovato.');
-            return;
-        }
-
-        // Inietta il CSS
+        // CSS
         const style = document.createElement('style');
         style.textContent = `
             .flussu_chatbot_button {
@@ -48,18 +40,16 @@
                 bottom: 15px;
                 right: 20px;
                 width: 400px;
-                height: 0; /* Inizialmente chiuso con altezza 0 */
+                height: 0;
                 background: #FFF;
                 box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
                 z-index: 1001;
-                border-radius: 0 10px 0 10px; /* Solo in alto a destra e in basso a sinistra */
+                border-radius: 0 10px 0 10px;
                 overflow: hidden;
-                transition: transform 0.3s ease-out, height 0.3s ease-out; /* Animazione fluida */
-                transform: translateY(100%); /* Inizia dal basso */
+                transition: height 0.32s cubic-bezier(.32,1.3,.41,1), width 0.32s cubic-bezier(.32,1.3,.41,1);
             }
             .flussu_chatbot_iframe_container.open {
-                height: 680px; /* Altezza completa quando aperto */
-                transform: translateY(0); /* Torna in posizione normale */
+                height: 680px;
             }
             .flussu_chatbot_iframe {
                 width: 100%;
@@ -68,22 +58,57 @@
                 padding-top: 8px;
                 box-sizing: border-box;
             }
-             .flussu_close_button {
+            .flussu_header_btns {
                 position: absolute;
-                top: -1px; 
-                right: -1px; 
+                top: 6px;
+                right: 10px;
+                display: flex;
+                gap: 3px;
+                z-index: 1003;
+            }
+            .flussu_enlarge_button, .flussu_close_button {
                 background: #28a745;
                 color: white;
                 border: none;
-                border-radius: 0 6px 0 4px;
-                width: 24px; 
-                height: 24px; 
+                border-radius: 4px;
+                width: 24px;
+                height: 24px;
                 cursor: pointer;
-                font-size: 20px; 
-                line-height: 22px; 
-                text-align: center;
-                z-index: 1002;
+                font-size: 17px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: background 0.2s;
                 font-weight: bold;
+                padding: 0;
+            }
+            .flussu_enlarge_button:hover, .flussu_close_button:hover {
+                background: #218838;
+            }
+            .flussu_chatbot_iframe_container.fullscreen {
+                left: 5vw !important;
+                top: 5vh !important;
+                bottom: auto !important;
+                right: auto !important;
+                width: 90vw !important;
+                height: 90vh !important;
+                border-radius: 18px !important;
+                box-shadow: 0 0 0 9999px rgba(0,0,0,0.12), 0 8px 24px rgba(0,0,0,0.18);
+                z-index: 10010;
+                transition: width 0.32s cubic-bezier(.32,1.3,.41,1), height 0.32s cubic-bezier(.32,1.3,.41,1);
+            }
+            .flussu_chatbot_overlay {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(0,0,0,0.17);
+                z-index: 10005;
+                transition: background 0.3s;
+            }
+            .flussu_chatbot_overlay.active {
+                display: block;
             }
             @media (max-width: 500px) {
                 .flussu_chatbot_iframe_container {
@@ -92,22 +117,23 @@
                     bottom: 15px;
                     right: 0;
                     border-radius: 0;
-                    transform: translateY(100%);
                 }
+                .flussu_enlarge_button {display:none;}
                 .flussu_chatbot_iframe_container.open {
                     height: calc(100% - 15px);
+                }
+                .flussu_chatbot_iframe_container.fullscreen {
+                    left: 1vw !important;
+                    top: 1vh !important;
+                    width: 98vw !important;
+                    height: 98vh !important;
+                    border-radius: 8px !important;
                 }
             }
         `;
         document.head.appendChild(style);
 
-        // Verifica che document.body esista
-        if (!document.body) {
-            console.error('Flussu Chatbot: document.body non trovato.');
-            return;
-        }
-
-        // Inietta l'HTML per il pulsante
+        // Bottone verde rotondo per aprire chatbot
         const buttonDiv = document.createElement('div');
         buttonDiv.className = 'flussu_chatbot_button';
         buttonDiv.innerHTML = `
@@ -116,51 +142,90 @@
         </svg>`;
         document.body.appendChild(buttonDiv);
 
-        // Inietta l'HTML per l'iframe
+        // Overlay
+        overlayDiv = document.createElement('div');
+        overlayDiv.className = 'flussu_chatbot_overlay';
+        document.body.appendChild(overlayDiv);
+
+        // Contenitore chatbot + bottoni
         const iframeContainer = document.createElement('div');
         iframeContainer.className = 'flussu_chatbot_iframe_container';
         iframeContainer.id = 'flussu_chatbot_iframe_container';
         iframeContainer.innerHTML = `
-            <button class="flussu_close_button">×</button>
+            <div class="flussu_header_btns">
+                <button class="flussu_enlarge_button" title="Ingrandisci chatbot">⤢</button>
+                <button class="flussu_close_button" title="Chiudi chatbot">×</button>
+            </div>
             <iframe class="flussu_chatbot_iframe" src="${chatbotUrl}"></iframe>
         `;
         document.body.appendChild(iframeContainer);
 
-        // Funzione per alternare la visibilità dell'iframe e del pulsante con animazione
+        const enlargeButton = iframeContainer.querySelector('.flussu_enlarge_button');
+        const closeButton = iframeContainer.querySelector('.flussu_close_button');
+
+        let isFullScreen = false;
+        
+        enlargeButton.innerHTML = `<img src="${enlargeIconPath}" alt="Riduci" style="width:18px;height:18px;display:block;margin:auto;" />`;
+
+        // Funzione per fullscreen/riduci
+        function toggleFullScreenChatbot(forceTo) {
+            const container = document.getElementById('flussu_chatbot_iframe_container');
+            if (!container) return;
+            if (typeof forceTo === "boolean") isFullScreen = forceTo;
+            else isFullScreen = !isFullScreen;
+            if (isFullScreen) {
+                container.classList.add('fullscreen');
+                enlargeButton.innerHTML = `<img src="${reduceIconPath}" alt="Riduci" style="width:18px;height:18px;display:block;margin:auto;" />`;
+                enlargeButton.title = "Riduci chatbot";
+                overlayDiv.classList.add('active');
+            } else {
+                container.classList.remove('fullscreen');
+                enlargeButton.innerHTML = `<img src="${enlargeIconPath}" alt="Riduci" style="width:18px;height:18px;display:block;margin:auto;" />`;
+                enlargeButton.title = "Ingrandisci chatbot";
+                overlayDiv.classList.remove('active');
+            }
+        }
+        enlargeButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleFullScreenChatbot();
+        });
+        // Cliccare l’overlay riduce la chat
+        overlayDiv.addEventListener('click', function() {
+            if (isFullScreen) toggleFullScreenChatbot(false);
+        });
+
+        // Mostra/nascondi chatbot
         function toggleFlussuChatbot() {
             const container = document.getElementById('flussu_chatbot_iframe_container');
             if (container) {
                 const isVisible = container.classList.contains('open');
                 if (isVisible) {
                     container.classList.remove('open');
-                    // Aspetta la fine dell'animazione prima di nascondere il pulsante
+                    container.classList.remove('fullscreen');
+                    isFullScreen = false;
+                    enlargeButton.textContent = '⤢';
+                    enlargeButton.title = "Ingrandisci chatbot";
+                    overlayDiv.classList.remove('active');
                     setTimeout(() => {
                         container.style.display = 'none';
                         buttonDiv.style.display = 'flex';
-                    }, 300); // Tempo pari alla durata della transition (0.3s)
+                        overlayDiv.classList.remove('active');
+                    }, 320);
                 } else {
                     container.style.display = 'block';
                     setTimeout(() => {
                         container.classList.add('open');
                         buttonDiv.style.display = 'none';
-                    }, 10); // Piccolo ritardo per avviare l'animazione
+                    }, 10);
                 }
             } else {
                 console.error('Flussu Chatbot: contenitore iframe non trovato.');
             }
         }
-
-        // Aggiungi event listeners
         buttonDiv.addEventListener('click', toggleFlussuChatbot);
-        const closeButton = iframeContainer.querySelector('.flussu_close_button');
-        if (closeButton) {
-            closeButton.addEventListener('click', toggleFlussuChatbot);
-        } else {
-            console.error('Flussu Chatbot: pulsante di chiusura non trovato.');
-        }
+        closeButton.addEventListener('click', toggleFlussuChatbot);
     }
 
-    // Esegui quando il DOM è completamente caricato
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initFlussuChatbot);
     } else {
