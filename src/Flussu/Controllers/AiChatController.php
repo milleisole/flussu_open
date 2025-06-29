@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.3.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.4.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
  * TBD- UNFINISHED
  * 
  * CLASS-NAME:       Flussu OpenAi Controller - v3.0
- * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.2
- * VERSION REL.:     4.3.0 20250530 
- * UPDATE DATE:      30.05:2025 
+ * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.4
+ * VERSION REL.:     4.4.0.20250629 
+ * UPDATE DATE:      29.06:2025 
  * -------------------------------------------------------*/
 namespace Flussu\Controllers;
 
@@ -157,7 +157,6 @@ TXT;
 
         if (is_null($preChat) || empty($preChat))
             $preChat=[];
-
 
         try{
             if (!$webPreview) 

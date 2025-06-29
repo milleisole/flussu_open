@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.4 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@
  * USE ALDUS BEAN:   Databroker.bean
  * -------------------------------------------------------*
  * CREATED DATE:     04.07:2020 - Aldus - Flussu v1.3
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     4.4.1.20250629
+ * UPDATES DATE:     29.06:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * -------------------------------------------------------*/
@@ -545,9 +545,15 @@ class Worker {
                         $this->_WofoS->cleanLastHistoryBid($this->_xcBid);
                         $lng=$this->_WofoS->getLang();
                         $this->_WofoS->assignVars("$"."lastLabel","");
-
                         $elements=$theBlk["elements"];
                         if (isset($xcRes["addElements"])){
+                            // Verifico button esistenti
+                            $to_move=[];
+                            foreach ($theBlk["elements"] as $key=>$theElem){
+                                if ($theElem["c_type"]==2)
+                                    $to_move[$key]=$theElem;
+                            }
+                            // Aggiungo gli elementi aggiuntivi
                             $order=count($elements)+1;
                             foreach ($xcRes["addElements"] as $newElem){
                                 $newElemGen["elem_id"]=str_replace(".","-",uniqid("a7D0-",true))."-FEDE";
@@ -563,6 +569,21 @@ class Worker {
                                 $newElemGen["note"]="generated";
                                 $newElemGen["exit_num"]="0";
                                 switch ($newElem["type"]){
+                                    case "IE":
+                                    case "IS":
+                                    case "IM":
+                                        if ($newElem["mandatory"])
+                                            $newElemGen["css"]["display_info"]["mandatory"]=true;
+                                        if ($newElem["type"]=="IE")
+                                            $newElemGen["css"]["display_info"]["subtype"]="e-mail";
+                                        else if ($newElem["type"]=="IM")
+                                            $newElemGen["css"]["display_info"]["subtype"]="textarea";
+                                        $newElemGen["langs"][$lng]["uri"]="";                                        
+                                        $newElemGen["value"]=$newElem["value"];
+                                        $newElemGen["var_name"]="$".$newElem["varname"];
+                                        $newElemGen["c_type"]="1";
+                                        $newElemGen["d_type"]="INPUT";
+                                        break;
                                     case "B":
                                         //add Button
                                         $newElemGen["value"]=$newElem["value"];
@@ -582,8 +603,17 @@ class Worker {
                                 }
                                 $elements=array_merge($elements,[$newElemGen]);
                             } 
+                            $moved = [];
+                            foreach ($to_move as $val) {
+                                $key = array_search($val, $elements);
+                                if ($key !== false) {
+                                    $moved[] = $elements[$key];
+                                    unset($elements[$key]);
+                                }
+                            }
+                            $elements = array_values($elements);
+                            $elements = array_merge($elements, $moved);
                         }
-
                         foreach ($elements as $elem){
                             $lbl=$elem["langs"][$lng]["label"];
                             if (is_array($lbl)){

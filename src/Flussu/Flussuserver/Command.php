@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.4 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,13 +26,14 @@
  * FOR ALDUS BEAN:   Databroker.bean
  * -------------------------------------------------------*
  * CREATED DATE:     1.0 28.12:2020 - Aldus
- * VERSION REL.:     4.3.20250606
- * UPDATES DATE:     06.06:2025 
+ * VERSION REL.:     4.4.1.20250629
+ * UPDATES DATE:     29.06:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * Possibilità di fare ATTACH all'email con una stringa
  * Arr$Attach["filename"] Arr$Attach["filetype"] Arr$Attach["filecontent"];
  * Handles MARKDOWN messsage format
+ * Corrected MD handling for email body
  * -------------------------------------------------------*/
 
   /**
@@ -342,6 +343,10 @@ class Command {
         if (!empty($message)){
 
             // MARKDOWN format
+            $message=str_replace("&lbrace;MD&rcub;","{MD}",$message);
+            $message=str_replace("&lbrace;&solMD&rcub;","{/MD}",$message);
+            $message=str_replace("&lbrace;/MD&rcub;","{/MD}",$message);
+            
             if (strpos($message,"{MD}")===0 && strpos($message,"{/MD}")===strlen($message)-5){
                 $message=substr($message,4,strlen($message)-9);
                 $Parsedown = new \Parsedown();

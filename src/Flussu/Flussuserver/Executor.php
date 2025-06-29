@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.4 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,12 +28,14 @@
  * CLASS-INTENT:     Work/executor
  * -------------------------------------------------------*
  * CREATED DATE:     25.05:2024 - Aldus - Flussu v3.0
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     09.06:2025 
+ * VERSION REL.:     4.4.1.20250629
+ * UPDATES DATE:     29.06:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * NEW: add Workflow Absolute Unique ID handling - 15-11-2024
  * Log bug solved
+ * 4.4.1 Can generate INPUT elements (IS, IE, IM) 
+ * 4.4.1 Reordered elements and buttons: base buttons came after generated inputs and labels
  * -------------------------------------------------------*/
 
 /**
@@ -420,7 +422,6 @@ class Executor{
                     case "createButton":
                         // V3.0.1 - Add a label to the current block
                         //$buttonVarName,$clickValue, $buttonText, $buttonExit=0)
-                        //foreach ($frmElms as $Key => $aElm){
                         if (!is_array($res)){ 
                             $res=[];
                         }
@@ -433,7 +434,22 @@ class Executor{
                         $elem_arr[]=["type"=>"B","text"=>$innerParams[2],"value"=>$innerParams[1],"varname"=>$innerParams[0],"exit"=>$innerParams[3],"css"=>$innerParams[4]];
                         $res["addElements"]=$elem_arr;
                         break;
-
+                    case "createInput":
+                        // "IS":"IE":"IM",$inputVarName,$inputValue,$suggestText,$isMandatory,$inputCss
+                        // V4.4.1 - Add an inputbox to the current block
+                        //$inputVarName,$inputValue,$suggestText,$isMandatory,$inputCss
+                        if (!is_array($res)){ 
+                            $res=[];
+                        }
+                        else {
+                            if (isset($res["addElements"]))
+                                $elem_arr=$res["addElements"];
+                            else
+                                $elem_arr=[];
+                        }
+                        $elem_arr[]=["type"=>$innerParams[0],"varname"=>$innerParams[1],"value"=>$innerParams[2],"text"=>$innerParams[3],"mandatory"=>$innerParams[4],"css"=>$innerParams[5]];
+                        $res["addElements"]=$elem_arr;
+                        break;
                     case "timedRecall":
                         // V3.0 - Set to recall a workflow at a specified date/time
                         $rmins=$innerParams[1];
