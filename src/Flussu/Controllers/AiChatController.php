@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.4.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.4.1- Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,13 @@
  * 
  * CLASS-NAME:       Flussu OpenAi Controller - v3.0
  * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.4
- * VERSION REL.:     4.4.0.20250629 
+ * VERSION REL.:     4.4.1.20250629 
  * UPDATE DATE:      29.06:2025 
+ * --------------------------------------------------------
+ * New: Whe AI reply with a Flussu Command, the result contains
+ * an ARRAY: ["FLUSSU_CMD"=>the command and parameters] and
+ *           ["TEXT"=>the text part to show to the user]
+ * if it's not an ARRAY it's just text to show to the user
  * -------------------------------------------------------*/
 namespace Flussu\Controllers;
 
@@ -166,15 +171,33 @@ TXT;
 
             $res=$this->replyIsCommand($result[1]);
             $ret=$res[1];
-            if (!$res[0]){
+            $pReslt="";
+            if ($res[0]){
+                $replaceText="```json\r\n".$res[2]."\r\n```";
+                $pReslt=str_replace($replaceText,"",$result[1]);
+                if ($pReslt==$result[1]){
+                    $replaceText="```json\n".$res[2]."\n```";
+                    $pReslt=str_replace($replaceText,"",$result[1]);
+                }
+                if ($pReslt==$result[1]){
+                    $replaceText=$res[2];
+                    $pReslt=str_replace($replaceText,"",$result[1]);
+                }
+                $ret["TEXT"]="";
+                if (strlen(trim($pReslt))>1)
+                    $ret["TEXT"]="{MD}".$pReslt."{/MD}";
+            } else 
+                $pReslt=trim($result[1]);
+            if (!empty($pReslt)){
                 $History=$result[0];
                 $History[]= [
                     'role' => 'assistant',
-                    'content' => $result[1],
+                    'content' => $pReslt,
                 ];
                 General::ObjPersist("AiCht".$sessId,$History); 
-                $ret="{MD}".$result[1]."{/MD}";
-            } 
+                if (!$res[0])
+                    $ret="{MD}".$pReslt."{/MD}";
+            }
             return ["Ok",$ret];
         } catch (\Throwable $e) {
             return ["Error: ",$e->getMessage()];
@@ -188,13 +211,13 @@ TXT;
                 if (!is_null($text) && strlen($text)>10 && strlen($text)<300) {
                     $abc=json_decode($text,true);
                     if (count($abc)>0 && is_array($abc) && isset($abc['FLUSSU_CMD']) )
-                        return [true, $abc]; // not a command
+                        return [true, $abc,$text]; // not a command
                 }
             }
         } catch (\Throwable $e){
             // do nothing... $e is just a debuggable point
         }
-        return [false, $text]; // not a command
+        return [false, $text,""]; // not a command
     }
 
     function extractFlussuJson($inputString) {

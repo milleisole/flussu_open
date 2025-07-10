@@ -89,7 +89,7 @@ class FlussuGeminAi implements IAiProvider
             // Invia il nuovo messaggio
             $response = $chat->sendMessage($sendText);
             $responseText=$response->text();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $responseText=$e->getMessage();
         }
         return [

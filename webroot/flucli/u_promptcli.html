@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="it" class="h-full bg-gray-50 dark:bg-gray-900">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" href="/client/assets/img/uprompt_favicon.png"/>
+        <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+        <title data-i18n="app_title">U-PROMPT</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="/flucli/client_api.dev.js"></script>
+        <script>
+            urlParams = new URLSearchParams(window.location.search);
+            const headParam = urlParams.get('head');
+            const widParam = urlParams.get('wid');
+            tailwind.config = { darkMode: 'class' }
+            if (localStorage.getItem("theme") === "dark" || (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+                document.documentElement.classList.add("dark");
+            } else {
+                document.documentElement.classList.remove("dark");
+            }
+            function initWorkflow(){
+                wid = widParam;
+                if (wid) {
+                    startWorkflow(wid);
+                } else {
+                    showAlert(LNG['uninitialized'] || 'Client non inizializzato. ==================== Impossibile continuare.', () => { },true);
+                }
+            }
+            setHighlightTheme(document.documentElement.classList.contains('dark'));
+        </script>
+        <!-- colora codice -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+        <style>
+            code{
+                display:inline;      
+                white-space:pre;     
+                margin:0;            
+                padding:0 0.2em;     
+                /* background:#f5f5f5;
+                border-radius:4px; */ 
+                /*font-weight:600      */
+            }
+            pre {
+                background: #f5f7fa !important;     /* sfondo molto chiaro */
+                color: #192433 !important;          /* colore testo scuro */
+                border-radius: 10px !important;
+                padding: 1.1em 1.3em !important;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace !important;
+                font-size: 1.08em !important;
+                line-height: 1.58 !important;
+                border: 1px solid #e2e8f0 !important;
+                box-shadow: 0 2px 16px 0 rgba(0,0,0,0.04);
+                margin: 1.5em 0 !important;
+                overflow-x: auto;
+                margin-left:1.5em !important;
+                width:90% !important;
+            }
+            pre code {
+                background: none !important;
+                color: inherit !important;
+                padding: 0 !important;
+                font-size: 0.85em !important;
+            }
+            .code-badge {
+                position: absolute;
+                right: 1em;
+                top: 0.5em;
+                background: #e7eaec;
+                color: #192433;
+                font-size: 0.83em;
+                padding: 1px 11px;
+                border-radius: 999px;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+                box-shadow: 0 2px 8px 0 rgba(0,0,0,0.03);
+                z-index: 10;
+                pointer-events: none;
+            }
+            /* 2.a – Dark mode via classe .dark (Tailwind class strategy) */
+            .dark pre, .dark pre code {
+                background: #151a23 !important;    /* il tuo sfondo */
+                color: #e7ebf2 !important;         /* colore base */
+                border-radius: 16px;
+                font-size: 1.06em;
+                font-family: 'JetBrains Mono', 'Fira Mono', 'Consolas', monospace;
+                padding: 1.2em 1.5em;
+            }
+            /* Ecco le principali keyword (adatta a piacere!) */
+            .dark .hljs-keyword, .dark .hljs-selector-tag, .dark .hljs-literal, .dark .hljs-title {
+                color: #7dd3fc !important; /* celeste */
+            }
+            .dark .hljs-string, .dark .hljs-attr, .dark .hljs-variable {
+                color: #facc15 !important; /* giallo */
+            }
+            .dark .hljs-comment {
+                color: #9ca3af !important;
+            }
+            .dark .hljs-number {
+                color: #f87171 !important;
+            }
+            .dark .hljs-function {
+                color: #f472b6 !important;
+            }
+            .dark .hljs-type {
+                color: #a3e635 !important;
+            }
+            .dark .code-badge {
+                background: #192433;
+                color: #e7ebf2;
+            }
+            #msg-area > * {
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            #msg-area .flex {
+                flex-wrap: nowrap; /* Evita il wrapping dei flex items */
+                max-width: 100%;
+            }
+            #msg-area .w-full {
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            #chat-area .flex > *{
+                min-width:0;          /* permette di stringersi al viewport */
+            }
+            #chat-area h1,#chat-area h2,#chat-area h3,#chat-area h4{
+                margin-top: 0.9em;
+                margin-bottom: 0.5em;
+                font-weight: 700; 
+                line-height: 1.25 !important;
+                margin-left:-0.05em    
+            }
+            #chat-area h1, .flussu_title1{
+                border-top:solid 1px silver;
+                font-size:2.2em;
+            }
+            #chat-area h2, .flussu_title2{
+                font-size:1.9em;
+            }
+            #chat-area h3, .flussu_title3{
+                font-size:1.3em;
+            }
+            #chat-area h4, .flussu_title4{
+                font-size:1.1em;
+            }
+            #msg-area ul, #msg-area ol {
+                list-style: initial;
+                margin-left: 1.5em;   /* Indenta come da standard */
+                padding-left: 1.5em;
+                width:auto !important;
+            }
+            #msg-area p {
+                margin-top: 0.5em;    /* Spazio sopra il paragrafo */
+                margin-left: 0.1em;    /* Spazio sopra il paragrafo */
+                margin-bottom: 0.5em;
+                width:auto !important;
+            }
+            /* Stile base per tutte le tabelle */
+            #msg-area table {
+                width: 100% !important;
+                min-width: 0 !important;
+                margin-left: 0 !important;
+                box-sizing: border-box;
+                border-collapse: collapse;
+                border-radius: 0.75rem;
+                overflow: hidden;
+                background: #fff;
+                font-size: 1em;
+                margin-left: 1em;
+                box-shadow: 0 3px 16px -4px rgba(0,0,0,0.04);
+            }
+            #msg-area thead {
+                background: #f8fafc;
+            }
+            #msg-area th, #msg-area td {
+                padding: 0.85em 1.1em;
+                text-align: left;
+                border-bottom: 1px solid #e5e7eb;
+                word-break: break-word;
+            }
+            #msg-area th {
+                font-weight: 700;
+                color: #1e293b;
+                background: #f1f5f9;
+                letter-spacing: 0.03em;
+            }
+            #msg-area tbody tr:last-child td {
+                border-bottom: none;
+            }
+            #msg-area .table-responsive {
+                overflow-x: auto;
+                width: 100%;
+            }
+            #msg-area .table-responsive table {
+                min-width: 0 !important;
+            }
+            /* DARK MODE */
+            .dark #msg-area table {
+                background: #222c3a;
+                color: #e7ebf2;
+                box-shadow: 0 3px 16px -4px rgba(0,0,0,0.21);
+            }
+            .dark #msg-area thead {
+                background: #283345;
+            }
+            .dark #msg-area th, .dark #msg-area td {
+                border-bottom: 1px solid #374151;
+            }
+            .dark #msg-area th {
+                color: #aee4fd;
+                background: #283345;
+            }
+            .dark #msg-area tbody tr:hover {
+                background: #2e3a50;
+            }
+            #msg-area pre, #msg-area code {
+                overflow-x: auto;
+                min-width: 0 !important;
+            }
+            #msg-area table {
+                min-width: 0 !important;
+                display: table;
+                table-layout: auto;
+            }
+            #msg-area .table-responsive {
+                overflow-x: auto;
+                width: 100%;
+            }
+            #chat-form > div {
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            @media (max-width: 640px) {
+                .whole {
+                    width: 50% !important
+                }
+                #chat-form > div {
+                    padding-left: 0.5rem;
+                    padding-right: 0.5rem;
+                }
+            }
+        </style>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    </head>
+    <body class="h-full flex flex-col">
+        <div class="flex h-screen">
+            <div class="whole flex-1 flex flex-col relative">
+                <!-- Header -->
+                <header class="shadow-[0_3px_16px_-4px_rgba(0,0,0,0.1)] flex items-start sm:items-center justify-between px-4 py-3 border-b bg-white dark:bg-gray-800 sticky top-0 z-10 border-gray-200 dark:border-gray-700 flex-wrap">
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <img src="/flucli/images/uprompt.png" alt="logo" class="w-10 h-10 rounded-lg bg-white" />
+                        <span class="text-xl font-bold text-gray-800 dark:text-gray-200 hidden sm:inline" data-i18n="app_title"></span>
+                    </div>
+                    <!-- Titolo centrale -->
+                    <div class="flex-1 flex justify-center items-start sm:items-center min-w-0">
+                        <span id="__chat-title__" class="block text-lg sm:text-2xl font-semibold text-gray-700 dark:text-gray-200 text-center break-words leading-snug sm:leading-tight" style="word-break:break-word;" data-i18n="page_title">U-PROMPT MVP</span>
+                    </div>
+                    <!-- Toolbar -->
+                    <div id="header-toolbar" class="flex gap-2 sm:gap-4 ml-auto items-center flex-shrink-0 h-10">
+                        <button id="refresh-btn"
+                            class="p-1 sm:p-2 flex items-center justify-center text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded group"
+                            data-i18n-title="reset" aria-label="">
+                            <svg viewBox="0 0 40 40" fill="none"
+                                class="w-5 h-5 sm:w-6 sm:h-6 transition-transform group-hover:animate-spin"
+                                stroke="currentColor" stroke-width="2">
+                                <path d="M10 24 a14 14 0 0 1 22.36 -10" stroke="currentColor" stroke-width="3" fill="none"/>
+                                <polygon points="32,6 36,17 25,13" fill="currentColor" />
+                                <path d="M38 24 a14 14 0 0 1 -22.36 10" stroke="currentColor" stroke-width="3" fill="none"/>
+                                <polygon points="16,42 12,31 23,35" fill="currentColor" />
+                            </svg>
+                        </button>
+                        <button id="lang-btn"
+                            class="p-1 sm:p-2 flex items-center justify-center text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded group"
+                            data-i18n-title="languages" aria-label="">
+                            <svg viewBox="0 0 24 24" fill="none"
+                                class="w-6 h-6 sm:w-7 sm:h-7"
+                                stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <ellipse cx="12" cy="12" rx="7" ry="10" stroke="currentColor" stroke-width="1.2" fill="none"/>
+                                <ellipse cx="12" cy="12" rx="7" ry="3.5" stroke="currentColor" stroke-width="1.2" fill="none"/>
+                                <path d="M2,12 h20" stroke="currentColor" stroke-width="1.2"/>
+                                <path d="M5.5,6.5 a10,10 0 0 1 13,0" stroke="currentColor" stroke-width="1.2" fill="none"/>
+                                <path d="M5.5,17.5 a10,10 0 0 0 13,0" stroke="currentColor" stroke-width="1.2" fill="none"/>
+                                <line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" stroke-width="1.2"/>
+                            </svg>
+                        </button>
+                        <button id="theme-toggle-switch"
+                            class="w-7 h-4 sm:w-8 sm:h-5 rounded-full bg-gray-300 dark:bg-gray-500 border border-gray-400 dark:border-gray-500 flex items-center transition-colors duration-300 focus:outline-none p-0.5"
+                            data-i18n-title="theme" aria-label="">
+                            <span id="theme-switch-knob"
+                                class="h-3 w-3 sm:h-3.5 sm:w-3.5 rounded-full bg-white dark:bg-white shadow-md transform transition-transform duration-300"></span>
+                        </button>
+                    </div>
+                </header>
+                <!-- Chat area -->
+                <main id="chat-area" 
+                    class="flex-1 overflow-y-auto   /* area scrollabile */
+                            py-4                     /* padding solo verticale */
+                            bg-gray-50 dark:bg-black transition-colors duration-300
+                            /* 👇 padding orizzontale responsive */
+                            px-0          /* mobile: 0  */
+                            sm:px-[8%]    /* ≥ 640 px   :  8 % */
+                            lg:px-[15%]   /* ≥ 1024 px  : 15 % */
+                    ">
+                    <div id="msg-area" class="w-full max-w-4xl mx-auto flex flex-col gap-3 px-4">
+                    <!-- Messaggi qui -->
+                    </div>
+                </main>
+                <!-- Wait spinner -->
+                <div id="wait-spinner" class="hidden absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                    <div class="animate-spin rounded-full h-10 w-10 border-t-4 border-blue-600"></div>
+                </div>
+                <!-- Chat input bar -->
+                <div class="w-full flex justify-center bg-transparent dark:bg-black px-2 pb-2 pt-3 sticky bottom-0">
+                    <form id="chat-form" class="w-full max-w-4xl flex flex-col gap-2 items-stretch mx-auto">
+                        <div class="rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 pt-2 pb-1 transition-colors duration-300 flex flex-col shadow-[0_6px_12px_-4px_rgba(0,0,0,0.1)]" style="max-height: 595px; overflow-y: auto;">
+                            <!-- Textarea -->
+                            <textarea id="chat-input" rows="1"
+                                class="resize-none w-full min-h-[38px] max-h-24 overflow-auto bg-transparent text-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-0 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                                data-i18n-ph="write_message" placeholder="Scrivi un messaggio..."></textarea>
+                            <!-- Lista file in upload -->
+                            <div id="upload-status-list" class="flex flex-col gap-2 mt-2"></div>
+                            <!-- Pulsanti sotto -->
+                            <div class="flex items-center gap-2 justify-between pt-2">
+                                <div class="flex gap-2">
+                                    <input id="file-input" type="file" class="hidden" multiple />
+                                    <button type="button" id="file-btn"
+                                        class="px-3 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-blue-400 flex items-center gap-2 font-medium"
+                                        data-i18n="upload">
+                                        <svg viewBox="0 0 20 20" fill="none" class="w-5 h-5" stroke="currentColor" stroke-width="1.7">
+                                        <path d="M17 13.5V5.8a2.8 2.8 0 0 0-2.8-2.8H5.8A2.8 2.8 0 0 0 3 5.8v8.9a2.8 2.8 0 0 0 2.8 2.8h4.15" stroke="currentColor"/>
+                                        <rect x="8.2" y="11.7" width="7" height="5" rx="2.5" stroke="currentColor"/>
+                                        </svg>
+                                        <span class="hidden sm:inline" data-i18n="upload"></span>
+                                    </button>
+                                </div>
+                                <button type="submit" id="send-btn"
+                                    class="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-800 flex items-center gap-2"
+                                    data-i18n="send">
+                                    <svg viewBox="0 0 20 20" fill="none" class="w-5 h-5" stroke="currentColor" stroke-width="2">
+                                        <path d="M2.5 17.5l15-7.5-15-7.5v6l10 1.5-10 1.5z" fill="currentColor"/>
+                                    </svg>
+                                    <span data-i18n="send"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Riga info sotto -->
+                        <div class="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 mt-1 px-1">
+                            <div>
+                                <span data-i18n="user"></span>: <span id="username-footer">Anon</span>
+                                |  <span id="sessioncode-footer">XYZ123</span>
+                            </div>
+                            <span data-i18n-html="privacy"></span>
+                        </div>
+                    </form>
+                </div>
+                <!-- Drawer Form dinamica -->
+                <div id="form-drawer" class="fixed top-0 right-0 h-full w-full sm:w-[24rem] bg-white dark:bg-gray-800 shadow-2xl z-50 p-8 transition-transform duration-300 transform translate-x-full">
+                    <button id="form-close" class="mb-4 text-xl font-bold">✖</button>
+                    <form id="dynamic-form" class="flex flex-col gap-4"></form>
+                </div>
+            </div>
+            <!-- Dropdown lingue -->
+            <div id="lang-dropdown" class="absolute top-16 right-4 sm:right-8 bg-white dark:bg-gray-800 rounded-xl shadow-xl w-72 z-50 border border-gray-200 dark:border-gray-700 hidden">
+                <div class="flex items-center justify-between px-6 pt-5 pb-3">
+                <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 m-0" data-i18n="select_language">Seleziona lingua</h2>
+                <button id="lang-cancel"
+                    class="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 p-1 rounded transition"
+                    title="Chiudi">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-width="2" d="M6 6l12 12M6 18L18 6"/>
+                    </svg>
+                </button>
+                </div>
+                <div class="flex flex-col gap-2 px-8 pb-6">
+                    <!-- will be filled with language buttons -->
+                </div>
+            </div>
+            <!-- custom Alert window -->
+            <div id="custom-alert" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+                <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-xl w-80 flex flex-col items-center">
+                    <div id="custom-alert-content" class="text-gray-800 dark:text-gray-100 mb-6 text-center"></div>
+                    <div class="flex gap-3">
+                        <button id="custom-alert-ok" class="mt-2 px-6 py-2 rounded bg-blue-600 text-white hover:bg-blue-800" data-i18n="ok">OK</button>
+                        <button id="custom-alert-abort" class="mt-2 px-6 py-2 rounded bg-blue-600 text-white hover:bg-blue-800" data-i18n="abort">Abort</button>
+                    </div>
+                </div>
+            </div>
+            <!-- TEMPLATE: Messaggio chat -->
+            <template id="message-template">
+                <div class="flex flex-col max-w-xl">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-xs text-gray-400" data-role="role"></span>
+                    </div>
+                    <div class="rounded-xl px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 min-w-0 overflow-x-auto" data-content="content"></div>
+                    <div class="flex gap-2 mt-1 flex-wrap" data-files="files"></div>
+                </div>
+            </template>
+            <template id="file-template">
+                <a target="_blank" class="inline-block p-1 border rounded bg-white dark:bg-gray-700 text-xs" data-filename></a>
+            </template>
+        </div>
+        <script src="/flucli/client.dev.js"></script>
+        <script>//loadLanguage("it");</script>
+        <!-- -------------- INIZIO PRIVACY MODAL -------------- -->
+        <div id="privacy-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-xl w-full max-w-sm mx-4 relative">
+                <!-- Select lingua in alto a destra -->
+                <div class="absolute top-3 right-3">
+                    <select id="privacy-lang-select"
+                            class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded px-2 py-1">
+                        <option value="en" selected>EN</option>
+                        <option value="it">IT</option>
+                        <option value="fr">FR</option>
+                        <option value="es">ES</option>
+                        <option value="de">DE</option>
+                        <option value="zh">ZH</option>
+                    </select>
+                </div>
+                <!-- Messaggio dinamico -->
+                <div id="privacy-message" class="text-gray-800 dark:text-gray-100 mb-6 text-center text-sm leading-relaxed">
+                <!-- verrà popolato da JavaScript -->
+                </div>
+                <!-- Pulsanti -->
+                <div class="flex justify-center items-center space-x-4">
+                    <button id="privacy-accept"
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-800 text-sm">
+                        Accept
+                    </button>
+                    <button id="privacy-decline"
+                            class="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 text-sm">
+                        Do not accept
+                    </button>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+ <!-- ----------|
+ |    _{()}_    |
+ |    --[]--    |
+ |      ||      |
+ |  AL  ||  DVS |
+ |  \\__||__//  |
+ |   \__||__/   |
+ |      \/      |
+ |   @INXIMKR   |
+ |----------- --> 

@@ -343,16 +343,24 @@ class Command {
         if (!empty($message)){
 
             // MARKDOWN format
-            $message=str_replace("&lbrace;MD&rcub;","{MD}",$message);
-            $message=str_replace("&lbrace;&solMD&rcub;","{/MD}",$message);
-            $message=str_replace("&lbrace;/MD&rcub;","{/MD}",$message);
-            
             if (strpos($message,"{MD}")===0 && strpos($message,"{/MD}")===strlen($message)-5){
+                // E' tutto testo MD:
                 $message=substr($message,4,strlen($message)-9);
                 $Parsedown = new \Parsedown();
                 $Parsedown->setSafeMode(true);
                 return $Parsedown->text($message);
             }
+            $MD_FLUSSU_PART="";
+            // Contiene testo MD?
+            if (preg_match('/\{MD\}(.*?)\{\/MD\}/s', $message, $match)) {
+                $testoPrima = substr($message, 0, strpos($message, '{MD}'));
+                $MD_FLUSSU_PART=$match[1];
+                $testoDopo = substr($message, strpos($message, '{/MD}') + 5);
+                $message = $testoPrima ."\r\n@.@.@.MD-flussu-PART.@.@.@\r\n" . $testoDopo;
+            } 
+
+
+
 
             $message=str_replace("\r\n","<br>",htmlentities($message, ENT_HTML5|ENT_SUBSTITUTE|ENT_NOQUOTES , 'UTF-8'));
             $message=str_replace("&#039;","'",$message);
@@ -425,6 +433,7 @@ class Command {
             else {
                 $message=str_replace(["&lbrace;hr&rcub;","<hr>","&lt;hr&gt;"],"<br>---------------------------------------------<br>",$message);
             }
+            $message=str_replace("|","&vert;",$message);
             $message=str_replace("\'","&apos;",$message);
             $message=str_replace("'","&apos;",$message);
             $message=str_replace("\"","&OpenCurlyDoubleQuote;",$message);
@@ -506,8 +515,20 @@ class Command {
                 $message=str_replace("&lbrace;LB&rcub;".$lnk,$but,$message);
             }
             // LINK BUTTON ----------------------------------------------------
+
+            $message=str_replace("&lbrace;MD&rcub;","{MD}",$message);
+            $message=str_replace("&lbrace;&solMD&rcub;","{/MD}",$message);
+            $message=str_replace("&lbrace;/MD&rcub;","{/MD}",$message);
+
+            if (!empty($MD_FLUSSU_PART)) {
+                $Parsedown = new \Parsedown();
+                $Parsedown->setSafeMode(true);
+                $elabMD=$Parsedown->text($MD_FLUSSU_PART);
+                $message = str_replace("@.@.@.MD-flussu-PART.@.@.@",$elabMD,$message);
+            } 
+
         }
-        return $message; // str_replace("'","&apos;",$message);
+        return $message; 
     }
 
 
