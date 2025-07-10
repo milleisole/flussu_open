@@ -12,10 +12,10 @@
             const headParam = urlParams.get('head');
             const widParam = urlParams.get('wid');
             tailwind.config = { darkMode: 'class' }
-            if (localStorage.getItem("theme") === "dark" || (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
-                document.documentElement.classList.add("dark");
-            } else {
+            if (localStorage.getItem("theme") === "white") {
                 document.documentElement.classList.remove("dark");
+            } else {
+                document.documentElement.classList.add("dark");
             }
             function initWorkflow(){
                 wid = widParam;

@@ -7,7 +7,7 @@
 // TODO:
 // Inputbox: se il pulsante è uno al ENTER premere il pulsante
 // Language: all'init abilitare i pulsanti della lingua previsti
-// Language: quando si preme un tatso lingua, si deve cambiare anche la lingua del workflow e ricaricare il form
+// Language: quando si preme un tasto lingua, si deve cambiare anche la lingua del workflow e ricaricare il form
 /* ------------------------------------
 
 Nel footer, considerare il pulsante di send a destra, sicchè a SX potrebbe andarci un controllo
@@ -50,7 +50,14 @@ function restoreDefaultChatBarHTML() {
   const oldBar = chatForm.querySelector("div.rounded-2xl");
   if (oldBar) oldBar.replaceWith(createElementFromHTML(defaultChatBarHTML));
   if (window.initChatLogic) window.initChatLogic();
+
+  // set the focus on the default input
+  const defaultInput = document.getElementById('chat-input');
+  if (defaultInput) {
+      setTimeout(() => defaultInput.focus(), 150);
+  }
 }
+
 function createElementFromHTML(htmlString) {
   const div = document.createElement('div');
   div.innerHTML = htmlString.trim();
@@ -430,6 +437,13 @@ function renderFormFlussu(json) {
   window.addEventListener('resize', () => fitFormHeight(newBar));
 
   scrollChatBottom(); 
+
+  // Set focus on the first input or textarea
+  const firstInput = newBar.querySelector('input[type="text"], textarea');
+  if (firstInput) {
+      setTimeout(() => firstInput.focus(), 150); 
+  }
+  
   if (foundFileRequest) return;
 
   chatForm.onsubmit = function(e) {
@@ -612,7 +626,7 @@ function appendUserFormCard(elms, trmObj) {
             const label = arr[0] || "";
             let cleanKey = k.replace(/^(IT[T|S|B]?\$)/, "$");
             const val = trmObj[cleanKey] || "";
-            html += starthtml+`<div class="font-semibold">${label ? label + ": " : ""}<span class="inline-block bg-white/70 dark:bg-gray-700/80 rounded px-2 py-1">${val}</span></div>`;
+            html += starthtml+`<div class="font-semibold text-gray-800 dark:text-gray-200">${label ? label + ": " : ""}<span class="inline-block bg-white/70 dark:bg-gray-700/80 rounded px-2 py-1">${val}</span></div>`;
             done=true;
             starthtml="";
         }
@@ -628,7 +642,7 @@ function appendUserFormCard(elms, trmObj) {
             }
             const obj = JSON.parse(arr[0]);
             const label = Object.entries(obj).find(([k]) => k.split(',')[0] === v)?.[1];
-            html += starthtml+`<div class="font-semibold">${label}</div>`;
+            html += starthtml+`<div class="font-semibold text-gray-800 dark:text-gray-200">${label}</div>`;
             done=true;
             starthtml="";
         }
