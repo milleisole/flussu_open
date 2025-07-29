@@ -1,37 +1,19 @@
 <?php
-/* --------------------------------------------------------------------*
- * Flussu v4.3 - Mille Isole SRL - Released under Apache License 2.0
- * --------------------------------------------------------------------*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * --------------------------------------------------------------------*
- * CLASS-NAME:       OAUTH Controller
- * CREATED DATE:     01.01.2025 - EXPERIMENTAL - TBD
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
- * -------------------------------------------------------*/
-
 namespace Flussu\Controllers;
+
 use GuzzleHttp\Client;
-use \FlussuSession;
 use Flussu\Flussuserver\Session;
+use Flussu\General;
+//use Log;
 
 class OauthController
 {
     private string $serviceAccountFile;
     private string $tokenUri = 'https://oauth2.googleapis.com/token';
     private array $scopes = ['https://www.googleapis.com/auth/drive'];
+    private ?array $credentials = null;
 
-    public function __construct(string $serviceAccountFile = null)
+    public function __construct(string $serviceAccountFile="")
     {
         // Percorso del file di credenziali del service account
         // Esempio: project/config/service_account.json
@@ -43,7 +25,7 @@ class OauthController
      * GET /auth/token
      * Ritorna un token JSON valido. Se scaduto, lo rinnova.
      */
-    public function getToken(Session $sess)
+    public function getToken(Session $sess): array
     {
         return $this->getAccessTokenInternal($sess);
     }
@@ -54,8 +36,7 @@ class OauthController
      */
     protected function getAccessTokenInternal(Session $sess): array
     {
-        //$tokenData = FlussuSession::get('google_access_token');
-        $tokenData =$sess->getVarValue("$"."google_access_token");
+        $tokenData = $sess->getVarValue("$"."google_access_token");
 
         if (is_array($tokenData) && isset($tokenData['access_token'], $tokenData['expires_at'])) {
             // Verifichiamo se è scaduto
@@ -69,8 +50,7 @@ class OauthController
         $newTokenData = $this->fetchNewAccessToken();
         
         // Memorizziamo in sessione
-        //FlussuSession::set('google_access_token', $newTokenData);
-        $sess->assignVars("$"."google_access_token",$newTokenData);
+        $sess->assignVars("$"."google_access_token", $newTokenData);
 
         return $newTokenData;
     }
@@ -82,12 +62,23 @@ class OauthController
     private function fetchNewAccessToken(): array
     {
         // Carica le credenziali del service account
-        $creds = json_decode(file_get_contents($this->serviceAccountFile), true);
-        if (!$creds || !isset($creds['google'], $creds["google"]['service_account'])) {
-            throw new \Exception("Credenziali del service account non valide o non trovate.");
+        $configContent = file_get_contents($this->serviceAccountFile);
+        $config = json_decode($configContent, true);
+        
+        // Valida la struttura del file
+        if (!isset($config['google']['service_account'])) {
+            throw new \Exception("Configurazione Google service account non trovata nel file di configurazione");
         }
-
-        $creds = $creds["google"]['service_account'];
+        
+        $creds = $config['google']['service_account'];
+        
+        // Valida i campi richiesti
+        $requiredFields = ['client_email', 'private_key'];
+        foreach ($requiredFields as $field) {
+            if (!isset($creds[$field]) || empty($creds[$field])) {
+                throw new \Exception("Campo obbligatorio mancante o vuoto: google.service_account.$field");
+            }
+        }
 
         $clientEmail = $creds['client_email'];
         $privateKey = $creds['private_key'];
@@ -112,40 +103,80 @@ class OauthController
         $unsignedJwt = $jwtHeaderEncoded . '.' . $jwtClaimSetEncoded;
 
         // Firma il JWT con la private key (RS256)
-        openssl_sign($unsignedJwt, $signature, openssl_pkey_get_private($privateKey), OPENSSL_ALGO_SHA256);
+        $privateKeyResource = openssl_pkey_get_private($privateKey);
+        if (!$privateKeyResource) {
+            throw new \Exception("Private key non valida nel file di configurazione");
+        }
+        
+        $signature = '';
+        $signResult = openssl_sign($unsignedJwt, $signature, $privateKeyResource, OPENSSL_ALGO_SHA256);
+        
+        if (!$signResult) {
+            throw new \Exception("Errore nella firma del JWT: " . openssl_error_string());
+        }
+        
         $signatureEncoded = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
 
         $assertion = $unsignedJwt . '.' . $signatureEncoded;
 
         // Richiedi il token
-        $client = new Client();
-        $response = $client->post($this->tokenUri, [
-            'form_params' => [
-                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                'assertion' => $assertion
-            ]
-        ]);
+        try {
+            $client = new Client();
+            $response = $client->post($this->tokenUri, [
+                'form_params' => [
+                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                    'assertion' => $assertion
+                ],
+                'http_errors' => true
+            ]);
 
-        $body = json_decode($response->getBody()->getContents(), true);
-        // body esempio: {"access_token":"...","expires_in":3600,"token_type":"Bearer"}
+            $body = json_decode($response->getBody()->getContents(), true);
+            
+            if (!isset($body['access_token'])) {
+                throw new \Exception("Risposta da Google non contiene access_token");
+            }
 
-        if (!isset($body['access_token'])) {
-            throw new \Exception("Impossibile ottenere un token da Google.");
+            // Calcoliamo l'explicit expiration time
+            $body['expires_at'] = time() + $body['expires_in'];
+
+            return $body;
+            
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            $errorBody = $e->getResponse()->getBody()->getContents();
+            General::addRowLog("Errore OAuth Google: " . $errorBody);
+            throw new \Exception("Errore nell'ottenere il token da Google: " . $errorBody);
         }
-
-        // Calcoliamo l'explicit expiration time
-        $body['expires_at'] = time() + $body['expires_in'];
-
-        return $body;
+    }
+    
+    /**
+     * Metodo di utilità per testare la validità del token
+     */
+    public function testToken(Session $sess): array
+    {
+        try {
+            $tokenData = $this->getToken($sess);
+            
+            // Test con una chiamata a Google Drive
+            $client = new Client();
+            $response = $client->get('https://www.googleapis.com/drive/v3/about?fields=user', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $tokenData['access_token']
+                ]
+            ]);
+            
+            $about = json_decode($response->getBody()->getContents(), true);
+            
+            return [
+                'success' => true,
+                'email' => $about['user']['emailAddress'],
+                'token_expires_in' => $tokenData['expires_at'] - time()
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
     }
 }
- //---------------
- //    _{()}_    |
- //    --[]--    |
- //      ||      |
- //  AL  ||  DVS |
- //  \\__||__//  |
- //   \__||__/   |
- //      \/      |
- //   @INXIMKR   |
- //--------------- 

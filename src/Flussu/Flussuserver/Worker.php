@@ -31,9 +31,11 @@
  * -------------------------------------------------------*
  * CREATED DATE:     04.07:2020 - Aldus - Flussu v1.3
  * VERSION REL.:     4.4.1.20250629
- * UPDATES DATE:     29.06:2025 
+ * UPDATES DATE:     28.07:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
+ * Sometimes the select results in an array with text elements that contains quotes ("") 
+ * driving the interpreter routines in errors. Now this bug is solved by the MakeArray function. 
  * -------------------------------------------------------*/
 /*
     In pratica la classe WORKER è il cuore dell'elaborazione di Flussu, in questa classe infatti
@@ -316,7 +318,8 @@ class Worker {
                                 $vvalue=is_array($value)?$value[array_keys($value)[0]]:$value;
                                 if (substr($vvalue,0,4)=="@OPT"){
                                     // INTERPRETAZIONE DI OPT!!!
-                                    $resArr2=json_decode(str_replace("@OPT","",$vvalue),true);
+                                    $resArr2=$this->MakeArray($vvalue);
+                                    //$resArr2=json_decode(str_replace("@OPT","",$vvalue),true);
                                     $resArr=[];
                                     $j=0;
                                     for ($i=0;$i<count($resArr2);$i+=2){
@@ -795,6 +798,55 @@ class Worker {
         $this->_WofoS->recLog($res);
         return $res;
     }
+
+    /* Funzione che serve a rendere sempre una arrai da @OPT anche se all'interno ci sono virgolette
+     * 
+     * Args:
+     *   var: the variable to be converted into an array
+     * 
+     * Returns:
+     *   An array with two elements, the first element is the first part of the string and the second
+     *   element is the second part of the string.
+     */
+    private function MakeArray($var) {
+        $matches = [];
+
+        // Verifica che la stringa abbia il formato corretto @OPT[...]
+        if (preg_match('/@OPT\[(.*)\]/', $var, $matches)) {
+            $content = $matches[1];
+
+            // Separazione dei due elementi, anche se ci sono virgolette dentro
+            $parts = preg_split('/,(?=(?:[^"]*"[^"]*")*[^"]*$)/', $content, 2);
+
+            if (count($parts) === 2) {
+                // Pulizia degli apici esterni
+                $part1 = trim($parts[0]);
+                $part2 = trim($parts[1]);
+
+                // Rimuovi le virgolette esterne (solo se ci sono)
+                if ($part1[0] === '"' && substr($part1, -1) === '"') {
+                    $part1 = substr($part1, 1, -1);
+                }
+                if ($part2[0] === '"' && substr($part2, -1) === '"') {
+                    $part2 = substr($part2, 1, -1);
+                }
+
+                // Escape virgolette doppie e backslash nel secondo elemento
+                $part1_escaped = addcslashes($part1, '"\\');
+                $part2_escaped = addcslashes($part2, '"\\');
+
+                // Ricostruzione JSON valido
+                $json = '["' . $part1_escaped . '","' . $part2_escaped . '"]';
+
+                // Decodifica e ritorno
+                return json_decode($json, true);
+            }
+        }
+
+        return null; // Formato non valido
+    }
+
+
 
  /* ---------------------------------------------------
       Esecuzione del codice all'interno di un blocco

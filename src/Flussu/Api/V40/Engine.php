@@ -19,7 +19,9 @@
  * -------------------------------------------------------*
  * CREATED:  25.01.2021 - Aldus - Flussu v2.0
  * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     04.06:2025 
+ * UPDATES DATE:     28.07:2025 
+ * -------------------------------------------------------
+ * Now supports the language change
  * -------------------------------------------------------*/
 /**
  * The Engine class is responsible for handling the core execution flow of the Flussu API within the Flussu server.
@@ -280,10 +282,16 @@ class Engine {
                 }
             } 
         }
+        $_nwLNG=General::getGetOrPost("LNG");
+        if ($_nwLNG!=""){
+            $LNG=$_nwLNG;
+            $wSess->setLang($LNG);
+        }
+
         if ($cmd=="set"){
             //recupera il JSON con nome/valore
             $settings=json_decode(General::getGetOrPost("SET"),true);
-            $LNG=General::getGetOrPost("LNG");
+            //$LNG=General::getGetOrPost("LNG");
             $APP=General::getGetOrPost("APP");
         }
         

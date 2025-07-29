@@ -3,7 +3,6 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="icon" href="/client/assets/img/favicon.png">
     <title>Flussu Form v4.0 - Test</title>
     
     <!-- jQuery (optional, for backwards compatibility) -->
@@ -24,12 +23,22 @@
 <body>
     <!-- Flussu Container -->
     <div id="flussu-form" class="flussu-form"></div>
-    <script src="/client/form/js/flussu-form.js"></script>
+    
+    <!-- Flussu Script v4.0 -->
+    <script src="../js/flussu-form.js"></script>
+    
     <script>
-            let css=$.urlParam('CSS');
-            setFlussuEndpoint("https://"+ location.host+"/");
-            setFlussuCssVersion(css?css:"");
-            setFlussuId($.urlParam('WID'),$.urlParam('TIT'),{"$_FD0508":window.location.href});
+        // Configure Flussu
+        setFlussuEndpoint("https://srv40.flu.lu/");
+        
+        // Initialize workflow
+        const WID = "[w3259761537b4bda1]";
+        const TIT = "TEST FORM";
+        
+        // Set workflow ID - this will auto-initialize
+        setFlussuId(WID, TIT, {
+            "$_FD0508": window.location.href
+        });
     </script>
 </body>
 </html>

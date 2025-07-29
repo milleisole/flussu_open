@@ -27,9 +27,10 @@
  * -------------------------------------------------------*
  * CREATED DATE:    06.03.2021
  * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * UPDATES DATE:     27.07:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
+ * updated sanitize_filename to avoid mb_strcut dependency
  * -------------------------------------------------------*/
 
 /**
@@ -75,10 +76,26 @@ class Fileuploader {
             array_map('chr', range(0, 31)),
             array('<', '>', ':', '"', '/', '\\', '|', '?', '*')
         ), '', $name);
+        
         // maximise filename length to 255 bytes http://serverfault.com/a/9548/44086
         $ext = pathinfo($name, PATHINFO_EXTENSION);
-        $name= mb_strcut(pathinfo($name, PATHINFO_FILENAME), 0, 255 - ($ext ? strlen($ext) + 1 : 0), mb_detect_encoding($name)) . ($ext ? '.' . $ext : '');
-        return $name;
+        $filename = pathinfo($name, PATHINFO_FILENAME);
+        
+        // Versione alternativa senza mb_strcut
+        $maxLength = 255 - ($ext ? strlen($ext) + 1 : 0);
+        
+        // Se mbstring è disponibile, usala
+        if (function_exists('mb_strcut')) {
+            $filename = mb_strcut($filename, 0, $maxLength, mb_detect_encoding($filename));
+        } else {
+            // Altrimenti usa substr standard
+            // Questo potrebbe troncare caratteri multi-byte, ma almeno funziona
+            if (strlen($filename) > $maxLength) {
+                $filename = substr($filename, 0, $maxLength);
+            }
+        }
+        
+        return $filename . ($ext ? '.' . $ext : '');
     }
 
 /*

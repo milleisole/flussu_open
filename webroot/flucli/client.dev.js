@@ -519,4 +519,3 @@ function setHighlightTheme(dark) {
 
   document.head.appendChild(link);
 }
-

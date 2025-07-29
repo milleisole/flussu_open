@@ -781,7 +781,6 @@ class Session {
         $this->assignVars("$"."lang",strtoupper($newLangId));
         $this->_MemSeStat->lang=$newLangId;
         $done=$this->recLog("set lang: ".$this->_MemSeStat->lang);
-        
     }
 
     private function _setEndBlock($blockId){
