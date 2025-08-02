@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.3.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ use Flussu\General;
 use Flussu\Config;
 
 // VERSION
-$FlussuVersion="4.4.20250621";
+$FlussuVersion="4.5.20250802";
 $FVP=explode(".",$FlussuVersion);
 $v=$FVP[0];
 $m=$FVP[1];
@@ -175,7 +175,6 @@ function checkUnattendedWebHookCall($req,$apiPage){
         }
     }
     return false;
-
 }
  //---------------
  //    _{()}_    |
