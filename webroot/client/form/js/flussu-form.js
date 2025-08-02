@@ -834,7 +834,7 @@ function renderTextInput(id, placeholder, cssData, defaultValue) {
                     class="flussu-input flussu-textarea flussu-textarea-auto ${css} ${FlussuClient.state.bid}"
                     ${isMandatory ? 'required' : ''}
                     rows="3">${value}</textarea>
-                ${isMandatory ? '<span class="flussu-required">* Campo obbligatorio</span>' : ''}
+                ${isMandatory ? '<span class="flussu-required">* required</span>' : ''}
             </div>
         `;
     }
@@ -849,7 +849,7 @@ function renderTextInput(id, placeholder, cssData, defaultValue) {
                 class="flussu-input ${css} ${FlussuClient.state.bid}"
                 ${isMandatory ? 'required' : ''}
             />
-            ${isMandatory ? '<span class="flussu-required">* Campo obbligatorio</span>' : ''}
+            ${isMandatory ? '<span class="flussu-required">* required</span>' : ''}
         </div>
     `;
 }
@@ -1032,7 +1032,7 @@ function renderSelection(id, optionsJson, cssData, defaultValue) {
     }
     
     if (isMandatory) {
-        html += '<span class="flussu-required">* Campo obbligatorio</span>';
+        html += '<span class="flussu-required">* required</span>';
     }
     
     html += '</div>';
@@ -1238,18 +1238,18 @@ function collectFormData() {
         } else if (element.type === 'checkbox') {
             // Checkbox normali (non scale)
             if (element.checked && !element.classList.contains('flussu-scale-input')) {
-                if (formData[name]) {
-                    // Multiple selections - correggi il formato
-                    const currentValue = formData[name];
-                    if (currentValue.startsWith('@OPT[')) {
-                        // Rimuovi l'ultimo "]" e aggiungi il nuovo valore
-                        formData[name] = currentValue.slice(0, -1) + ',' + 
-                                       element.value.replace('@OPT[', '').replace(']', '') + ']';
-                    } else {
-                        formData[name] = element.value;
-                    }
-                } else {
-                    formData[name] = element.value;
+                // Usa un array per raccogliere tutti i valori delle checkbox selezionate
+                if (!formData[name + '_array']) {
+                    formData[name + '_array'] = [];
+                }
+                
+                // Estrai il valore dall'elemento (es: @OPT["C2-1","Monetizzazione diretta (vendita)"])
+                const match = element.value.match(/@OPT\["([^"]+)","([^"]+)"\]/);
+                if (match) {
+                    formData[name + '_array'].push({
+                        code: match[1],
+                        label: match[2]
+                    });
                 }
             }
         } else if (element.type === 'radio') {
@@ -1264,6 +1264,32 @@ function collectFormData() {
     });
     
     console.log('[Flussu] Form data collected:', formData);
+
+    // Converti gli array delle checkbox nel formato @OPT corretto
+    Object.keys(formData).forEach(key => {
+        if (key.endsWith('_array') && Array.isArray(formData[key])) {
+            const realKey = key.replace('_array', '');
+            const values = [];
+            
+            formData[key].forEach(item => {
+                values.push(`"${item.code}"`, `"${item.label}"`);
+            });
+            
+            if (values.length > 0) {
+                formData[realKey] = '@OPT[' + values.join(',') + ']';
+            }
+            
+            // Rimuovi l'array temporaneo
+            delete formData[key];
+        }
+    });
+
+return formData;
+
+
+
+
+
     return formData;
 }
 

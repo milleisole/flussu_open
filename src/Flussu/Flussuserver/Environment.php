@@ -358,6 +358,11 @@ class Environment {
 
         */
     }
+
+    public function addToGoogleSheet($fileId, $rowArray, $sheetName="", $formulaArray=[], $TitleArray=[]){
+        $this->_addToResArray("addToGoogleSheet", array($fileId, $sheetName, $rowArray, $formulaArray, $TitleArray));
+    }
+
     // PRIVATE - INTERNAL FUNCTIONS - - - - - - - - - - - - - - - - - - - - - - - -
     private function __init(){
         $this->_addToResArray("inited", date_create('now')); return true;

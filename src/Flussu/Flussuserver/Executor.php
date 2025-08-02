@@ -534,6 +534,35 @@ class Executor{
                                 break;
                         }
                         break;
+                    case "addToGoogleSheet":
+                        // V4.5 - Add a row (eventually a title row and/or formulas) to a Google Sheet
+                        $Sess->statusCallExt(true);
+                        $gSheet=new \Flussu\Controllers\GoogleDriveController();
+                        $titles=[];
+                        $newformula=[];
+                        $newrow=[];
+                        $fileId=$innerParams[0];
+                        if ($innerParams[1]=="")
+                            $sheetName="Flussu";
+                        else
+                            $sheetName=$innerParams[1];
+                        $newrow=$innerParams[2];
+                        if (count($innerParams)>3 && is_array($innerParams[3]))
+                            $newformula=$innerParams[3];
+                        if (count($innerParams)>4 && is_array($innerParams[4]))
+                            $titles=$innerParams[4];
+                        if (is_array($titles) && count($titles)>0){
+                            $Sess->recLog("Adding titles to Google Sheet: ".json_encode($titles));
+                            $reslt=$gSheet->spreadsheetLoadTitles($fileId,$titles,$sheetName);
+                        }
+                        $gSheet->spreadsheetLoadValues(
+                            $fileId, 
+                            $newrow, 
+                            $sheetName,      
+                            $newformula 
+                        );
+                        $Sess->statusCallExt(false);
+                        break;
                     default:
                         if (substr($innerCmd,0,1)=="$"){
                             $vval="";

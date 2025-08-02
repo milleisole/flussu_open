@@ -30,11 +30,12 @@
  * FOR ALDUS BEAN:   Databroker.bean
  * -------------------------------------------------------*
  * CREATED DATE:     (04.11.2020) 25.01:2021 - Aldus
- * VERSION REL.:     4.4.20250621
- * UPDATES DATE:     22.06:2025 
+ * VERSION REL.:     4.5.20250802
+ * UPDATES DATE:     02.08:2025
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * Added error handling for exec scripts
+ * Now supports the label language translation
  * -------------------------------------------------------*/
 
 /**
@@ -62,6 +63,7 @@ namespace Flussu\Flussuserver\NC;
 use Flussu\General;
 use Flussu\Persons;
 use Flussu\Flussuserver\NC\HandlerBaseNC;
+use Flussu\Controllers\AiChatController;
 
 use stdClass;
 
@@ -731,7 +733,7 @@ class HandlerNC extends HandlerBaseNC {
     }
 
     function translateLabels($from, $tolng, $toLang, $wofoid, $sessTransId){
-        $this->_open_ai = new \Flussu\Controllers\OpenAiController();
+        //$this->_open_ai = new \Flussu\Controllers\OpenAiController();
         //$trCmd="Translate to ".$toLang.":";
 
         //Check existing languages
@@ -744,12 +746,6 @@ class HandlerNC extends HandlerBaseNC {
         $SQL1="from t40_element el inner join t30_blk_elm be on el.c40_id=be.c30_elemid inner join t20_block bl on bl.c20_id=be.c30_blockid where c20_flofoid=?";
         $SQL2="select count (*) ".$SQL1;
         $SQL3="select ".$SQL0." ".$SQL1;
-
-/*
-        $this->execSql($SQL2,$params);
-        $cnt= $this->getData();
-        \General::setSession($sessTransId,[$cnt,0]);
-*/
 
         $this->execSql($SQL3,$params);
         $res= $this->getData();
@@ -765,7 +761,7 @@ class HandlerNC extends HandlerBaseNC {
         }
         if ($from_Exist){
             // Seleziona etichette della lingua prescelta (di partenza)
-            $SQL0="be.*, el.*";
+            $SQL0="be.*, el.*, bl.c20_uuid as blk_uuid";
             $SQL1="from t40_element el inner join t30_blk_elm be on el.c40_id=be.c30_elemid inner join t20_block bl on bl.c20_id=be.c30_blockid where c20_flofoid=? and c40_lang=?";
             $SQL2="select count(*) as CNT ".$SQL1;
             $SQL3="select ".$SQL0." ".$SQL1;
@@ -782,7 +778,11 @@ class HandlerNC extends HandlerBaseNC {
             $ar=array();
             $totchar=0;
             $this->_cntDone=0;
-            foreach ($res as $rec){
+/* The above code is a PHP foreach loop that iterates over the elements in the array ``. For each
+iteration, the current element is assigned to the variable ``, and the code inside the loop
+block (not shown in the provided snippet) is executed. */
+
+        foreach ($res as $rec){
                 $r=new stdClass();
                 $r->tx=$rec["c40_text"];
                 if(!empty($r->tx)){
@@ -790,19 +790,19 @@ class HandlerNC extends HandlerBaseNC {
                     $r->id=$rec["c30_blockid"]."-".$rec["c40_id"];
                     $r->tp=$rec["c30_type"];
                     $r->uri=$rec["c40_url"];
-                    if ($r->tp==6){
+                    //if ($r->tp==6){
                         // traduci struttura
-                        $jt=json_decode($r->tx,true);
+                    //    $jt=json_decode($r->tx,true);
 
-                    } else {
+                    //} else {
                         array_push($ar,$r);
                         $totchar+=strlen($r->tx);
-                        if ($totchar>100){
+                        if ($totchar>500){
                             $totchar=0;
                             $this->_translateLabels($tolng,$toLang,$ar,$cnt,$sessTransId);
                             $ar=array();
                         }
-                    }
+                    //}
                 } else{
                     //$_cntDone++;
                     General::setGlobal(str_replace("-","",$sessTransId),[$cnt,$this->_cntDone++]);
@@ -810,6 +810,9 @@ class HandlerNC extends HandlerBaseNC {
             }
             if (count($ar)>0){
                 $this->_translateLabels($tolng,$toLang,$ar,$cnt,$sessTransId);
+            }
+            foreach ($res as $rec){
+                General::DelCache("blk",$rec["blk_uuid"]);
             }
             General::setGlobal(str_replace("-","",$sessTransId),[$cnt,$cnt]);
 
@@ -825,7 +828,6 @@ class HandlerNC extends HandlerBaseNC {
                 $tl.=",".$tolng;
                 $this->updateSuppLang($wofoid,$tl);
             }
-
             return true;
         }
         return false;
@@ -833,25 +835,14 @@ class HandlerNC extends HandlerBaseNC {
     
     private function _translateLabels($tolng,$toLang,$ar,$cnt,$sessTransId){
         // traduci
-        foreach ($ar as $tt){
-            General::setGlobal(str_replace("-","",$sessTransId),[$cnt,$this->_cntDone++]);
-            if (!empty($tt->tx)){
-                $cmd="translate to ".$toLang.":\r\n".str_replace([":","\n","\r"],["[$1-3]","[$2-4]","[$3-5]"],$tt->tx)."\r\n";
-                $trans=$this->_doTranslate($cmd."§");
-                if (!empty($trans)){
-                    try{
-                        $trans=strpos($trans,"\n§ END OF DOC")!==false?explode("\n§ END OF DOC",$trans)[0]:$trans;
-                        $trans=strpos($trans,"§ END OF DOC")!==false?explode("§ END OF DOC",$trans)[0]:$trans;
-                        $trans=strpos($trans,"Code\n\n")===0?explode("\n",$trans)[2]:$trans;
-                        $trans=strpos($trans,"Code\n")===0?explode("\n",$trans)[1]:$trans;
-                        $trans=strpos($trans,"Output\n\n>")===0?trim(str_replace(["[","]","\"","'",],["","","",""],explode(">",$trans)[1])):$trans;
-                    } catch(\Throwable $e){}
-                    $tt->tx=str_replace(["[$1-3]","[$2-4]","[$3-5]"],[":","\n","\r"],$trans);
-                    $tt->tx=str_replace(["[1-3]","[2-4]","[3-5]"],[":","\n","\r"],$tt->tx);
-                    $tt->tx=str_replace(["$1-3","$2-4","$3-5"],[":","\n","\r"],$tt->tx);
-                }
+        $ctrAi= new AiChatController();
+        $rsp=$ctrAi->translate("translate only the *tx* element leaving special tags chars like '{}' unouched. Sometimes *tx* is json itself, take care of this! ",json_encode($ar), "",$toLang);
+        if ($rsp[0]=="Ok"){
+            $txt=str_replace("```","",str_replace("```json","",$rsp[1]));
+            $elms=json_decode($txt);
+            foreach ($elms as $tt){
+                $this->_updateCreateElemLang($tt,$tolng);
             }
-            $this->_updateCreateElemLang($tt,$tolng);
         }
     }
 
@@ -872,9 +863,10 @@ class HandlerNC extends HandlerBaseNC {
         }
         return $p_res;
     }
-    private function _doTranslate($transText){
+    private function _doTranslate($aiCtrl,$lang1,$lang2,$transText){
         try{
-            $rsp=$this->_open_ai->genQueryOpenAi($transText);
+            $instructions="";
+            $rsp=$aiCtrl->translate($instructions,$transText, $lang1,$lang2);
             $rspTxt="";
             if (empty($rsp["err"]))
                 $rspTxt=$rsp["resp"];

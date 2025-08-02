@@ -18,10 +18,11 @@
  * CLASS PATH:    Flussu\Api\V40\FlussuHandler
  * -------------------------------------------------------*
  * CREATED:  25.01.2021 - Aldus - Flussu v2.0
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     28.07:2025 
+ * VERSION REL.:     4.5.20250802
+ * UPDATES DATE:     02.08:2025 
  * -------------------------------------------------------
  * Now supports the language change
+ * Language BUG solved: 2025-08-02
  * -------------------------------------------------------*/
 /**
  * The Engine class is responsible for handling the core execution flow of the Flussu API within the Flussu server.
@@ -284,7 +285,7 @@ class Engine {
         }
         $_nwLNG=General::getGetOrPost("LNG");
         if ($_nwLNG!=""){
-            $LNG=$_nwLNG;
+            $LNG=strToUpper($_nwLNG);
             $wSess->setLang($LNG);
         }
 
@@ -381,8 +382,16 @@ class Engine {
                             break;
                         case "M":
                             if (strpos($Elm,'flussu_qrc')===false){
-                                if (isset($Css) && is_array($Css))
-                                    $Css["display_info"]["type"]="unk";
+                                if (isset($Css) && is_array($Css)){
+                                    if (is_array($Css["display_info"])) {
+                                        $Css["display_info"]["type"]="unk";
+                                    } else {
+                                        $a=$Css["display_info"];
+                                        $Css["display_info"]=[];
+                                        $Css["display_info"]["type"] = "unk";      
+                                        $Css["display_info"] = $a;      
+                                    }
+                                }
                                 $ext = strtolower(pathinfo($Elm, PATHINFO_EXTENSION));
                                 switch ($ext){
                                     case "jpg":
@@ -391,7 +400,16 @@ class Engine {
                                     case "svg":
                                     case "png":
                                         if (isset($Css) && is_array($Css))
-                                            $Css["display_info"]["type"]="image";
+                                        {
+                                            if (is_array($Css["display_info"])) {
+                                                $Css["display_info"]["type"]="image";
+                                            } else {
+                                                $a=$Css["display_info"];
+                                                $Css["display_info"]=[];
+                                                $Css["display_info"]["type"] = "image";      
+                                                $Css["display_info"] = $a;      
+                                            }
+                                        }
                                         //$frmElms[$Key]= "<img $Css src='$Elm'><br>";
                                         break;
                                     case "mp4":

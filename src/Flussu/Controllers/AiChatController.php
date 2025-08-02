@@ -18,13 +18,14 @@
  * 
  * CLASS-NAME:       Flussu OpenAi Controller - v3.0
  * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.4
- * VERSION REL.:     4.4.1.20250629 
- * UPDATE DATE:      29.06:2025 
+ * VERSION REL.:     4.5.20250802 
+ * UPDATE DATE:      02.08:2025 
  * --------------------------------------------------------
  * New: Whe AI reply with a Flussu Command, the result contains
  * an ARRAY: ["FLUSSU_CMD"=>the command and parameters] and
  *           ["TEXT"=>the text part to show to the user]
  * if it's not an ARRAY it's just text to show to the user
+ * Added "translate" function for internal labels translation
  * -------------------------------------------------------*/
 namespace Flussu\Controllers;
 
@@ -143,6 +144,24 @@ TXT;
         }
     }
 
+
+    function translate($instructions,$elems, $langFrom, $langTo) {
+        //$theElems=json_encode($elemsArray);
+        $preChat=[];
+        $preChat[0]["role"]="user";
+        if ($langFrom=="")
+            $preChat[0]["content"]="Translate the following labels from to ".$langTo.", be aware the first element of the json (name) must not be translated, leave it as is. Translate just the label text, then mantaining the same json format.\n".$instructions."\n";
+        else
+            $preChat[0]["content"]="Translate the following labels from ".$langFrom." to ".$langTo.", be aware the first element of the json (name) must not be translated, leave it as is. Translate just the label text, then mantaining the same json format.\n".$instructions."\n";
+        try{
+            $result=$this->_aiClient->Chat($preChat,$elems, "user");
+            $ret=$result[1];
+            return ["Ok",$ret];
+        } catch (\Throwable $e) {
+            return ["Error: ",$e->getMessage()];
+        }
+    }
+
     /**
      * @param string $sessId
      * @param string $sendText
@@ -207,11 +226,11 @@ TXT;
     function replyIsCommand(string $text): array {
         try{
             if (!is_null($text) && strlen($text)>10) {
-                $text=$this->extractFlussuJson($text);   
-                if (!is_null($text) && strlen($text)>10 && strlen($text)<300) {
-                    $abc=json_decode($text,true);
+                $text2=$this->extractFlussuJson($text);   
+                if (!is_null($text2) && strlen($text2)>10 && strlen($text2)<300) {
+                    $abc=json_decode($text2,true);
                     if (count($abc)>0 && is_array($abc) && isset($abc['FLUSSU_CMD']) )
-                        return [true, $abc,$text]; // not a command
+                        return [true, $abc,$text2]; // not a command
                 }
             }
         } catch (\Throwable $e){

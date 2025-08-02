@@ -19,9 +19,10 @@
  * -------------------------------------------------------*
  * RELEASED DATE:    07.01:2022 - Aldus - Flussu v2.0
  * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * UPDATES DATE:     29.07:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
+ * Implemented a "config file" search.
  * -------------------------------------------------------*/
 
 /**
@@ -53,9 +54,9 @@
  *   $stripeTestKey = $cfg->get('services.stripe.test_key');
  *   echo $stripeTestKey;
  */
-
 namespace Flussu;
 use RuntimeException;
+
 final class Config
 {
     /**
@@ -72,7 +73,9 @@ final class Config
      */
     private function __construct()
     {
-        $filePath = $_SERVER['DOCUMENT_ROOT']."/../config/.services.json";
+        // Proviamo diversi metodi per trovare il file di configurazione
+        $filePath = $this->findConfigFile();
+        
         if (!file_exists($filePath)) {
             throw new RuntimeException("Can't find the configuration file: $filePath");
         }
@@ -90,6 +93,46 @@ final class Config
         // Salviamo i dati in un array interno IMMUTABILE
         self::$configData = $data;
     }
+    
+    /**
+     * Trova il file di configurazione provando diversi percorsi
+     */
+    private function findConfigFile(): string
+    {
+        $possiblePaths = [];
+        
+        // 1. Prova con DOCUMENT_ROOT se disponibile
+        if (isset($_SERVER['DOCUMENT_ROOT']) && !empty($_SERVER['DOCUMENT_ROOT'])) {
+            $possiblePaths[] = $_SERVER['DOCUMENT_ROOT'] . "/../config/.services.json";
+        }
+        
+        // 2. Prova relativo alla directory corrente del file Config.php
+        $possiblePaths[] = __DIR__ . "/../../config/.services.json";
+        
+        // 3. Prova relativo alla root del progetto (assumendo struttura standard)
+        $possiblePaths[] = dirname(__DIR__, 2) . "/config/.services.json";
+        
+        // 4. Se esiste una costante o env variable per il percorso
+        if (defined('FLUSSU_CONFIG_PATH')) {
+            $possiblePaths[] = FLUSSU_CONFIG_PATH . "/.services.json";
+        }
+        
+        if (isset($_ENV['FLUSSU_CONFIG_PATH'])) {
+            $possiblePaths[] = $_ENV['FLUSSU_CONFIG_PATH'] . "/.services.json";
+        }
+        
+        // Prova tutti i percorsi
+        foreach ($possiblePaths as $path) {
+            $normalizedPath = realpath(dirname($path)) . '/' . basename($path);
+            if (file_exists($normalizedPath)) {
+                return $normalizedPath;
+            }
+        }
+        
+        // Se nessun percorso funziona, ritorna il primo tentativo per il messaggio di errore
+        return $possiblePaths[0];
+    }
+    
     /**
      * Metodo statico per inizializzare il Config (se non già fatto) e restituirne l'istanza.
      *
@@ -113,7 +156,7 @@ final class Config
      */
     public function all(): array
     {
-        return $this->configData;
+        return self::$configData;
     }
 
     /**
@@ -124,7 +167,7 @@ final class Config
      */
     public function getSection(string $key): ?array
     {
-        return $this->configData[$key] ?? null;
+        return self::$configData[$key] ?? null;
     }
 
     /**
@@ -132,9 +175,10 @@ final class Config
      * Esempio: "services.google.client_email"
      *
      * @param string $key
+     * @param mixed $defaultValue Valore di default se la chiave non esiste
      * @return mixed|null
      */
-    public function get(string $key,$defaultValue=null)
+    public function get(string $key, $defaultValue = null)
     {
         $keys = explode('.', $key);
 
@@ -154,7 +198,6 @@ final class Config
      */
     private function __clone() {}
     public function __wakeup() { throw new \Exception("Cannot unserialize Config"); }
-
 }
  //---------------
  //    _{()}_    |

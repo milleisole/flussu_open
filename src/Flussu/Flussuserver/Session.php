@@ -247,7 +247,7 @@ class Session {
 
     public function isStarting(){   return $this->_is_starting;        }
     public function getId()     {   return $this->_sessId;             }
-    public function getLang()   {   return isset($this->_MemSeStat->lang)?$this->_MemSeStat->lang:"";}
+    public function getLang()   {   return isset($this->_MemSeStat->lang)?strToUpper($this->_MemSeStat->lang):"IT"; }
     public function getWid()    {   return isset($this->_MemSeStat->wid)?$this->_MemSeStat->wid:"";}
 
     public function getWfAuid() {   return isset($this->_MemSeStat->wfauid)?$this->_MemSeStat->wfauid:""; }

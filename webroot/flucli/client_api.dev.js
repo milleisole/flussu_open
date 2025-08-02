@@ -90,6 +90,7 @@ async function sendStepData(termObj = {}, callback = null) {
     SID: SID || "",
     BID: BID || "",
     LNG: LNG || "",
+    APP: "CHAT",
     TRM: JSON.stringify(termObj)
   };
   const body = encodeFormBody(payload);

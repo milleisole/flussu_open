@@ -46,7 +46,6 @@
 namespace Flussu\Api\V40;
 
 use Flussu\Flussuserver\Request;
-
 use Flussu\General;
 use Flussu\Persons\User;
 use Flussu\Flussuserver\Command;
@@ -513,41 +512,9 @@ class Flow {
                                         case "DE": $endLang="German"; break;
                                     }
                                     if (!empty($endLang)){
-
-
-                                        $chat=new \Flussu\Api\Ai\FchatAi();
-                                        $res=$chat->chat("come ti chiami?");
-
-
-
-
-                                        /*
-                                        ob_end_clean();
-                                        header("Connection: close");
-                                        ignore_user_abort(); // optional
-                                        ob_start();
-                                        */
-                                        General::setGlobal(str_replace("-","",$execId),[10,0]);
-                                        //$check=General::getSession($execId);
-                                        echo (json_encode(array("translate_id"=>$execId,"message"=>"Started.")));
-                                        /*
-                                        $size = ob_get_length();
-                                        header("Content-Length: $size");
-                                        ob_flush(); 
-                                        flush();            // Unless both are called !
-                                        session_write_close(); // Added a line suggested in the comment
-                                        */
                                         $dbnc->translateLabels($startLang,$toLng,$endLang,$WofoId,$execId);
-
-
-                                        
                                         General::delGlobal($WID.$TrLng);
                                         General::delGlobal(str_replace("-","",$execId));
-                                        /*
-                                        ob_end_flush();
-                                        ob_end_clean();
-                                        ignore_user_abort(false);
-                                        */
                                     }
                                     else
                                         $result=json_encode(array("result"=>"ERROR","message"=>"Cannot translate. Do not understand [$toLng] language."));

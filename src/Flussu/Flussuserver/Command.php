@@ -403,7 +403,7 @@ class Command {
             $message=str_replace("&lbrace;ar&rcub;","<div style='float:right;'>",str_replace("&lbrace;&sol;ar&rcub;","</div>",$message));
             $message=str_replace("&lbrace;d&rcub;","<table width='100%'><tr><td width='1%' style='align:center;width:1%;border:solid 1px silver;padding:4px;margin:4px'>",str_replace("&lbrace;&sol;d&rcub;","</td><td width='99%'>&nbsp;</td></tr></table>",$message));
 
-            $message=str_replace("&lbrace;img&rcub;","<div style='padding:5px;margin:5px;'><img ",str_replace("&lbrace;&sol;img&rcub;"," ></div>",$message));
+            $message=str_replace("&lbrace;img&rcub;","<div style='padding:5px;margin:5px;'><img src='",str_replace("&lbrace;&sol;img&rcub;","' ></div>",$message));
 
             if (!$suppressSpecial){
                 $message=str_replace("&lbrace;t&rcub;","<div style='font-size:1.2em;font-weight:800' class=\"flussu-lbl-title flussu_title2\">",str_replace("&lbrace;&sol;t&rcub;","</div>",$message));

@@ -1,87 +1,73 @@
 <?php
+/* --------------------------------------------------------------------*
+ * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * --------------------------------------------------------------------*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * --------------------------------------------------------------------*
+ * CLASS-NAME:       OAUTH Controller
+ * CREATED DATE:     29.07.2025 - Refactored to be stateless
+ * VERSION REL.:     4.5.20250729
+ * -------------------------------------------------------*/
+
 namespace Flussu\Controllers;
 
 use GuzzleHttp\Client;
-use Flussu\Flussuserver\Session;
 use Flussu\General;
-//use Log;
+use Flussu\Config;
 
 class OauthController
 {
-    private string $serviceAccountFile;
     private string $tokenUri = 'https://oauth2.googleapis.com/token';
     private array $scopes = ['https://www.googleapis.com/auth/drive'];
-    private ?array $credentials = null;
+    private static ?array $cachedToken = null;
+    private ?Config $config = null;
 
-    public function __construct(string $serviceAccountFile="")
+    public function __construct()
     {
-        // Percorso del file di credenziali del service account
-        // Esempio: project/config/service_account.json
-        // Assicurarsi che questo file esista e abbia le chiavi corrette
-        $this->serviceAccountFile = $serviceAccountFile ?? __DIR__ . '/../../../config/services.json';
+        $this->config = Config::init();
     }
 
     /**
-     * GET /auth/token
-     * Ritorna un token JSON valido. Se scaduto, lo rinnova.
+     * Ottiene un token di accesso valido
+     * @return array ['access_token' => '...', 'expires_in' => ..., 'expires_at' => ...]
      */
-    public function getToken(Session $sess): array
+    public function getAccessToken(): array
     {
-        return $this->getAccessTokenInternal($sess);
-    }
-
-    /**
-     * Ottiene un token di accesso, rinnovandolo se scaduto.
-     * Ritorna un array con i dati del token: ['access_token' => '...', 'expires_in' => ...]
-     */
-    protected function getAccessTokenInternal(Session $sess): array
-    {
-        $tokenData = $sess->getVarValue("$"."google_access_token");
-
-        if (is_array($tokenData) && isset($tokenData['access_token'], $tokenData['expires_at'])) {
-            // Verifichiamo se è scaduto
-            if (time() < $tokenData['expires_at']) {
-                // Token ancora valido
-                return $tokenData;
+        // Cache in memoria per evitare richieste multiple durante la stessa esecuzione
+        if (self::$cachedToken !== null && isset(self::$cachedToken['expires_at'])) {
+            if (time() < self::$cachedToken['expires_at']) {
+                return self::$cachedToken;
             }
         }
 
-        // Token scaduto o non presente, creiamo un nuovo token
-        $newTokenData = $this->fetchNewAccessToken();
-        
-        // Memorizziamo in sessione
-        $sess->assignVars("$"."google_access_token", $newTokenData);
-
-        return $newTokenData;
+        // Genera nuovo token
+        self::$cachedToken = $this->fetchNewAccessToken();
+        return self::$cachedToken;
     }
 
     /**
      * Esegue il flow di OAuth2 per ottenere un nuovo access token.
-     * Usa un JWT assertion basato su service account.
      */
     private function fetchNewAccessToken(): array
     {
-        // Carica le credenziali del service account
-        $configContent = file_get_contents($this->serviceAccountFile);
-        $config = json_decode($configContent, true);
+        // Ottieni le credenziali usando la classe Config
+        $clientEmail = $this->config->get('services.google.client_email');
+        $privateKey = $this->config->get('services.google.private_key');
         
-        // Valida la struttura del file
-        if (!isset($config['google']['service_account'])) {
-            throw new \Exception("Configurazione Google service account non trovata nel file di configurazione");
+        // Valida che le credenziali esistano
+        if (!$clientEmail || !$privateKey) {
+            throw new \Exception("Credenziali Google mancanti nella configurazione. Verificare services.google.client_email e services.google.private_key");
         }
-        
-        $creds = $config['google']['service_account'];
-        
-        // Valida i campi richiesti
-        $requiredFields = ['client_email', 'private_key'];
-        foreach ($requiredFields as $field) {
-            if (!isset($creds[$field]) || empty($creds[$field])) {
-                throw new \Exception("Campo obbligatorio mancante o vuoto: google.service_account.$field");
-            }
-        }
-
-        $clientEmail = $creds['client_email'];
-        $privateKey = $creds['private_key'];
         
         // Crea il JWT per l'assertion
         $now = time();
@@ -105,7 +91,7 @@ class OauthController
         // Firma il JWT con la private key (RS256)
         $privateKeyResource = openssl_pkey_get_private($privateKey);
         if (!$privateKeyResource) {
-            throw new \Exception("Private key non valida nel file di configurazione");
+            throw new \Exception("Private key non valida nella configurazione");
         }
         
         $signature = '';
@@ -149,12 +135,24 @@ class OauthController
     }
     
     /**
-     * Metodo di utilità per testare la validità del token
+     * Aggiunge gli scope necessari (se vogliamo supportare scope multipli)
      */
-    public function testToken(Session $sess): array
+    public function addScope(string $scope): void
+    {
+        if (!in_array($scope, $this->scopes)) {
+            $this->scopes[] = $scope;
+            // Invalida la cache per forzare un nuovo token con i nuovi scope
+            self::$cachedToken = null;
+        }
+    }
+    
+    /**
+     * Test di validità del token
+     */
+    public function testConnection(): array
     {
         try {
-            $tokenData = $this->getToken($sess);
+            $tokenData = $this->getAccessToken();
             
             // Test con una chiamata a Google Drive
             $client = new Client();

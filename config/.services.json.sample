@@ -14,7 +14,22 @@
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://oauth2.googleapis.com/token",
         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/account-service%40nome-progetto.iam.gserviceaccount.com"
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/account-service%40nome-progetto.iam.gserviceaccount.com",
+        "universe_domain": "googleapis.com",
+        "drive_config": {
+            "mode": "shared_folder",  
+            "shared_folder_id": "1TEOQ3kXRttHerGyBzCSUouO5Mr0gSkOU",
+            "share_with": [
+                {
+                    "email": "aldo@milleisole.com",
+                    "role": "writer"
+                },
+                {
+                    "email": "altro@esempio.com",
+                    "role": "reader"
+                }
+            ]
+        }
     },
     "microsoft":{
         "tenant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",

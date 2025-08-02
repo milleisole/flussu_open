@@ -46,6 +46,7 @@
         "dompdf/dompdf": "^2.0",
         "erusev/parsedown": "^1.7",
         "google-gemini-php/client": "^2.0",
+        "google/apiclient": "^2.0",
         "guzzlehttp/guzzle": "^7.8.0",
         "guzzlehttp/psr7": "^2.6.1",
         "juanantoniodelgado/stopwords": "^1.3",
