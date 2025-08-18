@@ -213,23 +213,24 @@ function renderFormFlussu(json) {
   Object.keys(json.elms).forEach((k, idx) => {
     const arr = json.elms[k];
     if (!Array.isArray(arr) || arr.length < 2) return;
-
+    let cssTxt=arr[1].class?arr[1].class:"";
     // Label
     if (/^L\$/.test(k)) {
-        let label = arr[0] || "";
-        if (label) {
-            if (!hasOnChat(arr)){
-                const labelEl = document.createElement('label');
-                labelEl.className = "font-semibold mb-2 block font-semibold mb-2 block text-gray-700 dark:text-gray-200";
-                labelEl.innerHTML = label.replace(/[:：]$/, ""); // USA innerHTML!
-                newBar.appendChild(labelEl);
-            } else {
-                elementi = { elms: {} };
-                elementi.elms[k] = arr;
-                appendUserFormCard(elementi.elms, null);
-            }
-        }
-        return;
+      if (cssTxt=="noshow") return;
+      let label = arr[0] || "";
+      if (label) {
+          if (!hasOnChat(arr)){
+              const labelEl = document.createElement('label');
+              labelEl.className = "font-semibold mb-2 block font-semibold mb-2 block text-gray-700 dark:text-gray-200";
+              labelEl.innerHTML = label.replace(/[:：]$/, ""); // USA innerHTML!
+              newBar.appendChild(labelEl);
+          } else {
+              elementi = { elms: {} };
+              elementi.elms[k] = arr;
+              appendUserFormCard(elementi.elms, null);
+          }
+      }
+      return;
     }
 
     // Link/anchor: A$
@@ -271,6 +272,12 @@ function renderFormFlussu(json) {
         let indice=0;
         if(arr[2]) 
             indice=estraiValore(arr[2]);
+        try {
+          const parsed = JSON.parse(indice);
+          if (Array.isArray(parsed)) {
+            indice = parsed[0]; // Prendi solo il valore, non l'etichetta
+          }
+        } catch {}
         let optString = arr[0] || "";
         let opts;
         try {
@@ -595,8 +602,9 @@ function appendUserFormCard(elms, trmObj) {
     let starthtml = '<div class="w-full flex flex-col justify-start mb-2">';
     Object.keys(elms).forEach((k) => {
     const arr = elms[k];
+    let cssTxt=arr[1].class?arr[1].class:"";
     // Label domanda
-    if (/^L\$/.test(k)) {
+    if (/^L\$/.test(k) && cssTxt !== "noshow") {
         if (!trmObj || !hasOnChat(arr)) {
             if (!hasNoDisp(arr)) {
             const raw = (arr[0] || "").trim();
@@ -622,7 +630,9 @@ function appendUserFormCard(elms, trmObj) {
     starthtml = `<div class="w-full flex flex-col items-end mb-2">`;
     done=false;
     Object.keys(elms).forEach((k) => {
-        const arr = elms[k];
+      const arr = elms[k];
+      let cssTxt=arr[1].class?arr[1].class:"";
+      if (cssTxt != "noshow") { 
         if (/^IT[T]?\$/.test(k)) {
             const label = arr[0] || "";
             let cleanKey = k.replace(/^(IT[T|S|B]?\$)/, "$");
@@ -647,6 +657,7 @@ function appendUserFormCard(elms, trmObj) {
             done=true;
             starthtml="";
         }
+      }
     });
     if (done)
         html += "</div>";
