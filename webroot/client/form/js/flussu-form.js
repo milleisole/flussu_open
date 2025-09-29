@@ -911,7 +911,7 @@ function renderSelection(id, optionsJson, cssData, defaultValue) {
         html += '<div class="flussu-scale-item-label"></div>'; // Spazio vuoto per allineamento
         html += '<div class="flussu-scale-item-options">';
         for (let i = scaleInfo.min; i <= scaleInfo.max; i++) {
-            html += `<div class="flussu-scale-header-number">${i}</div>`;
+            html += '<div class="flussu-scale-header-number">'+i+'</div>';
         }
         html += '</div>';
         html += '</div>';
@@ -920,7 +920,7 @@ function renderSelection(id, optionsJson, cssData, defaultValue) {
         for (const [key, label] of Object.entries(options)) {
             const [value] = key.split(',');
             html += '<div class="flussu-scale-row">';
-            html += `<div class="flussu-scale-item-label">${label}</div>`;
+            html += '<div class="flussu-scale-item-label">'+label+'</div>';
             html += '<div class="flussu-scale-item-options">';
             
             for (let i = scaleInfo.min; i <= scaleInfo.max; i++) {
@@ -1659,3 +1659,12 @@ if (typeof jQuery !== 'undefined') {
 }
 
 console.log('[Flussu] v4.0 loaded successfully');
+
+ /*-------------
+ |   ==(O)==   |
+ |     | |     |
+ | AL  |D|  VS |
+ |  \__| |__/  |
+ |     \|/     |
+ |  @INXIMKR   |
+ |------------*/ 

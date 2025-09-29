@@ -30,8 +30,8 @@
  * USE ALDUS BEAN:   Databroker.bean
  * -------------------------------------------------------*
  * CREATED DATE:     04.07:2020 - Aldus - Flussu v1.3
- * VERSION REL.:     4.4.1.20250629
- * UPDATES DATE:     28.07:2025 
+ * VERSION REL.:     4.5.1 20250820 
+ * UPDATED DATE:     20.08:2025 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * -------------------------------------------------------*/
@@ -585,6 +585,24 @@ class Worker {
                                         $newElemGen["c_type"]="1";
                                         $newElemGen["d_type"]="INPUT";
                                         break;
+                                    case "SS":
+                                    case "SE":
+                                    case "SM":
+                                        $newElemGen["c_type"]="6";
+                                        $newElemGen["d_type"]="SELECTION";
+                                        if ($newElem["mandatory"])
+                                            $newElemGen["css"]["display_info"]["mandatory"]=true;
+                                        if ($newElem["type"]=="SE")
+                                            $newElemGen["css"]["display_info"]["subtype"]="exclusive";
+                                        if ($newElem["type"]=="SM")
+                                            $newElemGen["css"]["display_info"]["subtype"]="multiple";
+                                        $newElemGen["var_name"]="$".$newElem["varname"];
+                                        if ($newElem["mandatory"])
+                                            $newElemGen["css"]["display_info"]["mandatory"]=true;
+                                            foreach($newElem["values"] as $value){
+                                                $newElemGen["langs"][$lng]["label"][$value[0].",0"]=$value[1];
+                                            }
+                                        break;
                                     case "B":
                                         //add Button
                                         $newElemGen["value"]=$newElem["value"];
@@ -594,6 +612,9 @@ class Worker {
                                         $elmValue=str_replace([" ",";"],["[SP]","[PV]"],$newElem["value"]).";".$newElem["varname"];
                                         $valValue=General::curtatone(340,$elmValue);
                                         $newElemGen["exit_num"]=$newElem["exit"].";".$valValue;
+                                        if ($newElemGen["skipValid"]) {
+                                            $newElemGen["css"]["display_info"]["subtype"]="skip-validation";
+                                        }
                                         break;
                                     default:
                                         //add Label
@@ -1400,7 +1421,7 @@ try {
         $exec = $this->_trovaFunzioniProibite($exec, $search_line);
 
         //$exec=str_ireplace($search_line,"[DoNotUse]",$exec);
-        $exec = str_replace(array("`",chr(96)),array("'","'"), $exec);
+        //$exec = str_replace(array("`",chr(96)),array("'","'"), $exec);
 
         // eliminazione word "mail"
         $po=-1;
@@ -1494,13 +1515,11 @@ try {
         return json_last_error() === JSON_ERROR_NONE;
     }
 }
- //---------------
- //    _{()}_    |
- //    --[]--    |
- //      ||      |
- //  AL  ||  DVS |
- //  \\__||__//  |
- //   \__||__/   |
- //      \/      |
- //   @INXIMKR   |
- //--------------- 
+ /*-------------
+ |   ==(O)==   |
+ |     | |     |
+ | AL  |D|  VS |
+ |  \__| |__/  |
+ |     \|/     |
+ |  @INXIMKR   |
+ |------------*/ 

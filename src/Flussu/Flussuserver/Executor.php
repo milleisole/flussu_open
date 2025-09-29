@@ -28,8 +28,8 @@
  * CLASS-INTENT:     Work/executor
  * -------------------------------------------------------*
  * CREATED DATE:     25.05:2024 - Aldus - Flussu v3.0
- * VERSION REL.:     4.4.1.20250629
- * UPDATES DATE:     29.06:2025 
+ * VERSION REL.:     4.5.1 20250820 
+ * UPDATED DATE:     20.08:2025 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * NEW: add Workflow Absolute Unique ID handling - 15-11-2024
@@ -304,10 +304,10 @@ class Executor{
                                 $ctrl=new AiChatController(Platform::GEMINI);
                                 break;
                             case 3:
-                                $ctrl=new AiChatController(Platform::DEEPSEEK);
+                                $ctrl=new AiChatController(Platform::CLAUDE);
                                 break;
                             case 4:
-                                $ctrl=new AiChatController(Platform::CLAUDE);
+                                $ctrl=new AiChatController(Platform::DEEPSEEK);
                                 break;
                             default:
                                 $ctrl=new AiChatController(Platform::CHATGPT);
@@ -431,7 +431,7 @@ class Executor{
                             else
                                 $elem_arr=[];
                         }
-                        $elem_arr[]=["type"=>"B","text"=>$innerParams[2],"value"=>$innerParams[1],"varname"=>$innerParams[0],"exit"=>$innerParams[3],"css"=>$innerParams[4]];
+                        $elem_arr[]=["type"=>"B","text"=>$innerParams[2],"value"=>$innerParams[1],"varname"=>$innerParams[0],"exit"=>$innerParams[3],"css"=>$innerParams[4],"skipValid"=>$innerParams[5]];
                         $res["addElements"]=$elem_arr;
                         break;
                     case "createInput":
@@ -448,6 +448,21 @@ class Executor{
                                 $elem_arr=[];
                         }
                         $elem_arr[]=["type"=>$innerParams[0],"varname"=>$innerParams[1],"value"=>$innerParams[2],"text"=>$innerParams[3],"mandatory"=>$innerParams[4],"css"=>$innerParams[5]];
+                        $res["addElements"]=$elem_arr;
+                        break;
+                    case "createSelect":
+                        // V4.4.1 - Add a select to the current block
+                        // $selType (standard, esclusivo, multiplo) "SS":"SE":"SM",$selectVarName,$selectArrayValues,$isMandatory,$inputCss
+                        if (!is_array($res)){ 
+                            $res=[];
+                        }
+                        else {
+                            if (isset($res["addElements"]))
+                                $elem_arr=$res["addElements"];
+                            else
+                                $elem_arr=[];
+                        }
+                        $elem_arr[]=["type"=>$innerParams[0],"varname"=>$innerParams[1],"values"=>$innerParams[2],"mandatory"=>$innerParams[3],"css"=>$innerParams[4]];
                         $res["addElements"]=$elem_arr;
                         break;
                     case "timedRecall":
@@ -945,13 +960,11 @@ class Executor{
 
 
  }
-  //---------------
- //    _{()}_    |
- //    --[]--    |
- //      ||      |
- //  AL  ||  DVS |
- //  \\__||__//  |
- //   \__||__/   |
- //      \/      |
- //   @INXIMKR   |
- //--------------- 
+ /*-------------
+ |   ==(O)==   |
+ |     | |     |
+ | AL  |D|  VS |
+ |  \__| |__/  |
+ |     \|/     |
+ |  @INXIMKR   |
+ |------------*/ 

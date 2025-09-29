@@ -17,9 +17,9 @@
  * TBD- UNFINISHED
  * 
  * CLASS-NAME:       Flussu Grok interface - v1.0
- * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.3.0 20250530 
- * UPDATE DATE:      31.05:2025 
+ * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
+ * VERSION REL.:     4.5.1 20250820 
+ * UPDATE DATE:      20.08:2025 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\General;
@@ -77,8 +77,8 @@ class FlussuGrokAi implements IAiProvider
                     'Authorization' => 'Bearer ' . $this->_grok_ai_key,
                     'Content-Type'  => 'application/json',
                 ],
-                'timeout' => 60, // Total timeout in seconds
-                'connect_timeout' => 30, // Connection timeout in seconds
+                'timeout' => 120, // Total timeout in seconds
+                'connect_timeout' => 20, // Connection timeout in seconds
                 'json'=>$payload
             ]);
             $data=$response->getBody();
@@ -93,7 +93,7 @@ class FlussuGrokAi implements IAiProvider
                 return [$arrayText,"Error: no Grok response. Details: " . print_r($data, true)];
 
         } catch (Exception $e) {
-            return [$arrayText,'Error: ' . $e->getMessage()];
+            "Error: no response. Details: " . $e->getMessage();
         }
     }
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
@@ -103,13 +103,11 @@ class FlussuGrokAi implements IAiProvider
         return [];
     }
 }
- //---------------
- //    _{()}_    |
- //    --[]--    |
- //      ||      |
- //  AL  ||  DVS |
- //  \\__||__//  |
- //   \__||__/   |
- //      \/      |
- //   @INXIMKR   |
- //--------------- 
+ /*-------------
+ |   ==(O)==   |
+ |     | |     |
+ | AL  |D|  VS |
+ |  \__| |__/  |
+ |     \|/     |
+ |  @INXIMKR   |
+ |------------*/ 

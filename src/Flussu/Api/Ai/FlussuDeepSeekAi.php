@@ -17,9 +17,9 @@
  * TBD- UNFINISHED
  * 
  * CLASS-NAME:       Flussu DeepSeek interface - v1.0
- * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.3.0 20250530 
- * UPDATE DATE:      31.05:2025 
+ * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
+ * VERSION REL.:     4.5.1 20250820 
+ * UPDATE DATE:      20.08:2025 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\Contracts\IAiProvider;
@@ -71,7 +71,12 @@ class FlussuDeepSeekAi implements IAiProvider
     }
 
     private function _chatContinue($arrayText){
-        $result = $this->_deepseek->query(json_encode(["messages"=>$arrayText]))->run();
+        try{
+            $result = $this->_deepseek->query(json_encode(["messages"=>$arrayText]))->run();
+        } catch (\Throwable $e) {
+            //Log::error("Claude API Error: " . $e->getMessage());
+            return "Error: no response. Details: " . $e->getMessage();
+        }
         $res=json_decode($result, true);
         return [$arrayText,($res["choices"][0]["message"]["content"] ?? "Error: no DeepSeek response. Details: " . $result)];
     }
@@ -81,13 +86,11 @@ class FlussuDeepSeekAi implements IAiProvider
         return $result;
     }
 }
- //---------------
- //    _{()}_    |
- //    --[]--    |
- //      ||      |
- //  AL  ||  DVS |
- //  \\__||__//  |
- //   \__||__/   |
- //      \/      |
- //   @INXIMKR   |
- //--------------- 
+ /*-------------
+ |   ==(O)==   |
+ |     | |     |
+ | AL  |D|  VS |
+ |  \__| |__/  |
+ |     \|/     |
+ |  @INXIMKR   |
+ |------------*/ 

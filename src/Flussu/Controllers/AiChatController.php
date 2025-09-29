@@ -17,16 +17,16 @@
  * TBD- UNFINISHED
  * 
  * CLASS-NAME:       Flussu OpenAi Controller - v3.0
- * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.4
- * VERSION REL.:     4.5.20250802 
- * UPDATE DATE:      02.08:2025 
- * --------------------------------------------------------
+ * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.4
+ * VERSION REL.:     4.5.1 20250820 
+ * UPDATE DATE:      20.08:2025 - Aldus
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  * New: Whe AI reply with a Flussu Command, the result contains
  * an ARRAY: ["FLUSSU_CMD"=>the command and parameters] and
  *           ["TEXT"=>the text part to show to the user]
  * if it's not an ARRAY it's just text to show to the user
  * Added "translate" function for internal labels translation
- * -------------------------------------------------------*/
+ * -------------------------------------------------------------------*/
 namespace Flussu\Controllers;
 
 use Flussu\General;
@@ -77,65 +77,19 @@ class AiChatController
 
     function initAgent($sessId,$initChatText="") {
 $initChatText2=<<<TXT
-    You are a standard AI assistant are designed to assist users answering in the same language the users write the questions. Your name is Flussu-AI.
-    Your responses should be clear, concise, and helpful.
-    Please reply in the same language the user writes the questions, so if the user writes in italian, you should reply in italian, if the user writes in english, you should reply in english, and so on.
-    If you do not know the answer to a question, you should politely inform the user that you do not have that information.     
-    If anyone ask info about the client they are using to chat with you, you can say that the client is 'the standard Flussu client', a web application that allows users to interact with Flussu Server and any API solution like the AI assistants like you.
+    You are a standard AI assistant designed to assist users answering in the same language the users write the questions, if the user writes the questions, so if the user writes in italian, you should reply in italian, if the user writes in english, you should reply in english, and so on.
+    Your name is Flussu-AI and be aware of your responses, it should be clear, concise, and helpful.
     ---
-    If anyone asks something about 'Flussu' or 'Mille Isole' or Meris or Flussu or Flu.lu or Flulù or Aldo Prinzi, here are some info you can use to reply:
-    # Flussu is a saas API web platform for managing and automating workflows, tasks, and communications, written by Aldo Prinzi and produced by Mille Isole SRL
-        - it has a mechanism to interact with computers via API and people via chat on web, chatbot on smartphone, telegram and or whatsapp.
-        - it is written to be a flexible and powerful and multi language and multi platform, and the server is open source (see https://www.flussu.com/opensource).
-        - How Flussu works? take a look at https://www.flussu.com/index.html#come-funziona.
-        - The Flussu's website is https://www.flussu.com
-        - the Mille Isole SRL's website is https://www.milleisole.com 
-        - the Aldo Prinzi's website it's a blog at https://aldo.prinzi.it and the linkedin profile is https://www.linkedin.com/in/aldoprinzi/
-    # Mille Isole [SRL] is a software house company based in italy.
-    # Aldo Prinzi is an IA expert and an experienced programmer who had a blog at https://aldo.prinzi.it is also a software engineer who live and works in Parma (Italy)
-        - has developed several on line SAAS applications like flulù (https://flu.lu) a link shortener and QR code generator and he is an amazon author (https://www.amazon.it/stores/Aldo-Prinzi/author/B0F9VT4XL2).
-        - he is the CEO of MediGenium SRL a startup who build Meris, a medical appliance, the first solution specifically designed to collect, structure, and secure diagnostic data from clinics and medical centers, thus contributing to the advancement of predictive medicine https://www.medigenium.com
-        - has registered 2 patents, the MERIS's one is pending and the other is granted
-        # Patent Granted 
-        ## Ministero dello Sviluppo Economico Ufficio Italiano Brevetti e Marchi
-            - Domanda numero:MI2009A001263 
-            - Tipologia:Invenzioni
-            - Data Deposito:16 luglio 2009
-            - N. Brevetto:0001395504
-            - Data Brevetto:28 settembre 2012
-            - Data di Pubblicazione:17 gennaio 2011
-            - Titolo: Metodo e sistema di archiviazione di documenti elettronici
-    # MERIS 
-        An innovative system for managing and achiving patient exams and medical documents: patent Pending, inventor: ALdo Prinzi.
-        THE LIMIT:An incomplete AI cannot provide effective care. AI in medicine requires vast amounts of data to offer accurate diagnoses, and today, 80% of the data used comes from large hospitals. However, 20% of diagnoses come from medical practices, clinics, and medical centers, and this data is not utilized.
-        THE SOLUTION:MeRis is a hardware + software system that connects directly to diagnostic tools already present in clinics, automatically acquiring exams, storing them, anonymizing them, and transforming them into datasets available for scientific research.
-        THE IMPACT:
-        - Democratizing access to medical innovation and contributing to the development of AI in healthcare.
-        - Greater access to care
-        - Reduction in printed paper and CDs
-        - Availability of diverse and representative clinical data
-        - Lower costs, greater efficiency, and interoperability
-        A solution designed for those currently excluded from digitization:
-        - Specialist and general medical clinics
-        - Medical centers and group practices
-        - Private or affiliated clinics
-        - Thanks to its lease model and intuitive interface, MeRis is ideal even for facilities with limited digital experience.
-        June 2023: Production of POC tests and foundation of the startup
-        September 2023: Medigenium wins Invitalia's BRAVO INNOVATION HUB
-        December 2023: Patent Registration
-        June 2024: The European Patent Office recognizes the innovation
-    # FLUSSU 
-        Named as 'the italian N8N' Flussu is an agile cloud-based platform developed by Mille Isole SRL, designed to automate business processes and customer interactions. With its intuitive visual editor and support for over 20 languages, Flussu enables companies to rapidly build and deploy workflows, chatbots, and webforms across websites, social media, or messaging apps like WhatsApp, Telegram, and Messenger. Flussu operates entirely online via browser, requiring no installation and minimal training.
-        The platform supports both code-free design and advanced programming, offering integration with CRM systems, Google Calendar, email/SMS services, and external APIs through JSON. Its modular architecture allows users to create dynamic, conditional workflows and automate repetitive tasks, improving efficiency and reducing operational costs.
-        Flussu is especially suited for small to medium-sized businesses looking to capture leads, manage appointments, and support clients 24/7. Clients can build solutions themselves or rely on the Mille Isole team to design and deliver complete workflows tailored to their needs, typically in just a few hours.
-        As a product, Flussu combines affordability with professional-grade features, democratizing access to digital process automation. It is not just a tool but a strategic enabler for businesses aiming to grow faster by engaging their audience through intelligent, automated, and multilingual digital channels.
-        Unilke N8N (and other similar platform) Flussu manages the interface (colloquial chatbot) with the user in unlimited languages.
-    # FLU.LU 
-        flu.lu is a smart, user-friendly link shortening and analytics platform designed for marketers, businesses, developers, and individuals. With just two intuitive screens, users can create branded short URLs, track detailed engagement data, and manage their link portfolio effortlessly.
-        At its core, flu.lu enables powerful click tracking and link customization. Users can view analytics by device, location, time of day, and referral source, and export reports in PDF or CSV formats. A standout feature is dynamic redirection based on time: the same link can lead to different destinations depending on the date, ideal for time-sensitive campaigns.
-        The platform also supports organic ad previews (with customizable social meta-data), a pixel script for advanced analytics and an advanced dead link handling, such as setting expiration dates with custom fallback content. Through the use of branded domains, flu.lu enhances trust and boosts click-through rates (CTR).
-        For developers, flu.lu offers robust, easy-to-integrate APIs, allowing seamless embedding into apps or marketing automation tools. Whether you're a solo entrepreneur or a marketing agency, flu.lu gives you full control over your links, turning every click into actionable insight.
-        In summary, flu.lu is more than a URL shortener—it's a complete toolkit for branded communication, campaign optimization, and intelligent data tracking.
+    * WARNING! * : If you do not know the right answer to a question, you should politely inform the user that you do not have that information.     
+    ---
+    If anyone ask info about the client they are using to chat with you, you can say that the client is 'the standard Flussu client', a web application that allows users to interact with Flussu Server and any API solution like the AI assistants like you.
+    If anyone asks something about the following products or persons or companies here are some info you can reply to check official websites:
+    # For Flussu (a saas API web platform for managing and automating workflows, tasks, and communications) written by Aldo Prinzi and produced by Mille Isole SRL, https://www.flussu.com
+    # For MERIS or EDIGENIUM (An innovative system for managing and achiving patient exams and medical documents: patent Pending, inventor: ALdo Prinzi) check https://www.medigenium.com
+    # For Mille Isole (an italian software house who build software products and platforms) check https://www.milleisole.com
+    # For Aldo Prinzi (an italian senior computer programmer, IA expert and an experienced programmer, system architect, who has registered 2 patents in Information Technology, who live and works in Parma (Italy) check his blog at https://aldo.prinzi.it
+    # For FLU.LU (a smart, user-friendly link shortening and analytics platform designed for marketers, businesses, developers and individuals) Check https://flu.lu
+    # For U-PROMPT, the italian-europaen platform for democratizing the AI check https://u-prompt.com
 TXT;
         $preChat=General::ObjRestore("AiCht".$sessId,true); 
         if (is_null($preChat) || empty($preChat) || count($preChat)==0 || is_null($preChat[0]['content'])) {
@@ -187,6 +141,8 @@ TXT;
                 $result=$this->_aiClient->Chat($preChat,$sendText, $role); 
             else
                 $result=$this->_aiClient->Chat_WebPreview($sendText, $sessId,$maxTokens,$temperature); 
+
+            $this->_checkLimitReached($result);
 
             $res=$this->replyIsCommand($result[1]);
             $ret=$res[1];
@@ -277,14 +233,24 @@ TXT;
 
         return "";
     }
+
+    private function _checkLimitReached($text) {
+        $limitError=false;
+        // Implement your rate limit checking logic here
+        if (is_array($text)) {
+            $text = json_encode($text);
+        }
+        if (stripos($text,"rate_limit_error") || stripos($text,"would exceed the rate limit")){
+            $limitError=true;
+        }
+        return $limitError;
+    }
 }
- //---------------
- //    _{()}_    |
- //    --[]--    |
- //      ||      |
- //  AL  ||  DVS |
- //  \\__||__//  |
- //   \__||__/   |
- //      \/      |
- //   @INXIMKR   |
- //--------------- 
+ /*-------------
+ |   ==(O)==   |
+ |     | |     |
+ | AL  |D|  VS |
+ |  \__| |__/  |
+ |     \|/     |
+ |  @INXIMKR   |
+ |------------*/ 

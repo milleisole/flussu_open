@@ -17,9 +17,9 @@
  * TBD- UNFINISHED
  * 
  * CLASS-NAME:       Flussu Claude 3 interface - v1.0
- * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.3.0 20250530 
- * UPDATE DATE:      31.05:2025 
+ * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
+ * VERSION REL.:     4.5.1 20250820 
+ * UPDATE DATE:      20.08:2025 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\Contracts\IAiProvider;
@@ -73,12 +73,12 @@ class FlussuClaudeAi implements IAiProvider
     }
 
     private function _chatContinue($sendArray){
-        $response = $this->_claude3->chat($sendArray);
-        /*if ($response->isError()) {
-            //Log::error("Claude API Error: " . $response->getErrorMessage());
-            return "Error: no Claude response. Details: " . $response->getErrorMessage();
-        } */       
-        
+        try{
+            $response = $this->_claude3->chat($sendArray);
+        } catch (\Throwable $e) {
+            //Log::error("Claude API Error: " . $e->getMessage());
+            return "Error: no response. Details: " . $e->getMessage();
+        }
         $resChat=[$sendArray,$response->getContent()[0]['text']];
         return $resChat;
     }
@@ -90,13 +90,11 @@ class FlussuClaudeAi implements IAiProvider
         return [];
     }
 }
- //---------------
- //    _{()}_    |
- //    --[]--    |
- //      ||      |
- //  AL  ||  DVS |
- //  \\__||__//  |
- //   \__||__/   |
- //      \/      |
- //   @INXIMKR   |
- //--------------- 
+ /*-------------
+ |   ==(O)==   |
+ |     | |     |
+ | AL  |D|  VS |
+ |  \__| |__/  |
+ |     \|/     |
+ |  @INXIMKR   |
+ |------------*/ 

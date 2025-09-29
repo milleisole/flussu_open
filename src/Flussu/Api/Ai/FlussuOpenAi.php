@@ -17,9 +17,9 @@
  * TBD- UNFINISHED
  * 
  * CLASS-NAME:       Flussu OpenAi interface - v1.0
- * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.3.0 20250530 
- * UPDATE DATE:      30.05:2025 
+ * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
+ * VERSION REL.:     4.5.1 20250820 
+ * UPDATE DATE:      20.08:2025 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\General;
@@ -95,12 +95,16 @@ class FlussuOpenAi implements IAiProvider
     }
 
     private function _chatContinue($arrayText){
-        $result = $this->_open_ai->chat()->create([
-            'model' => $this->_open_ai_chat_model,
-            'messages' => $arrayText,
-            /* 'temperature' => 0.7,*/
-            'stream'      => false,
-        ]);
+        try{
+            $result = $this->_open_ai->chat()->create([
+                'model' => $this->_open_ai_chat_model,
+                'messages' => $arrayText,
+                /* 'temperature' => 0.7,*/
+                'stream'      => false,
+            ]);
+        } catch (\Throwable $e) {
+            return "Error: no response. Details: " . $e->getMessage();
+        }
         return [$arrayText,$result->choices[0]->message->content]; 
     }
 
@@ -151,13 +155,11 @@ class FlussuOpenAi implements IAiProvider
         return $response;
     }
 }
- //---------------
- //    _{()}_    |
- //    --[]--    |
- //      ||      |
- //  AL  ||  DVS |
- //  \\__||__//  |
- //   \__||__/   |
- //      \/      |
- //   @INXIMKR   |
- //--------------- 
+ /*-------------
+ |   ==(O)==   |
+ |     | |     |
+ | AL  |D|  VS |
+ |  \__| |__/  |
+ |     \|/     |
+ |  @INXIMKR   |
+ |------------*/ 

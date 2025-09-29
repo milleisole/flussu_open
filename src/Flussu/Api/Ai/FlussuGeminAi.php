@@ -17,9 +17,9 @@
  * TBD- UNFINISHED
  * 
  * CLASS-NAME:       Flussu Gemini interface - v1.0
- * UPDATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.3.0 20250530 
- * UPDATE DATE:      31.05:2025 
+ * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
+ * VERSION REL.:     4.5.1 20250820 
+ * UPDATE DATE:      20.08:2025 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\Contracts\IAiProvider;
@@ -90,12 +90,13 @@ class FlussuGeminAi implements IAiProvider
             $response = $chat->sendMessage($sendText);
             $responseText=$response->text();
         } catch (\Throwable $e) {
-            $responseText=$e->getMessage();
+            $responseText="Error: no response. Details: " . $e->getMessage();
         }
         return [
             $oldMsgArray,
             $responseText
         ];
+
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
@@ -105,13 +106,11 @@ class FlussuGeminAi implements IAiProvider
         return [];
     }
 }
- //---------------
- //    _{()}_    |
- //    --[]--    |
- //      ||      |
- //  AL  ||  DVS |
- //  \\__||__//  |
- //   \__||__/   |
- //      \/      |
- //   @INXIMKR   |
- //--------------- 
+ /*-------------
+ |   ==(O)==   |
+ |     | |     |
+ | AL  |D|  VS |
+ |  \__| |__/  |
+ |     \|/     |
+ |  @INXIMKR   |
+ |------------*/  

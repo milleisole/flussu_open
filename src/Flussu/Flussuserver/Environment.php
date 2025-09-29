@@ -28,8 +28,8 @@
  * CLASS PATH:       /Flussu/Flussuserver
  * -------------------------------------------------------*
  * CREATED DATE:   25.01.2021 - Aldus
- * VERSION REL.:     4.4.1.20250629
- * UPDATES DATE:     29.06:2025 
+ * VERSION REL.:   4.5.1 20250820 
+ * UPDATE DATE:    20.08:2025 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * 4.4.1 can generate INPUT elements (IS, IE, IM) by code
@@ -257,11 +257,12 @@ class Environment {
     public function excelAddRow     ($fileName,$arrData)                {$this->_addToResArray("excelAddRow", array($fileName,$arrData));}
     // v2.0 batchExec 
     public function getHtmlFromFlussuText($theFlussuText)       {return Command::htmlSanitize($theFlussuText,$this->_mySess->getVarValue("$"."isTelegram"));}
-    public function createButton   ($buttonVarName,$clickValue, $buttonText, $buttonExit=0, $buttonCss="") {$this->_addToResArray("createButton", array($buttonVarName,$clickValue,$buttonText,$buttonExit,$buttonCss));}
+    public function createButton   ($buttonVarName,$clickValue, $buttonText, $buttonExit=0, $buttonCss="", $skipValidation=false) {$this->_addToResArray("createButton", array($buttonVarName,$clickValue,$buttonText,$buttonExit,$buttonCss,$skipValidation));}
     public function createLabel    ($labelText)                         {$this->_addToResArray("createLabel", array($labelText));}
     public function createInputStandard ($inputVarName,$inputValue,$suggestText,$isMandatory=false,$inputCss="") {$this->_addToResArray("createInput", array("IS",$inputVarName,$inputValue,$suggestText,$isMandatory,$inputCss));}
     public function createInputEmail    ($inputVarName,$inputValue,$suggestText,$isMandatory=false,$inputCss="") {$this->_addToResArray("createInput", array("IE",$inputVarName,$inputValue,$suggestText,$isMandatory,$inputCss));}
     public function createInputMultirow ($inputVarName,$inputValue,$suggestText,$isMandatory=false,$inputCss="") {$this->_addToResArray("createInput", array("IM",$inputVarName,$inputValue,$suggestText,$isMandatory,$inputCss));}
+    public function createSelect        ($inputVarName,$selectType,$inputValues,$isMandatory=false,$inputCss="") {$this->_addToResArray("createSelect", array($selectType,$inputVarName,$inputValues,$isMandatory,$inputCss));}
     public function execBatch           ($batchName)                    {
         $fname=$_SERVER['DOCUMENT_ROOT']."/../Uploads/scripts/".str_replace("/"," ",str_replace("\\"," ",$batchName));
         //return $fname;
@@ -596,13 +597,11 @@ class Environment {
         return $outQuest;
     }
 }
- //---------------
- //    _{()}_    |
- //    --[]--    |
- //      ||      |
- //  AL  ||  DVS |
- //  \\__||__//  |
- //   \__||__/   |
- //      \/      |
- //   @INXIMKR   |
- //--------------- 
+ /*-------------
+ |   ==(O)==   |
+ |     | |     |
+ | AL  |D|  VS |
+ |  \__| |__/  |
+ |     \|/     |
+ |  @INXIMKR   |
+ |------------*/ 
