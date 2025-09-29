@@ -76,22 +76,22 @@ if (isset($argv) && is_array($argv)){
     }
 }
 
-if (strpos($_SERVER["SCRIPT_URL"],"license") || strpos($_SERVER["QUERY_STRING"],"license")!==false){
+if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"],"license")!==false){
     $license = file_get_contents('../LICENSE.md');
     die("<html><head><title>Flussu Server License</title></head><body><p>".str_replace("<br><br>","</p><p>",str_replace("\n","<br>",htmlentities($license)))."</body></html>");
-} else if ($_SERVER["SCRIPT_URL"]=="/favicon.ico"){
+} else if ($_SERVER["REQUEST_URI"]=="/favicon.ico"){
     die (file_get_contents(
         "favicon.ico"     
     ));
-} else if ($_SERVER["SCRIPT_URL"]=="/checkversion" || $_SERVER["SCRIPT_URL"]=="/update" || $_SERVER["SCRIPT_URL"]=="/refreshviews"|| $_SERVER["SCRIPT_URL"]=="/views"){
+} else if ($_SERVER["REQUEST_URI"]=="/checkversion" || $_SERVER["REQUEST_URI"]=="/update" || $_SERVER["REQUEST_URI"]=="/refreshviews"|| $_SERVER["REQUEST_URI"]=="/views"){
     $fc=new VersionController();
     $res=$fc->execCheck();
-    if ($_SERVER["SCRIPT_URL"]=="/views" || $_SERVER["SCRIPT_URL"]=="/refreshviews"){
+    if ($_SERVER["REQUEST_URI"]=="/views" || $_SERVER["REQUEST_URI"]=="/refreshviews"){
         $res.="<hr><h4>Refresh views:</h4>";
         $res.=$fc->refreshViews();
     }
     die($res);
-} else if ($_SERVER["SCRIPT_URL"]=="/"){
+} else if ($_SERVER["REQUEST_URI"]=="/"){
     header('Access-Control-Allow-Origin: *'); 
     header('Access-Control-Allow-Methods: *');
     header('Access-Control-Allow-Headers: *');
@@ -104,7 +104,7 @@ if (strpos($_SERVER["SCRIPT_URL"],"license") || strpos($_SERVER["QUERY_STRING"],
     $dbv="v".$fc->getDbVersion();
     $srv=$_ENV["server"];
     die(json_encode(["host"=>$hostname,"server"=>$srv,"Flussu Open"=>$FlussuVersion,"v"=>$v,"m"=>$m,"r"=>$r,"db"=>$dbv,"pv"=>phpversion()]));
-} else if ($_SERVER["SCRIPT_URL"]=="/notify"){
+} else if ($_SERVER["REQUEST_URI"]=="/notify"){
     /* 
         PHP Session is blocking asyncrhonous calls if you use the same session_id, so the
         notifications mechanism must be session-agnostic.
@@ -117,7 +117,7 @@ if (strpos($_SERVER["SCRIPT_URL"],"license") || strpos($_SERVER["QUERY_STRING"],
         header('HTTP/1.0 403 Forbidden');
         die(\json_encode(["error"=>"403","message"=>"Unauthorized action"]));
     }
-} else if (stripos($_SERVER["SCRIPT_URL"],"/wh/")===0){
+} else if (stripos($_SERVER["REQUEST_URI"],"/wh/")===0){
     /*
     It's a specificed DIRECT WEB HOOK call, so we need to handle it here.
     The first part must be a Workflow-id
@@ -125,8 +125,8 @@ if (strpos($_SERVER["SCRIPT_URL"],"license") || strpos($_SERVER["QUERY_STRING"],
     */
     try{
         $fc=new FlussuController();
-        General::log("Webhook call: ".$_SERVER["SCRIPT_URL"]);
-        $res=$fc->webhook($_SERVER["SCRIPT_URL"]);
+        General::log("Webhook call: ".$_SERVER["REQUEST_URI"]);
+        $res=$fc->webhook($_SERVER["REQUEST_URI"]);
         die($res);
     } catch(\Throwable $e){ 
         header('HTTP/1.0 500 Error');
