@@ -54,17 +54,17 @@
       },
       "ggl_gemini":{
         "auth_key":"6768-insert-your-api-key-8768",
-        "model":"gemini-2.0-flash"
+        "model":"gemini-2.0-flash",
         "chat-model":"gemini-2.0-flash"
       },
       "deepseek":{
         "auth_key":"6768-insert-your-api-key-8768",
-        "model":"deepseek-reasoning"
+        "model":"deepseek-reasoning",
         "chat-model":"deepseek-chat"
       },
       "ant_claude":{
         "auth_key":"6768-insert-your-api-key-8768",
-        "model":"claude-3-5-sonnet-20241022"
+        "model":"claude-3-5-sonnet-20241022",
         "chat-model":"claude-3-5-sonnet-20241022"
       }
     }
