@@ -28,7 +28,7 @@ CREATE TABLE `t00_version` (
   PRIMARY KEY (`c00_version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-inser into `t00_version` (`c00_version`, `c00_date`) values ('11', current_timestamp());
+INSERT INTO `t00_version` (`c00_version`, `c00_date`) values ('11', current_timestamp());
 --
 -- Table structure for table `t01_app`select t80
 --
