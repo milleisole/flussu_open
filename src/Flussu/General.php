@@ -655,6 +655,7 @@ class General {
     static $DTIhour=["A","B","C","d","e","f","X","Y","Z","2","4","7","M","a","b","c","D","E","F","x","y","z","1","3","9","N"];
     static $DTImin=["0","9","8","J","K","l","T","r","q","r","O","I"];
     static function getDateTimedApiKeyFromUser($userId,$minutes){
+        // Generatore AUK
         $M=round($minutes/5);
         //$now = new DateTime(time());
         $future = new \DateTime(date('Y-m-d H:i:s', strtotime('+'.($M * 5).' minutes')));
@@ -664,7 +665,12 @@ class General {
         $res=substr($a,0,9).self::curtatone(intval($userId),$res).substr($a,9);
         return $res;
     }
+    
+    // cwid=[wid|auk]  =>  auk=camouf(userId)+curtatone(userId,dateTimed)
+    //[WID|AUK] EX: [w222afeaf278f11aa|921b4df49A7D0EABB9A2766BA57892E575807061F288EFEDE01095af]
+    
     static function getUserFromDateTimedApiKey($passKey){
+        //reverse AUK
         $res=0;
         if (!empty($passKey)){
             try{
