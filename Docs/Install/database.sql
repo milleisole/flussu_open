@@ -28,9 +28,9 @@ CREATE TABLE `t00_version` (
   PRIMARY KEY (`c00_version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
+inser into `t00_version` (`c00_version`, `c00_date`) values ('11', current_timestamp());
 --
--- Table structure for table `t01_app`
+-- Table structure for table `t01_app`select t80
 --
 
 DROP TABLE IF EXISTS `t01_app`;
@@ -543,7 +543,7 @@ CREATE TABLE `t80_user` (
   UNIQUE KEY `UNQ_UserName` (`c80_username`)
 ) ENGINE=InnoDB AUTO_INCREMENT=67 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
+insert into t80_user (c80_id, c80_email, c80_username, c80_password, c80_pwd_chng, c80_role, c80_name, c80_surname, c80_created, c80_modified, c80_deleted, c80_deleted_by) values (16, 'admin@example.com', 'admin', '', current_timestamp(), 1, 'User', 'Admin', current_timestamp(), current_timestamp(), '1899-12-31 23:59:59', 0);
 --
 -- Table structure for table `t83_project`
 --
