@@ -33,6 +33,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * 4.4.1 can generate INPUT elements (IS, IE, IM) by code
+ * 4.5.1 get Html, Text or Markdown from a URL
  * -------------------------------------------------------*/
 
 /**
@@ -351,6 +352,16 @@ class Environment {
         $scraper = new \Flussu\Controllers\WebScraperController();
         $html=$scraper->getPageHtml($url);
         return $html;
+    }
+    public function getText($url){
+        $scraper = new \Flussu\Controllers\WebScraperController();
+        $text=$scraper->getPageText($url);
+        return $text;
+    }
+    public function getMarkdown($url){
+        $scraper = new \Flussu\Controllers\WebScraperController();
+        $markdown=$scraper->getPageMarkdown($url);
+        return $markdown;
     }
 
     public function addToGoogleSheet($fileId, $rowArray, $sheetName="", $formulaArray=[], $TitleArray=[]){

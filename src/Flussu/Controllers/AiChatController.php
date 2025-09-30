@@ -137,6 +137,12 @@ TXT;
             $preChat=[];
 
         try{
+
+
+
+
+
+
             if (!$webPreview) 
                 $result=$this->_aiClient->Chat($preChat,$sendText, $role); 
             else
@@ -194,7 +200,6 @@ TXT;
         }
         return [false, $text,""]; // not a command
     }
-
     function extractFlussuJson($inputString) {
         // Trova la posizione di "FLUSSU_CMD" nella stringa
         $flussuPos = strpos($inputString, '"FLUSSU_CMD"');
@@ -233,7 +238,6 @@ TXT;
 
         return "";
     }
-
     private function _checkLimitReached($text) {
         $limitError=false;
         // Implement your rate limit checking logic here
@@ -244,6 +248,60 @@ TXT;
             $limitError=true;
         }
         return $limitError;
+    }
+
+    /**
+     * Funzione che trova uri nel testo e lo sostituisce con l'HTML della pagina
+     */
+    function sostituisciURLconHTML($testo) {
+        $scraper = new \Flussu\Controllers\WebScraperController();
+        $pattern = '/\b(?:https?:\/\/)(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::[0-9]+)?(?:\/[^\s]*)?/i';
+        
+        // Trova tutti gli URL nel testo
+        preg_match_all($pattern, $testo, $matches);
+        
+        $urls = $matches[0];
+        
+        if (empty($urls)) {
+            return $testo;
+        }
+        
+        // Rimuovi duplicati
+        $urlsUnici = array_unique($urls);
+        
+        // Processa ogni URL dall'più lungo al più corto
+        // per evitare sostituzioni parziali
+        usort($urlsUnici, function($a, $b) {
+            return strlen($b) - strlen($a);
+        });
+        
+        foreach ($urlsUnici as $url) {
+            try {
+                $html=$scraper->getPageHtml($url);        
+                if ($html !== false && $html !== null) {
+                    // Sostituisci tutte le occorrenze di questo URL
+                    $testo = str_replace($url, "\n```html\n".$html."```\n", $testo);
+                }
+            } catch (\Throwable $e) {
+                error_log("Errore nel recupero HTML per $url: " . $e->getMessage());
+            }
+        }
+        
+        return $testo;
+    }
+
+    /**
+     * Funzione helper per estrarre solo gli URL dal testo
+     * 
+     * @param string $testo Il testo da analizzare
+     * @return array Array di URL unici trovati
+     */
+    function estraiURLUnici($testo) {
+        $pattern = '/\b(?:https?:\/\/)(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::[0-9]+)?(?:\/[^\s]*)?/i';
+        
+        preg_match_all($pattern, $testo, $matches);
+        
+        return array_unique($matches[0]);
     }
 }
  /*-------------
