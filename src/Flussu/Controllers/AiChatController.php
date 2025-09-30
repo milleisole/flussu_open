@@ -137,12 +137,7 @@ TXT;
             $preChat=[];
 
         try{
-
-
-
-
-
-
+            $sendText=$this->sostituisciURLconHTML($sendText);
             if (!$webPreview) 
                 $result=$this->_aiClient->Chat($preChat,$sendText, $role); 
             else
