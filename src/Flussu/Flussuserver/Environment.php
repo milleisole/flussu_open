@@ -65,7 +65,7 @@ use Flussu\General;
 use Flussu\HttpCaller;
 
 class Environment {
-    private $_version="4.4.20250530";
+    private $_version="4.5.20250930";
     private $_exitNum=-1;
     private $_media="pc"; 
     private $_channel="web"; 
@@ -348,16 +348,9 @@ class Environment {
         return !$WG->isGibberish($theText);
     }
     public function getHtml($url){
-        $client = \Symfony\Component\Panther\Client::createChromeClient();
-        $crawler = $client->request('GET', $url);
-        $client->waitFor('body');
-        return $crawler->html();
-        /*
-
-        $httpClient = new \Goutte\Client();
-        return $httpClient->request('GET', $url);
-
-        */
+        $scraper = new \Flussu\Controllers\WebScraperController();
+        $html=$scraper->getPageHtml($url);
+        return $html;
     }
 
     public function addToGoogleSheet($fileId, $rowArray, $sheetName="", $formulaArray=[], $TitleArray=[]){

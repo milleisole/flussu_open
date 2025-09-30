@@ -1,4 +1,5 @@
 /vendor
+/drivers
 /Uploads/*
 /Uploads/temp/*
 /Uploads/flussus_01/*
