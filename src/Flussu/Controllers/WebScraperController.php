@@ -24,9 +24,6 @@ namespace Flussu\Controllers;
 use Flussu\General;
 use Symfony\Component\Panther\Client;
 
-/**
- * Provides functionality to send SMS messages using the JoMobile API.
- */
 class WebScraperController 
 {
     function getPageHtml(string $address): ?string
@@ -214,6 +211,491 @@ class WebScraperController
         $text = preg_replace('/[ \t]+/', ' ', $text);
         $text = preg_replace('/\n\s*\n\s*\n/', "\n\n", $text);
         return trim($text);
+    }
+
+    /**
+     * Estrae il contenuto pulito da una pagina web e lo restituisce come JSON
+     * contenente solo testo, link e date trovate
+     * 
+     * @param string $address L'URL della pagina da analizzare
+     * @return string JSON con struttura {texts: [], links: [], dates: []}
+     */
+    public function getPageContentJSON(string $address): string 
+    {
+        // Recupera l'HTML della pagina
+        $html = $this->getPageHtml($address);
+        
+        // Se c'è stato un errore, restituiscilo
+        if (strpos($html, '"ERROR:"') !== false) {
+            return $html;
+        }
+        
+        // Crea un DOMDocument per parsare l'HTML
+        $dom = new \DOMDocument();
+        
+        // Sopprimi gli warning per HTML malformato
+        libxml_use_internal_errors(true);
+        $dom->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+        
+        // Rimuovi tutti gli script
+        $scripts = $dom->getElementsByTagName('script');
+        while ($scripts->length > 0) {
+            $scripts->item(0)->parentNode->removeChild($scripts->item(0));
+        }
+        
+        // Rimuovi tutti gli style
+        $styles = $dom->getElementsByTagName('style');
+        while ($styles->length > 0) {
+            $styles->item(0)->parentNode->removeChild($styles->item(0));
+        }
+        
+        // Rimuovi tutti gli attributi class e style
+        $xpath = new \DOMXPath($dom);
+        $nodesWithClass = $xpath->query('//*[@class]');
+        foreach ($nodesWithClass as $node) {
+            $node->removeAttribute('class');
+        }
+        
+        $nodesWithStyle = $xpath->query('//*[@style]');
+        foreach ($nodesWithStyle as $node) {
+            $node->removeAttribute('style');
+        }
+        
+        // Ottieni solo il contenuto del body
+        $body = $dom->getElementsByTagName('body')->item(0);
+        
+        if (!$body) {
+            // Se non c'è body, prova a lavorare con tutto il documento
+            $body = $dom->documentElement;
+        }
+        
+        // Array per raccogliere gli elementi in sequenza
+        $sequentialElements = [];
+        $dates = [];
+        
+        // Buffer per accumulare testi prima del merge
+        $textBuffer = [];
+        
+        // Funzione ricorsiva per processare i nodi in ordine
+        $processNode = function($node) use (&$processNode, &$sequentialElements, &$textBuffer, &$dates, $address) {
+            // Salta nodi che non ci interessano
+            if (in_array($node->nodeName, ['img', 'svg', 'canvas', 'video', 'audio', 'iframe', 'picture', 'source'])) {
+                return;
+            }
+            
+            // Se è un link
+            if ($node->nodeName === 'a') {
+                // Prima salva qualsiasi testo bufferizzato
+                if (!empty($textBuffer)) {
+                    $mergedTexts = $this->mergeConsecutiveTexts($textBuffer);
+                    foreach ($mergedTexts as $text) {
+                        $sequentialElements[] = ['text' => $text];
+                    }
+                    $textBuffer = [];
+                }
+                
+                $href = $node->getAttribute('href');
+                $linkText = trim($node->textContent);
+                
+                if (!empty($href) && !empty($linkText)) {
+                    // Normalizza URL relativi
+                    if (!empty($href) && strpos($href, 'http') !== 0 && strpos($href, '#') !== 0 && strpos($href, 'javascript:') !== 0) {
+                        $parsedUrl = parse_url($address);
+                        $baseUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+                        
+                        if (strpos($href, '/') === 0) {
+                            $href = $baseUrl . $href;
+                        } else {
+                            $href = $baseUrl . '/' . $href;
+                        }
+                    }
+                    
+                    // Aggiungi il link come elemento separato
+                    if (strpos($href, 'http') === 0) {
+                        $sequentialElements[] = [
+                            'text' => $linkText,
+                            'url' => $href
+                        ];
+                    }
+                }
+                
+                // Cerca date nel testo del link
+                $this->extractDates($linkText, $dates);
+            }
+            // Se è un nodo di testo
+            elseif ($node->nodeType === XML_TEXT_NODE) {
+                $text = trim($node->textContent);
+                if (!empty($text) && strlen($text) > 1) {
+                    // Pulisci il testo da spazi multipli
+                    $text = preg_replace('/\s+/', ' ', $text);
+                    
+                    // Cerca date nel testo
+                    $this->extractDates($text, $dates);
+                    
+                    // Aggiungi al buffer per il merge successivo
+                    $textBuffer[] = $text;
+                }
+            }
+            // Per altri elementi, processa ricorsivamente i figli
+            elseif ($node->hasChildNodes()) {
+                // Se è un elemento di blocco (p, div, h1-h6, li, etc.), flasha il buffer prima
+                if (in_array($node->nodeName, ['p', 'div', 'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre', 'td', 'th'])) {
+                    // Salva il buffer corrente se non vuoto
+                    if (!empty($textBuffer)) {
+                        $mergedTexts = $this->mergeConsecutiveTexts($textBuffer);
+                        foreach ($mergedTexts as $text) {
+                            $sequentialElements[] = ['text' => $text];
+                        }
+                        $textBuffer = [];
+                    }
+                }
+                
+                // Processa i figli
+                foreach ($node->childNodes as $child) {
+                    $processNode($child);
+                }
+                
+                // Dopo aver processato un elemento di blocco, flasha di nuovo il buffer
+                if (in_array($node->nodeName, ['p', 'div', 'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre', 'td', 'th'])) {
+                    if (!empty($textBuffer)) {
+                        $mergedTexts = $this->mergeConsecutiveTexts($textBuffer);
+                        foreach ($mergedTexts as $text) {
+                            $sequentialElements[] = ['text' => $text];
+                        }
+                        $textBuffer = [];
+                    }
+                }
+            }
+        };
+        
+        // Processa il body
+        if ($body) {
+            $processNode($body);
+        }
+        
+        // Processa qualsiasi testo rimasto nel buffer
+        if (!empty($textBuffer)) {
+            $mergedTexts = $this->mergeConsecutiveTexts($textBuffer);
+            foreach ($mergedTexts as $text) {
+                $sequentialElements[] = ['text' => $text];
+            }
+        }
+        
+        // Pulisci elementi duplicati consecutivi
+        $cleanedElements = [];
+        $lastElement = null;
+        
+        foreach ($sequentialElements as $element) {
+            // Salta se è identico all'elemento precedente
+            if ($lastElement && 
+                $lastElement['text'] === $element['text'] && 
+                (!isset($element['url']) || (isset($lastElement['url']) && $lastElement['url'] === $element['url']))) {
+                continue;
+            }
+            
+            // Salta testi troppo corti che non sono titoli o link
+            if (!isset($element['url']) && 
+                strlen($element['text']) < 10 && 
+                !$this->isAllUppercase($element['text']) && 
+                !$this->containsPrice($element['text'])) {
+                continue;
+            }
+            
+            $cleanedElements[] = $element;
+            $lastElement = $element;
+        }
+        
+        // Rimuovi date duplicate
+        $dates = array_unique($dates);
+        
+        // Costruisci il risultato finale
+        $finalResult = [
+            'url' => $address,
+            'timestamp' => date('Y-m-d H:i:s'),
+            'content' => $cleanedElements,
+            'dates_found' => array_values($dates),
+            'stats' => [
+                'total_elements' => count($cleanedElements),
+                'text_blocks' => count(array_filter($cleanedElements, function($el) { 
+                    return !isset($el['url']); 
+                })),
+                'links' => count(array_filter($cleanedElements, function($el) { 
+                    return isset($el['url']); 
+                })),
+                'dates' => count($dates)
+            ]
+        ];
+        
+        return json_encode($finalResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+    /**
+     * Estrae date dal testo usando vari pattern
+     * 
+     * @param string $text Il testo da analizzare
+     * @param array &$dates Array dove aggiungere le date trovate
+     */
+    private function extractDates(string $text, array &$dates): void 
+    {
+        // Pattern per date comuni
+        $patterns = [
+            // Formato DD/MM/YYYY o DD-MM-YYYY
+            '/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/',
+            // Formato YYYY-MM-DD
+            '/\b(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/',
+            // Formato testuale: January 15, 2025 o 15 January 2025
+            '/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b/i',
+            '/\b\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December),?\s+\d{4}\b/i',
+            // Formato italiano: 15 gennaio 2025
+            '/\b\d{1,2}\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre),?\s+\d{4}\b/i',
+            // Solo anno se è un anno recente/plausibile
+            '/\b(19[5-9]\d|20[0-9]\d)\b/'
+        ];
+        
+        foreach ($patterns as $pattern) {
+            if (preg_match_all($pattern, $text, $matches)) {
+                foreach ($matches[0] as $match) {
+                    $dates[] = $match;
+                }
+            }
+        }
+    }
+
+    /**
+     * Unisce testi consecutivi che probabilmente appartengono allo stesso contesto
+     * con logica migliorata per gestire titoli, prezzi e continuazioni
+     * 
+     * @param array $texts Array di testi da unire
+     * @return array Array di testi uniti intelligentemente
+     */
+    private function mergeConsecutiveTexts(array $texts): array 
+    {
+        if (empty($texts)) {
+            return [];
+        }
+        
+        $merged = [];
+        $currentBlock = '';
+        
+        foreach ($texts as $index => $text) {
+            $text = trim($text);
+            
+            // Salta testi vuoti o troppo corti
+            if (strlen($text) < 2) {
+                continue;
+            }
+            
+            // Controlla se il testo corrente è un elemento standalone
+            $isStandalone = $this->isStandaloneText($text);
+            
+            // Se abbiamo un blocco corrente
+            if (!empty($currentBlock)) {
+                // Se è standalone (titolo, prezzo, etc.), salva il blocco corrente e inizia nuovo
+                if ($isStandalone) {
+                    $merged[] = trim($currentBlock);
+                    $currentBlock = $text;
+                    
+                    // Se è un titolo o elemento con punteggiatura finale, salvalo subito
+                    if ($this->isAllUppercase($text) || preg_match('/[.!?]\s*$/', $text)) {
+                        $merged[] = trim($currentBlock);
+                        $currentBlock = '';
+                    }
+                } else {
+                    // Non è standalone, verifica se deve continuare il blocco
+                    $shouldContinue = $this->shouldContinueBlock($currentBlock, $text);
+                    
+                    if ($shouldContinue) {
+                        // Continua il blocco corrente
+                        $currentBlock .= ' ' . $text;
+                        
+                        // Se il blocco diventa troppo lungo, salvalo
+                        if (strlen($currentBlock) > 800) {
+                            $merged[] = trim($currentBlock);
+                            $currentBlock = '';
+                        }
+                    } else {
+                        // Non continua: salva il blocco corrente e iniziane uno nuovo
+                        $merged[] = trim($currentBlock);
+                        $currentBlock = $text;
+                    }
+                }
+            } else {
+                // Inizia un nuovo blocco
+                $currentBlock = $text;
+                
+                // Se è standalone con punteggiatura finale, salvalo subito
+                if ($isStandalone && preg_match('/[.!?]\s*$/', $text)) {
+                    $merged[] = trim($currentBlock);
+                    $currentBlock = '';
+                }
+            }
+        }
+        
+        // Aggiungi l'ultimo blocco se non vuoto
+        if (!empty($currentBlock)) {
+            $merged[] = trim($currentBlock);
+        }
+        
+        // Filtra blocchi troppo corti (ma mantieni titoli e elementi con prezzi)
+        $filtered = array_filter($merged, function($text) {
+            // Mantieni sempre testi con prezzi o che sono tutti maiuscoli (titoli)
+            if ($this->containsPrice($text) || $this->isAllUppercase($text)) {
+                return true;
+            }
+            // Per altri testi, richiedi lunghezza minima
+            return strlen($text) > 10;
+        });
+        
+        return array_values($filtered);
+    }
+
+    /**
+     * Determina se un testo dovrebbe essere considerato standalone
+     * 
+     * @param string $text Il testo da analizzare
+     * @return bool True se il testo è standalone
+     */
+    private function isStandaloneText(string $text): bool 
+    {
+        // Testo tutto maiuscolo (probabilmente un titolo/header)
+        if ($this->isAllUppercase($text) && strlen($text) > 3) {
+            return true;
+        }
+        
+        // Contiene un prezzo
+        if ($this->containsPrice($text)) {
+            return true;
+        }
+        
+        // È un numero singolo o una data
+        if (preg_match('/^\d+$/', $text) || 
+            preg_match('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/', $text)) {
+            return true;
+        }
+        
+        // Menu items comuni o parole chiave di navigazione
+        $menuKeywords = [
+            'home', 'login', 'logout', 'menu', 'cerca', 'search',
+            'contatti', 'contact', 'about', 'info', 'privacy',
+            'cookie', 'close', 'chiudi', 'accetta', 'accept'
+        ];
+        
+        $lowerText = strtolower($text);
+        foreach ($menuKeywords as $keyword) {
+            if ($lowerText === $keyword || strpos($lowerText, $keyword) === 0) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Determina se il testo corrente dovrebbe continuare il blocco precedente
+     * 
+     * @param string $currentBlock Il blocco di testo corrente
+     * @param string $newText Il nuovo testo da valutare
+     * @return bool True se il nuovo testo dovrebbe continuare il blocco
+     */
+    private function shouldContinueBlock(string $currentBlock, string $newText): bool 
+    {
+        // REGOLA PRINCIPALE: Se inizia con minuscola, SEMPRE continua
+        // (a meno che il blocco precedente non sia concluso definitivamente)
+        if (preg_match('/^[a-zàèéìòù]/ui', $newText)) {
+            // Eccezione: se il blocco termina con punteggiatura MOLTO definitiva
+            if (preg_match('/[.!?]\s*$/', $currentBlock)) {
+                // Ma anche qui, se inizia con congiunzione minuscola comune, continua comunque
+                if (preg_match('/^(e |o |ma |però |quindi |inoltre |anche )/i', $newText)) {
+                    return true;
+                }
+                return false;
+            }
+            // Altrimenti, se inizia con minuscola, SEMPRE continua
+            return true;
+        }
+        
+        // Se il nuovo testo è tutto maiuscolo, è un titolo -> nuovo blocco
+        if ($this->isAllUppercase($newText)) {
+            return false;
+        }
+        
+        // Se il blocco corrente NON termina con punteggiatura definitiva
+        // e il nuovo testo NON è un chiaro inizio di frase...
+        if (!preg_match('/[.!?;]\s*$/', $currentBlock)) {
+            // Pattern tipici di inizio nuovo paragrafo/sezione
+            $newParagraphPatterns = [
+                '/^(Il |La |Gli |Le |I |Lo |Un |Una |Uno |Degli |Delle |Dei )/i',  // Articoli italiani
+                '/^(The |A |An |These |Those |This |That )/i',                      // Articoli inglesi  
+                '/^(Questo |Questa |Questi |Queste |Quello |Quella )/i',            // Dimostrativi
+                '/^(Per |Con |Su |Tra |Fra |Dal |Nel |Sul )/i',                     // Preposizioni
+                '/^\d+[\.\)]\s/',                                                   // Numerazione (1. o 1) )
+                '/^[A-Z][a-z]+:/',                                                  // Label: testo
+                '/^(Nota:|Importante:|Attenzione:|N\.B\.|PS:|P\.S\.)/i',          // Annotazioni
+            ];
+            
+            foreach ($newParagraphPatterns as $pattern) {
+                if (preg_match($pattern, $newText)) {
+                    return false;
+                }
+            }
+            
+            // Se non matcha nessun pattern di nuovo paragrafo, probabilmente continua
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Verifica se il testo contiene un prezzo
+     * 
+     * @param string $text Il testo da verificare
+     * @return bool True se contiene un prezzo
+     */
+    private function containsPrice(string $text): bool 
+    {
+        // Pattern per riconoscere prezzi in varie valute
+        $pricePatterns = [
+            '/[€$£¥₹₽¢]\s*\d+([.,]\d{1,2})?/',  // Simbolo valuta prima del numero
+            '/\d+([.,]\d{1,2})?\s*[€$£¥₹₽¢]/',  // Simbolo valuta dopo il numero
+            '/\b\d+([.,]\d{1,2})?\s*(eur|euro|usd|dollar|gbp|pound|yen|inr|rupee)/i',  // Valuta scritta
+            '/\bEUR\s*\d+([.,]\d{1,2})?/i',      // EUR seguito da numero
+            '/\bUSD\s*\d+([.,]\d{1,2})?/i',      // USD seguito da numero
+            '/\b\d+([.,]\d{1,2})?\s*€/',         // Numero seguito da euro
+        ];
+        
+        foreach ($pricePatterns as $pattern) {
+            if (preg_match($pattern, $text)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Verifica se il testo è tutto in maiuscolo (escludendo numeri e punteggiatura)
+     * 
+     * @param string $text Il testo da verificare
+     * @return bool True se il testo è tutto maiuscolo
+     */
+    private function isAllUppercase(string $text): bool 
+    {
+        // Rimuovi numeri, spazi e punteggiatura per il controllo
+        $lettersOnly = preg_replace('/[^a-zA-ZàèéìòùÀÈÉÌÒÙáíóúÁÍÓÚâêîôûÂÊÎÔÛäëïöüÄËÏÖÜ]/u', '', $text);
+        
+        // Se non ci sono lettere, non è "tutto maiuscolo"
+        if (empty($lettersOnly)) {
+            return false;
+        }
+        
+        // Se ha meno di 2 lettere, non considerarlo un titolo
+        if (mb_strlen($lettersOnly) < 2) {
+            return false;
+        }
+        
+        // Controlla se tutte le lettere sono maiuscole
+        return mb_strtoupper($lettersOnly, 'UTF-8') === $lettersOnly;
     }
 }
  //---------------

@@ -33,7 +33,8 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * 4.4.1 can generate INPUT elements (IS, IE, IM) by code
- * 4.5.1 get Html, Text or Markdown from a URL
+ * 4.5.1 get Html, Text or Markdown from a URL (getHtml, getText, getMarkdown)
+ * 4.5.1 get result from a Search on the Web (getWebSearch->DuckDuckGo)
  * -------------------------------------------------------*/
 
 /**
@@ -362,6 +363,20 @@ class Environment {
         $scraper = new \Flussu\Controllers\WebScraperController();
         $markdown=$scraper->getPageMarkdown($url);
         return $markdown;
+    }
+
+    public function getPageJson($url){
+        $scraper = new \Flussu\Controllers\WebScraperController();
+        $theJson=$scraper->getPageContentJSON($url);
+        return $theJson;
+    }
+
+    public function getWebSearch($query, $language='it' ,$location='it'){
+        $wSearch = new \Flussu\Controllers\WebSearchController(null,true);
+        $results = $wSearch->setQuery($query)
+                                    ->setLocation($location, $language)
+                                    ->search();
+        return json_encode($results, JSON_PRETTY_PRINT);
     }
 
     public function addToGoogleSheet($fileId, $rowArray, $sheetName="", $formulaArray=[], $TitleArray=[]){
