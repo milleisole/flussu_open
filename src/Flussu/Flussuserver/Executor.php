@@ -28,14 +28,15 @@
  * CLASS-INTENT:     Work/executor
  * -------------------------------------------------------*
  * CREATED DATE:     25.05:2024 - Aldus - Flussu v3.0
- * VERSION REL.:     4.5.1 20250820 
- * UPDATED DATE:     20.08:2025 - Aldus
+ * VERSION REL.:     4.5.1 20251003 
+ * UPDATED DATE:     03.10:2025 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * NEW: add Workflow Absolute Unique ID handling - 15-11-2024
  * Log bug solved
  * 4.4.1 Can generate INPUT elements (IS, IE, IM) 
  * 4.4.1 Reordered elements and buttons: base buttons came after generated inputs and labels
+ * 4.5.1 Better AI response error handling
  * -------------------------------------------------------*/
 
 /**
@@ -304,10 +305,10 @@ class Executor{
                                 $ctrl=new AiChatController(Platform::GEMINI);
                                 break;
                             case 3:
-                                $ctrl=new AiChatController(Platform::CLAUDE);
+                                $ctrl=new AiChatController(Platform::DEEPSEEK);
                                 break;
                             case 4:
-                                $ctrl=new AiChatController(Platform::DEEPSEEK);
+                                $ctrl=new AiChatController(Platform::CLAUDE);
                                 break;
                             default:
                                 $ctrl=new AiChatController(Platform::CHATGPT);
@@ -317,8 +318,8 @@ class Executor{
                         if ($reslt[0]!="Ok"){
                             $Sess->recLog("AI response: ".json_encode($reslt[1]));
                             $Sess->statusError(true);
-                            $reslt[1]="[ERROR]";
-                            break;
+                            //$reslt[1]="[ERROR]";
+                            //break;
                         } 
                         $Sess->assignVars($innerParams[2],$reslt[1]);
                         break;

@@ -18,8 +18,8 @@
  * 
  * CLASS-NAME:       Flussu OpenAi Controller - v3.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.4
- * VERSION REL.:     4.5.1 20250820 
- * UPDATE DATE:      20.08:2025 - Aldus
+ * VERSION REL.:     4.5.1 -def- 20251003
+ * UPDATE DATE:      03.10:2025 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  * New: Whe AI reply with a Flussu Command, the result contains
  * an ARRAY: ["FLUSSU_CMD"=>the command and parameters] and
@@ -143,7 +143,7 @@ TXT;
             else
                 $result=$this->_aiClient->Chat_WebPreview($sendText, $sessId,$maxTokens,$temperature); 
 
-            $this->_checkLimitReached($result);
+            $limitReached=$this->_checkLimitReached($result);
 
             $res=$this->replyIsCommand($result[1]);
             $ret=$res[1];
@@ -162,19 +162,31 @@ TXT;
                 $ret["TEXT"]="";
                 if (strlen(trim($pReslt))>1)
                     $ret["TEXT"]="{MD}".$pReslt."{/MD}";
-            } else 
-                $pReslt=trim($result[1]);
-            if (!empty($pReslt)){
-                $History=$result[0];
-                $History[]= [
-                    'role' => 'assistant',
-                    'content' => $pReslt,
-                ];
-                General::ObjPersist("AiCht".$sessId,$History); 
-                if (!$res[0])
-                    $ret="{MD}".$pReslt."{/MD}";
+            } else {
+                if (is_array($result) && isset($result[1]))
+                    $pReslt=trim($result[1]);
+                else
+                    $pReslt=json_encode($result[1]);
             }
-            return ["Ok",$ret];
+            $status="Unknown...";
+            if ($limitReached){
+                //$pReslt="(AI response limit reached.)";
+                $ret=$result;
+                $status="Error";
+            } else {
+                if (!empty($pReslt) && is_array($result)){
+                    $History=$result[0];
+                    $History[]= [
+                        'role' => 'assistant',
+                        'content' => $pReslt,
+                    ];
+                    General::ObjPersist("AiCht".$sessId,$History); 
+                    if (!$res[0])
+                        $ret="{MD}".$pReslt."{/MD}";
+                }
+                $status="Ok";
+            }
+            return [$status,$ret];
         } catch (\Throwable $e) {
             return ["Error: ",$e->getMessage()];
         }
@@ -239,7 +251,7 @@ TXT;
         if (is_array($text)) {
             $text = json_encode($text);
         }
-        if (stripos($text,"rate_limit_error") || stripos($text,"would exceed the rate limit")){
+        if ((stripos($text,"error")<3 && stripos($text,"Error")!==false) && (stripos($text,"maximum context length")!==false || stripos($text,"rate_limit_error")!==false || stripos($text,"request too large")!==false || stripos($text,"would exceed the rate limit")!==false)){
             $limitError=true;
         }
         return $limitError;
@@ -249,8 +261,7 @@ TXT;
      * Funzione che trova uri nel testo e lo sostituisce con l'HTML della pagina
      */
     function sostituisciURLconHTML($testo) {
-        $scraper = new \Flussu\Controllers\WebScraperController();
-        $pattern = '/\b(?:https?:\/\/)(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::[0-9]+)?(?:\/[^\s]*)?/i';
+        $pattern = '/\b(?:https?:\/\/)(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::[0-9]+)?(?:\/[^\s"<>]*)?/i';
         
         // Trova tutti gli URL nel testo
         preg_match_all($pattern, $testo, $matches);
@@ -264,6 +275,8 @@ TXT;
         // Rimuovi duplicati
         $urlsUnici = array_unique($urls);
         
+        $scraper = new \Flussu\Controllers\WebScraperController();
+        
         // Processa ogni URL dall'più lungo al più corto
         // per evitare sostituzioni parziali
         usort($urlsUnici, function($a, $b) {
@@ -272,10 +285,12 @@ TXT;
         
         foreach ($urlsUnici as $url) {
             try {
-                $html=$scraper->getPageHtml($url);        
-                if ($html !== false && $html !== null) {
-                    // Sostituisci tutte le occorrenze di questo URL
-                    $testo = str_replace($url, "\n```html\n".$html."```\n", $testo);
+                $json=$scraper->getPageContentJSON($url);
+                if (json_decode($json)!==false){
+                    if ($json !== false && $json !== null) {
+                        // Sostituisci tutte le occorrenze di questo URL
+                        $testo = str_replace($url, "\n---\npage content at ".$url.":\n```html\n".$json."```\n---\n", $testo);
+                    }
                 }
             } catch (\Throwable $e) {
                 error_log("Errore nel recupero HTML per $url: " . $e->getMessage());

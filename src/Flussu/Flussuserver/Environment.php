@@ -25,11 +25,11 @@
 
  * -------------------------------------------------------*
  * CLASS-NAME:     FlussuEnvironment.class
- * CLASS PATH:       /Flussu/Flussuserver
+ * CLASS PATH:     /Flussu/Flussuserver
  * -------------------------------------------------------*
  * CREATED DATE:   25.01.2021 - Aldus
- * VERSION REL.:   4.5.1 20250820 
- * UPDATE DATE:    20.08:2025 - Aldus
+ * VERSION REL.:   4.5.1 20251003 
+ * UPDATE DATE:    03.10:2025 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * 4.4.1 can generate INPUT elements (IS, IE, IM) by code
@@ -372,7 +372,7 @@ class Environment {
     }
 
     public function getWebSearch($query, $language='it' ,$location='it'){
-        $wSearch = new \Flussu\Controllers\WebSearchController(null,true);
+        $wSearch = new \Flussu\Controllers\WebSearchController(null);
         $results = $wSearch->setQuery($query)
                                     ->setLocation($location, $language)
                                     ->search();
