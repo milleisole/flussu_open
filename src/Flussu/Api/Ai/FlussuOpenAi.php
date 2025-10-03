@@ -57,7 +57,7 @@ class FlussuOpenAi implements IAiProvider
             $this->_open_ai=\OpenAI::factory()
                 ->withApiKey($this->_open_ai_key)
                 ->withHttpClient($httpClient = new \GuzzleHttp\Client([]))
-                 ->withHttpHeader('X-workflowapp', 'flussu')
+                ->withHttpHeader('X-workflowapp', 'flussu')
                 /*->withOrganization('flussu') 
                 ->withProject('flussu') 
                 ->withModel($this->_open_ai_model)
@@ -99,8 +99,14 @@ class FlussuOpenAi implements IAiProvider
             $result = $this->_open_ai->chat()->create([
                 'model' => $this->_open_ai_chat_model,
                 'messages' => $arrayText,
-                /* 'temperature' => 0.7,*/
-                'stream'      => false,
+                /*'tools' => [
+                    [
+                        'type' => 'web_search'
+                    ]
+                ],*/
+                'stream'      => false
+                /*,'tool_choice' => 'auto',*/
+                /*'parallel_tool_calls' => true*/
             ]);
         } catch (\Throwable $e) {
             return "Error: no response. Details: " . $e->getMessage();
@@ -113,7 +119,7 @@ class FlussuOpenAi implements IAiProvider
             'model' => $this->_open_ai_chat_model,
             'tools' => [
                 [
-                    'type' => 'web_search_preview'
+                    'type' => 'web_search'
                 ]
             ],
             'input' => $sendText,

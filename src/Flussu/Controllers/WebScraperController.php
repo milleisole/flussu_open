@@ -29,632 +29,825 @@ use Symfony\Component\Panther\Client;
 
 class WebScraperController 
 {
-    private $baseUrl = '';
+    private $url;
+    private $html;
+    private $dom;
     
-    /**
-     * Recupera l'HTML di una pagina web
-     */
-    public function getPageHtml(string $address): ?string
-    {
-        $projectRoot = realpath(__DIR__);
-        $driverPath = $projectRoot . '/../../../drivers/chromedriver';
-        
-        if (!file_exists($driverPath)) {
-            return json_encode(["error" => "Chrome driver not found at: " . $driverPath]);
-        }
-        
-        $userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36 Flussu/4.5';
-        $chromeArguments = [
-            '--user-agent=' . $userAgent,
-            '--headless',
-            '--disable-gpu',
-            '--no-sandbox',
-            '--disable-dev-shm-usage'
-        ];
-        
-        try {
-            $client = Client::createChromeClient($driverPath, $chromeArguments);
-            $crawler = $client->request('GET', $address);
-            $client->waitForVisibility('body', 8);
-            $html = $client->getPageSource();
-            $client->quit();
-            return $html;
-        } catch (\Throwable $e) {
-            return json_encode(["error" => $e->getMessage()]);
-        }
+    public function __construct($url = null) {
+        $this->url = $url;
+        $this->dom = new \DOMDocument();
+        libxml_use_internal_errors(true); // Sopprimi warning per HTML malformato
     }
     
     /**
-     * METODO PRINCIPALE: Estrae contenuti dalla pagina
+     * Recupera l'HTML completo della pagina
      */
-    public function getPageContentJSON(string $address): string 
-    {
-        $this->baseUrl = parse_url($address, PHP_URL_SCHEME) . '://' . parse_url($address, PHP_URL_HOST);
-        
-        $html = $this->getPageHtml($address);
-        if (strpos($html, '"error"') !== false) {
-            return $html;
+    public function getPageHtml($url = null) {
+        if ($url) {
+            $this->url = $url;
         }
         
-        // Parse DOM
+        if (!$this->url) {
+            throw new \Exception("URL non fornito");
+        }
+        
+        // Opzioni per il contesto stream
+        $options = [
+            'http' => [
+                'method' => 'GET',
+                'header' => [
+                    'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language: it-IT,it;q=0.9,en;q=0.8',
+                    'Accept-Encoding: gzip, deflate',
+                    'Connection: keep-alive',
+                ],
+                'timeout' => 30,
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+            ]
+        ];
+        
+        $context = stream_context_create($options);
+        $this->html = @file_get_contents($this->url, false, $context);
+        
+        // Gestisci contenuto gzippato
+        if ($this->html && substr($this->html, 0, 2) === "\x1f\x8b") {
+            $this->html = gzdecode($this->html);
+        }
+        
+        if (!$this->html) {
+            throw new \Exception("Impossibile recuperare il contenuto dalla URL: " . $this->url);
+        }
+        
+        $this->dom->loadHTML($this->html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        
+        return $this->html;
+    }
+    
+    /**
+     * Restituisce solo il contenuto del body senza script e CSS
+     */
+    public function getPageContentBody($url = null) {
+        if ($url || !$this->html) {
+            $this->getPageHtml($url);
+        }
+        
+        // Crea un nuovo documento per il body pulito
+        $cleanDom = new \DOMDocument();
+        $cleanDom->loadHTML($this->html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        
+        // Rimuovi tutti gli script
+        $scripts = $cleanDom->getElementsByTagName('script');
+        while ($scripts->length > 0) {
+            $scripts->item(0)->parentNode->removeChild($scripts->item(0));
+        }
+        
+        // Rimuovi tutti gli style
+        $styles = $cleanDom->getElementsByTagName('style');
+        while ($styles->length > 0) {
+            $styles->item(0)->parentNode->removeChild($styles->item(0));
+        }
+        
+        // Rimuovi tutti i link CSS
+        $links = $cleanDom->getElementsByTagName('link');
+        $toRemove = [];
+        foreach ($links as $link) {
+            if ($link->getAttribute('rel') === 'stylesheet') {
+                $toRemove[] = $link;
+            }
+        }
+        foreach ($toRemove as $node) {
+            $node->parentNode->removeChild($node);
+        }
+        
+        // Rimuovi attributi style inline
+        $xpath = new \DOMXPath($cleanDom);
+        $nodesWithStyle = $xpath->query('//*[@style]');
+        foreach ($nodesWithStyle as $node) {
+            $node->removeAttribute('style');
+        }
+        
+        // Estrai solo il contenuto del body
+        $body = $cleanDom->getElementsByTagName('body')->item(0);
+        
+        if (!$body) {
+            return '';
+        }
+        
+        // Salva solo il contenuto interno del body
+        $bodyContent = '';
+        foreach ($body->childNodes as $child) {
+            $bodyContent .= $cleanDom->saveHTML($child);
+        }
+        
+        return $bodyContent;
+    }
+    
+    /**
+     * Restituisce un JSON con contenuto testuale e links
+     */
+    public function getPageContentJson($url = null) {
+        if ($url || !$this->html) {
+            $this->getPageHtml($url);
+        }
+        
+        $result = [
+            'url' => $this->url,
+            'title' => $this->extractTitle(),
+            'content' => $this->extractContent(),
+            'links' => $this->extractLinks(),
+            'metadata' => $this->extractMetadata()
+        ];
+        
+        return json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+    
+    /**
+     * Estrae il titolo della pagina
+     */
+    private function extractTitle() {
+        $titleNode = $this->dom->getElementsByTagName('title')->item(0);
+        if ($titleNode) {
+            return trim($titleNode->textContent);
+        }
+        
+        // Prova con h1
+        $h1Node = $this->dom->getElementsByTagName('h1')->item(0);
+        if ($h1Node) {
+            return trim($h1Node->textContent);
+        }
+        
+        return '';
+    }
+    
+    /**
+     * Estrae il contenuto principale della pagina
+     */
+    private function extractContent() {
+        $xpath = new \DOMXPath($this->dom);
+        $content = [];
+        
+        // Rimuovi script e style dal DOM temporaneo
+        $this->removeUnwantedElements();
+        
+        // Cerca contenitori principali comuni
+        $mainSelectors = [
+            '//main',
+            '//article',
+            '//*[@role="main"]',
+            '//*[@id="main"]',
+            '//*[@id="content"]',
+            '//*[@class="content"]',
+            '//div[contains(@class, "article")]',
+            '//div[contains(@class, "post")]',
+            '//div[contains(@class, "entry")]',
+            '//div[contains(@class, "body")]'
+        ];
+        
+        $mainContent = null;
+        foreach ($mainSelectors as $selector) {
+            $nodes = $xpath->query($selector);
+            if ($nodes->length > 0) {
+                $mainContent = $nodes->item(0);
+                break;
+            }
+        }
+        
+        // Se non troviamo un contenitore principale, usa il body
+        if (!$mainContent) {
+            $mainContent = $this->dom->getElementsByTagName('body')->item(0);
+        }
+        
+        if ($mainContent) {
+            // Estrai testo completo usando il metodo semplice
+            $fullText = $this->extractText($mainContent);
+            if (!empty($fullText)) {
+                $content['text'] = $fullText;
+            }
+            
+            // Estrai paragrafi strutturati
+            $paragraphs = $this->extractParagraphs($mainContent);
+            if (!empty($paragraphs)) {
+                $content['paragraphs'] = $paragraphs;
+            }
+            
+            // Estrai intestazioni
+            $headings = $this->extractHeadings($mainContent);
+            if (!empty($headings)) {
+                $content['headings'] = $headings;
+            }
+            
+            // Estrai liste
+            $lists = $this->extractLists($mainContent);
+            if (!empty($lists)) {
+                $content['lists'] = $lists;
+            }
+            
+            // Estrai tabelle
+            $tables = $this->extractTables($mainContent);
+            if (!empty($tables)) {
+                $content['tables'] = $tables;
+            }
+        }
+        
+        return $content;
+    }
+    
+    /**
+     * Estrae tutto il testo rilevante da un nodo DOM
+     * Metodo semplice e diretto basato su paragrafi e altri elementi testuali
+     */
+    private function extractText($node) {
+        $text = '';
         $dom = new \DOMDocument();
         libxml_use_internal_errors(true);
-        $dom->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
-        libxml_clear_errors();
         
-        // Pulisci HTML base
-        $this->cleanDocument($dom);
+        // Importa il nodo nel nuovo documento
+        $imported = $dom->importNode($node, true);
+        $dom->appendChild($imported);
         
+        // Prima rimuovi elementi non desiderati
         $xpath = new \DOMXPath($dom);
-        
-        // Prepara output base
-        $output = [
-            'url' => $address,
-            'timestamp' => date('Y-m-d H:i:s')
-        ];
-        
-        // PRIMA: Verifica se è una pagina di articolo singolo ed estrai il contenuto principale
-        $mainContent = $this->extractMainArticleContent($xpath);
-        if (!empty($mainContent)) {
-            $output['article'] = $mainContent;
-        }
-        
-        // POI: Estrai i link e altri contenuti
-        $content = [];
-        
-        // PATTERN 1: Articoli strutturati
-        $structuredContent = $this->extractStructuredContent($xpath);
-        if (!empty($structuredContent) && count($structuredContent) >= 3) {
-            $content = $structuredContent;
-        }
-        
-        // PATTERN 2: Heading con link
-        if (empty($content)) {
-            $headingContent = $this->extractHeadingLinks($xpath);
-            if (!empty($headingContent) && count($headingContent) >= 3) {
-                $content = $headingContent;
-            }
-        }
-        
-        // PATTERN 3: FALLBACK - Estrai TUTTI i link e testi significativi
-        if (empty($content) || count($content) < 3) {
-            $content = $this->extractAllContent($xpath);
-        }
-        
-        // Rimuovi duplicati
-        $content = $this->removeDuplicates($content);
-        
-        // Aggiungi contenuti correlati all'output
-        if (!empty($content)) {
-            $output['content'] = $content;
-        }
-        
-        // Statistiche
-        $output['stats'] = [
-            'has_main_article' => !empty($mainContent),
-            'total_elements' => count($content),
-            'with_url' => count(array_filter($content, fn($e) => isset($e['url']))),
-            'with_date' => count(array_filter($content, fn($e) => isset($e['date']))),
-        ];
-        
-        return json_encode($output, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    }
-    
-    /**
-     * PATTERN 1: Estrae contenuti strutturati (article, post, entry, etc.)
-     */
-    private function extractStructuredContent(\DOMXPath $xpath): array 
-    {
-        $content = [];
-        
-        // Cerca elementi comuni per articoli
-        $articleSelectors = [
-            '//article',
-            '//li[.//h1 or .//h2 or .//h3 or .//h4]',
-            '//*[contains(@class, "post") or contains(@class, "article") or contains(@class, "entry") or contains(@class, "item")]',
-            '//*[@data-testid]'  // Alcuni siti moderni usano data-testid
-        ];
-        
-        foreach ($articleSelectors as $selector) {
-            $elements = $xpath->query($selector);
-            
-            if ($elements->length >= 3) {  // Se troviamo almeno 3 elementi simili
-                foreach ($elements as $element) {
-                    $item = $this->extractFromElement($element, $xpath);
-                    if (!empty($item['text'])) {
-                        $content[] = $item;
-                    }
-                }
-                
-                // Se abbiamo trovato contenuti validi, usali
-                if (count($content) >= 3) {
-                    break;
-                }
-            }
-        }
-        
-        return $content;
-    }
-    
-    /**
-     * PATTERN 2: Estrae heading con link
-     */
-    private function extractHeadingLinks(\DOMXPath $xpath): array 
-    {
-        $content = [];
-        
-        $headings = $xpath->query('//h1/a | //h2/a | //h3/a | //h4/a | //h5/a');
-        
-        foreach ($headings as $link) {
-            $text = $this->cleanText($link->textContent);
-            
-            if (strlen($text) > 15 && !$this->isNavigation($text)) {
-                $item = [
-                    'text' => $text,
-                    'url' => $this->normalizeUrl($link->getAttribute('href'))
-                ];
-                
-                // Cerca data vicina
-                $parent = $link->parentNode->parentNode;
-                if ($parent) {
-                    $date = $this->findDateInContext($parent->textContent);
-                    if ($date) {
-                        $item['date'] = $date;
-                    }
-                }
-                
-                $content[] = $item;
-            }
-        }
-        
-        return $content;
-    }
-    
-    /**
-     * PATTERN 3: FALLBACK - Estrae TUTTO il contenuto significativo
-     */
-    private function extractAllContent(\DOMXPath $xpath): array 
-    {
-        $content = [];
-        $processedTexts = [];
-        
-        // Estrai TUTTI i link con testo
-        $allLinks = $xpath->query('//a[@href]');
-        
-        foreach ($allLinks as $link) {
-            $text = $this->cleanText($link->textContent);
-            $href = $link->getAttribute('href');
-            
-            // Filtra solo contenuti significativi
-            if (strlen($text) < 20 || 
-                $this->isNavigation($text) || 
-                strpos($href, 'javascript:') === 0 || 
-                $href === '#' ||
-                in_array($text, $processedTexts)) {
-                continue;
-            }
-            
-            $item = [
-                'text' => $text,
-                'url' => $this->normalizeUrl($href)
-            ];
-            
-            // Cerca data nel contesto immediato
-            $parent = $link->parentNode;
-            if ($parent) {
-                $contextText = $this->cleanText($parent->textContent);
-                $date = $this->findDateInContext($contextText);
-                if ($date) {
-                    $item['date'] = $date;
-                }
-            }
-            
-            $content[] = $item;
-            $processedTexts[] = $text;
-        }
-        
-        // Se abbiamo pochi link, estrai anche testi senza link
-        if (count($content) < 10) {
-            // Estrai heading senza link
-            $headings = $xpath->query('//h1 | //h2 | //h3 | //h4');
-            foreach ($headings as $heading) {
-                // Salta se contiene già un link (già processato)
-                $links = $xpath->query('.//a', $heading);
-                if ($links->length > 0) {
-                    continue;
-                }
-                
-                $text = $this->cleanText($heading->textContent);
-                if (strlen($text) > 20 && !in_array($text, $processedTexts)) {
-                    $item = ['text' => $text];
-                    
-                    // Cerca data vicina
-                    $parent = $heading->parentNode;
-                    if ($parent) {
-                        $date = $this->findDateInContext($parent->textContent);
-                        if ($date) {
-                            $item['date'] = $date;
-                        }
-                    }
-                    
-                    $content[] = $item;
-                    $processedTexts[] = $text;
-                }
-            }
-        }
-        
-        return $content;
-    }
-    
-    /**
-     * Estrae contenuto da un elemento DOM
-     */
-    private function extractFromElement(\DOMNode $element, \DOMXPath $xpath): array 
-    {
-        $item = [];
-        
-        // Cerca il testo principale (heading o link più lungo)
-        $headings = $xpath->query('.//h1 | .//h2 | .//h3 | .//h4 | .//h5', $element);
-        $mainText = '';
-        $mainUrl = '';
-        
-        if ($headings->length > 0) {
-            $mainText = $this->cleanText($headings->item(0)->textContent);
-            
-            // Se il heading contiene un link
-            $link = $xpath->query('.//a', $headings->item(0))->item(0);
-            if ($link) {
-                $mainUrl = $this->normalizeUrl($link->getAttribute('href'));
-            }
-        }
-        
-        // Se non ha trovato heading, cerca il link più lungo
-        if (empty($mainText)) {
-            $links = $xpath->query('.//a[@href]', $element);
-            foreach ($links as $link) {
-                $text = $this->cleanText($link->textContent);
-                if (strlen($text) > strlen($mainText)) {
-                    $mainText = $text;
-                    $mainUrl = $this->normalizeUrl($link->getAttribute('href'));
-                }
-            }
-        }
-        
-        if (!empty($mainText)) {
-            $item['text'] = $mainText;
-            
-            if (!empty($mainUrl)) {
-                $item['url'] = $mainUrl;
-            }
-            
-            // Cerca data
-            $elementText = $this->cleanText($element->textContent);
-            $date = $this->findDateInContext($elementText);
-            if ($date) {
-                $item['date'] = $date;
-            }
-        }
-        
-        return $item;
-    }
-    
-    /**
-     * Cerca una data nel testo
-     */
-    private function findDateInContext(string $text): ?string 
-    {
-        // Pattern per date comuni
-        $patterns = [
-            // Relative (3 days ago, 2 ore fa)
-            '/(\d+\s+(hours?|days?|weeks?|months?|years?)\s+ago)/i',
-            '/(\d+\s+(ore|giorni|settimane|mesi|anni)\s+fa)/i',
-            
-            // Date esplicite
-            '/(\d{1,2}\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+\d{4})/i',
-            '/((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})/i',
-            '/(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/',
-            
-            // Solo mese e giorno
-            '/((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2})/i',
-            '/(oggi|ieri|today|yesterday)/i'
-        ];
-        
-        foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $text, $matches)) {
-                return trim($matches[1]);
-            }
-        }
-        
-        return null;
-    }
-    
-    /**
-     * Verifica se un testo è navigazione
-     */
-    private function isNavigation(string $text): bool 
-    {
-        $text = strtolower(trim($text));
-        
-        $navWords = [
-            'home', 'about', 'contact', 'privacy', 'cookie', 'terms',
-            'login', 'sign in', 'register', 'menu', 'search',
-            'next', 'previous', 'prev', 'older', 'newer',
-            'copyright', '©', 'rights reserved',
-            'chi siamo', 'contatti', 'accedi', 'registrati'
-        ];
-        
-        foreach ($navWords as $word) {
-            if (strpos($text, $word) !== false) {
-                return true;
-            }
-        }
-        
-        // Se è molto corto o solo numeri
-        if (strlen($text) < 10 || is_numeric($text)) {
-            return true;
-        }
-        
-        return false;
-    }
-    
-    /**
-     * Estrae il contenuto principale se è una pagina di articolo singolo
-     */
-    private function extractMainArticleContent(\DOMXPath $xpath): ?array 
-    {
-        $article = [];
-        
-        // 1. Cerca il titolo principale (h1 o h2 con classe post-title o simili)
-        $titleSelectors = [
-            '//h1[contains(@class, "post-title") or contains(@class, "entry-title") or contains(@class, "article-title")]',
-            '//h1[@class="wp-block-post-title"]',
-            '//h1[parent::*[contains(@class, "post") or contains(@class, "article") or contains(@class, "entry")]]',
-            '//h1',  // Fallback generico
-            '//h2[contains(@class, "post-title") or contains(@class, "entry-title")]'
-        ];
-        
-        foreach ($titleSelectors as $selector) {
-            $titles = $xpath->query($selector);
-            if ($titles->length > 0) {
-                $article['title'] = $this->cleanText($titles->item(0)->textContent);
-                break;
-            }
-        }
-        
-        // 2. Cerca il contenuto dell'articolo
-        $contentSelectors = [
-            '//div[contains(@class, "entry-content") or contains(@class, "post-content") or contains(@class, "article-content")]',
-            '//div[@class="wp-block-post-content"]',
-            '//article//div[contains(@class, "content")]',
-            '//main//div[contains(@class, "content")]'
-        ];
-        
-        $contentText = '';
-        foreach ($contentSelectors as $selector) {
-            $contents = $xpath->query($selector);
-            if ($contents->length > 0) {
-                // Estrai tutto il testo, rimuovendo tag HTML ma mantenendo struttura
-                $contentNode = $contents->item(0);
-                $contentText = $this->extractTextFromNode($contentNode, $xpath);
-                break;
-            }
-        }
-        
-        if (!empty($contentText)) {
-            $article['content'] = $contentText;
-            
-            // Estrai anche un excerpt (primi 500 caratteri)
-            $article['excerpt'] = substr($contentText, 0, 500);
-            if (strlen($contentText) > 500) {
-                $article['excerpt'] .= '...';
-            }
-        }
-        
-        // 3. Cerca la data di pubblicazione
-        $dateSelectors = [
-            '//time[@datetime]',
-            '//div[contains(@class, "post-date") or contains(@class, "entry-date") or contains(@class, "published")]',
-            '//span[contains(@class, "date") or contains(@class, "time")]',
-            '//*[contains(@class, "post-meta")]//time'
-        ];
-        
-        foreach ($dateSelectors as $selector) {
-            $dates = $xpath->query($selector);
-            if ($dates->length > 0) {
-                $dateNode = $dates->item(0);
-                if ($dateNode->hasAttribute('datetime')) {
-                    $article['datetime'] = $dateNode->getAttribute('datetime');
-                    $article['date'] = $this->cleanText($dateNode->textContent);
-                } else {
-                    $dateText = $this->cleanText($dateNode->textContent);
-                    if ($this->findDateInContext($dateText)) {
-                        $article['date'] = $dateText;
-                    }
-                }
-                break;
-            }
-        }
-        
-        // 4. Cerca l'autore
-        $authorSelectors = [
-            '//div[contains(@class, "post-author")]//a',
-            '//span[contains(@class, "author")]//a',
-            '//a[contains(@class, "author")]',
-            '//*[contains(@class, "by-author")]//a'
-        ];
-        
-        foreach ($authorSelectors as $selector) {
-            $authors = $xpath->query($selector);
-            if ($authors->length > 0) {
-                $article['author'] = $this->cleanText($authors->item(0)->textContent);
-                break;
-            }
-        }
-        
-        // 5. Cerca categorie/tag
-        $categorySelectors = [
-            '//div[contains(@class, "post-terms") or contains(@class, "post-categories")]//a',
-            '//div[contains(@class, "taxonomy")]//a',
-            '//a[@rel="category tag" or @rel="category" or @rel="tag"]'
-        ];
-        
-        $categories = [];
-        foreach ($categorySelectors as $selector) {
-            $catNodes = $xpath->query($selector);
-            foreach ($catNodes as $catNode) {
-                $catText = $this->cleanText($catNode->textContent);
-                if (!empty($catText) && strlen($catText) < 50) {
-                    $categories[] = $catText;
-                }
-            }
-            if (!empty($categories)) {
-                $article['categories'] = array_unique($categories);
-                break;
-            }
-        }
-        
-        // Se abbiamo trovato almeno un titolo o contenuto, è una pagina articolo
-        if (!empty($article['title']) || !empty($article['content'])) {
-            return $article;
-        }
-        
-        return null;
-    }
-    
-    /**
-     * Estrae testo da un nodo preservando paragrafi e struttura
-     */
-    private function extractTextFromNode(\DOMNode $node, \DOMXPath $xpath): string 
-    {
-        $text = '';
-        $paragraphs = [];
-        
-        // Prima prova ad estrarre paragrafi strutturati
-        $paras = $xpath->query('.//p | .//h2 | .//h3 | .//h4 | .//h5 | .//blockquote | .//li', $node);
-        
-        if ($paras->length > 0) {
-            foreach ($paras as $para) {
-                $paraText = $this->cleanText($para->textContent);
-                
-                // Salta paragrafi vuoti o molto corti
-                if (strlen($paraText) > 10) {
-                    // Aggiungi separatore per heading
-                    if (preg_match('/^h[2-5]$/', $para->tagName)) {
-                        $paragraphs[] = "\n\n### " . $paraText . "\n";
-                    }
-                    // Aggiungi quote per blockquote
-                    elseif ($para->tagName === 'blockquote') {
-                        $paragraphs[] = "> " . $paraText;
-                    }
-                    // Aggiungi bullet per liste
-                    elseif ($para->tagName === 'li') {
-                        $paragraphs[] = "• " . $paraText;
-                    }
-                    // Paragrafo normale
-                    else {
-                        $paragraphs[] = $paraText;
-                    }
-                }
-            }
-            
-            $text = implode("\n\n", $paragraphs);
-        } else {
-            // Fallback: prendi tutto il testo
-            $text = $this->cleanText($node->textContent);
-        }
-        
-        // Rimuovi spazi multipli ma preserva newline
-        $text = preg_replace('/[ \t]+/', ' ', $text);
-        $text = preg_replace('/\n\n\n+/', "\n\n", $text);
-        
-        return trim($text);
-    }
-    
-    /**
-     * Rimuove duplicati
-     */
-    private function removeDuplicates(array $content): array 
-    {
-        $seen = [];
-        $unique = [];
-        
-        foreach ($content as $item) {
-            $key = $item['text'] ?? '';
-            
-            // Se ha URL, usa quello come chiave aggiuntiva
-            if (isset($item['url'])) {
-                $key .= '|' . $item['url'];
-            }
-            
-            if (!empty($key) && !isset($seen[$key])) {
-                $seen[$key] = true;
-                $unique[] = $item;
-            }
-        }
-        
-        return $unique;
-    }
-    
-    /**
-     * Pulisce il documento
-     */
-    private function cleanDocument(\DOMDocument $dom): void 
-    {
-        $xpath = new \DOMXPath($dom);
-        
-        // Rimuovi elementi non necessari
-        $toRemove = $xpath->query('//script | //style | //noscript | //iframe | //svg | //nav | //footer');
-        foreach ($toRemove as $element) {
+        $elementsToRemove = $xpath->query('//script | //style | //noscript | //iframe');
+        foreach ($elementsToRemove as $element) {
             if ($element->parentNode) {
                 $element->parentNode->removeChild($element);
             }
         }
+        
+        // Estrai testo dai paragrafi
+        foreach ($dom->getElementsByTagName('p') as $p) {
+            $t = $this->cleanText($p->textContent);
+            if ($t !== '' && strlen($t) > 10) {
+                $text .= $t . "\n\n";
+            }
+        }
+        
+        // Estrai anche da div con contenuto testuale (senza altri div dentro)
+        $divs = $xpath->query('//div[not(.//div) and not(.//p) and string-length(normalize-space(text())) > 50]');
+        foreach ($divs as $div) {
+            $t = $this->cleanText($div->textContent);
+            if ($t !== '' && strlen($t) > 50 && !str_contains($text, $t)) {
+                $text .= $t . "\n\n";
+            }
+        }
+        
+        // Estrai da blockquote
+        foreach ($dom->getElementsByTagName('blockquote') as $quote) {
+            $t = $this->cleanText($quote->textContent);
+            if ($t !== '' && !str_contains($text, $t)) {
+                $text .= $t . "\n\n";
+            }
+        }
+        
+        // Estrai da elementi article e section se non abbiamo abbastanza testo
+        if (strlen($text) < 100) {
+            $articles = $xpath->query('//article | //section');
+            foreach ($articles as $article) {
+                $t = $this->cleanText($article->textContent);
+                if ($t !== '' && strlen($t) > 100 && !str_contains($text, $t)) {
+                    $text .= $t . "\n\n";
+                }
+            }
+        }
+        
+        // Pulisci il testo finale
+        $text = preg_replace("/\n{3,}/", "\n\n", $text);
+        
+        libxml_clear_errors();
+        return trim($text);
+    }
+    
+    /**
+     * Estrae i paragrafi dal contenuto
+     */
+    private function extractParagraphs($node) {
+        $paragraphs = [];
+        $xpath = new \DOMXPath($this->dom);
+        
+        // Cerca tutti i paragrafi e div con testo
+        $textNodes = $xpath->query('.//p | .//div[not(.//div) and not(.//p)]', $node);
+        
+        foreach ($textNodes as $textNode) {
+            $text = $this->cleanText($textNode->textContent);
+            // Filtra paragrafi troppo corti o vuoti
+            if (strlen($text) > 20) {
+                $paragraphs[] = $text;
+            }
+        }
+        
+        // Se non ci sono paragrafi, prova a estrarre il testo direttamente
+        if (empty($paragraphs)) {
+            $text = $this->cleanText($node->textContent);
+            if (strlen($text) > 50) {
+                // Dividi per linee vuote
+                $lines = preg_split('/\n\s*\n/', $text);
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if (strlen($line) > 20) {
+                        $paragraphs[] = $line;
+                    }
+                }
+            }
+        }
+        
+        return array_unique($paragraphs);
+    }
+    
+    /**
+     * Estrae le intestazioni
+     */
+    private function extractHeadings($node) {
+        $headings = [];
+        $xpath = new \DOMXPath($this->dom);
+        
+        for ($i = 1; $i <= 6; $i++) {
+            $headers = $xpath->query(".//h{$i}", $node);
+            foreach ($headers as $header) {
+                $text = $this->cleanText($header->textContent);
+                if (!empty($text)) {
+                    $headings[] = [
+                        'level' => $i,
+                        'text' => $text
+                    ];
+                }
+            }
+        }
+        
+        return $headings;
+    }
+    
+    /**
+     * Estrae le liste
+     */
+    private function extractLists($node) {
+        $lists = [];
+        $xpath = new \DOMXPath($this->dom);
+        
+        // Liste non ordinate
+        $uls = $xpath->query('.//ul', $node);
+        foreach ($uls as $ul) {
+            $items = [];
+            $lis = $xpath->query('./li', $ul);
+            foreach ($lis as $li) {
+                $text = $this->cleanText($li->textContent);
+                if (!empty($text)) {
+                    $items[] = $text;
+                }
+            }
+            if (!empty($items)) {
+                $lists[] = [
+                    'type' => 'unordered',
+                    'items' => $items
+                ];
+            }
+        }
+        
+        // Liste ordinate
+        $ols = $xpath->query('.//ol', $node);
+        foreach ($ols as $ol) {
+            $items = [];
+            $lis = $xpath->query('./li', $ol);
+            foreach ($lis as $li) {
+                $text = $this->cleanText($li->textContent);
+                if (!empty($text)) {
+                    $items[] = $text;
+                }
+            }
+            if (!empty($items)) {
+                $lists[] = [
+                    'type' => 'ordered',
+                    'items' => $items
+                ];
+            }
+        }
+        
+        return $lists;
+    }
+    
+    /**
+     * Estrae le tabelle
+     */
+    private function extractTables($node) {
+        $tables = [];
+        $xpath = new \DOMXPath($this->dom);
+        
+        $tableNodes = $xpath->query('.//table', $node);
+        foreach ($tableNodes as $table) {
+            $tableData = [];
+            
+            // Estrai header
+            $headers = [];
+            $ths = $xpath->query('.//th', $table);
+            foreach ($ths as $th) {
+                $headers[] = $this->cleanText($th->textContent);
+            }
+            if (!empty($headers)) {
+                $tableData['headers'] = $headers;
+            }
+            
+            // Estrai righe
+            $rows = [];
+            $trs = $xpath->query('.//tr', $table);
+            foreach ($trs as $tr) {
+                $row = [];
+                $tds = $xpath->query('./td', $tr);
+                foreach ($tds as $td) {
+                    $row[] = $this->cleanText($td->textContent);
+                }
+                if (!empty($row)) {
+                    $rows[] = $row;
+                }
+            }
+            if (!empty($rows)) {
+                $tableData['rows'] = $rows;
+            }
+            
+            if (!empty($tableData)) {
+                $tables[] = $tableData;
+            }
+        }
+        
+        return $tables;
+    }
+    
+    /**
+     * Estrae tutti i links dalla pagina
+     */
+    private function extractLinks() {
+        $links = [];
+        $xpath = new \DOMXPath($this->dom);
+        
+        // Trova tutti i link
+        $linkNodes = $xpath->query('//a[@href]');
+        
+        foreach ($linkNodes as $link) {
+            $href = $link->getAttribute('href');
+            $text = $this->cleanText($link->textContent);
+            
+            // Salta link vuoti o solo con immagini
+            if (empty($text) || empty($href)) {
+                continue;
+            }
+            
+            // Normalizza URL relative
+            $href = $this->normalizeUrl($href);
+            
+            $linkData = [
+                'url' => $href,
+                'text' => $text
+            ];
+            
+            // Cerca una data associata
+            $date = $this->findAssociatedDate($link);
+            if ($date) {
+                $linkData['date'] = $date;
+            }
+            
+            // Estrai altri attributi utili
+            if ($link->hasAttribute('title')) {
+                $linkData['title'] = $link->getAttribute('title');
+            }
+            
+            if ($link->hasAttribute('rel')) {
+                $linkData['rel'] = $link->getAttribute('rel');
+            }
+            
+            // Categorizza il link
+            $linkData['type'] = $this->categorizeLink($href, $text);
+            
+            $links[] = $linkData;
+        }
+        
+        // Rimuovi duplicati basandoti sull'URL
+        $uniqueLinks = [];
+        $seenUrls = [];
+        foreach ($links as $link) {
+            if (!in_array($link['url'], $seenUrls)) {
+                $uniqueLinks[] = $link;
+                $seenUrls[] = $link['url'];
+            }
+        }
+        
+        return $uniqueLinks;
+    }
+    
+    /**
+     * Estrae metadata dalla pagina
+     */
+    private function extractMetadata() {
+        $metadata = [];
+        $xpath = new \DOMXPath($this->dom);
+        
+        // Meta tags standard
+        $metaTags = $xpath->query('//meta[@name or @property]');
+        foreach ($metaTags as $meta) {
+            $name = $meta->getAttribute('name') ?: $meta->getAttribute('property');
+            $content = $meta->getAttribute('content');
+            
+            if ($name && $content) {
+                $metadata[$name] = $content;
+            }
+        }
+        
+        // Open Graph
+        $ogTags = $xpath->query('//meta[starts-with(@property, "og:")]');
+        foreach ($ogTags as $og) {
+            $property = str_replace('og:', '', $og->getAttribute('property'));
+            $metadata['og'][$property] = $og->getAttribute('content');
+        }
+        
+        // Twitter Cards
+        $twitterTags = $xpath->query('//meta[starts-with(@name, "twitter:")]');
+        foreach ($twitterTags as $twitter) {
+            $name = str_replace('twitter:', '', $twitter->getAttribute('name'));
+            $metadata['twitter'][$name] = $twitter->getAttribute('content');
+        }
+        
+        // Data pubblicazione
+        $publishDate = $this->findPublishDate();
+        if ($publishDate) {
+            $metadata['publishDate'] = $publishDate;
+        }
+        
+        // Autore
+        $author = $this->findAuthor();
+        if ($author) {
+            $metadata['author'] = $author;
+        }
+        
+        return $metadata;
+    }
+    
+    /**
+     * Cerca di trovare la data di pubblicazione
+     */
+    private function findPublishDate() {
+        $xpath = new \DOMXPath($this->dom);
+        
+        // Cerca in meta tags
+        $dateSelectors = [
+            '//meta[@property="article:published_time"]/@content',
+            '//meta[@name="publish_date"]/@content',
+            '//meta[@name="date"]/@content',
+            '//time[@datetime]/@datetime',
+            '//*[@class="date"]',
+            '//*[@class="published"]',
+            '//*[contains(@class, "date")]',
+            '//*[contains(@class, "time")]'
+        ];
+        
+        foreach ($dateSelectors as $selector) {
+            $nodes = $xpath->query($selector);
+            if ($nodes->length > 0) {
+                $dateStr = $nodes->item(0)->nodeValue ?: $nodes->item(0)->textContent;
+                $date = $this->parseDate($dateStr);
+                if ($date) {
+                    return $date;
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Cerca di trovare l'autore
+     */
+    private function findAuthor() {
+        $xpath = new \DOMXPath($this->dom);
+        
+        $authorSelectors = [
+            '//meta[@name="author"]/@content',
+            '//meta[@property="article:author"]/@content',
+            '//*[@class="author"]',
+            '//*[@class="by-author"]',
+            '//*[contains(@class, "author")]',
+            '//span[@itemprop="author"]'
+        ];
+        
+        foreach ($authorSelectors as $selector) {
+            $nodes = $xpath->query($selector);
+            if ($nodes->length > 0) {
+                $author = $nodes->item(0)->nodeValue ?: $nodes->item(0)->textContent;
+                return $this->cleanText($author);
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Cerca una data associata a un elemento
+     */
+    private function findAssociatedDate($element) {
+        $xpath = new \DOMXPath($this->dom);
+        
+        // Cerca date nel parent e siblings
+        $parent = $element->parentNode;
+        if ($parent) {
+            // Cerca time elements
+            $timeNodes = $xpath->query('.//time[@datetime]', $parent);
+            if ($timeNodes->length > 0) {
+                return $this->parseDate($timeNodes->item(0)->getAttribute('datetime'));
+            }
+            
+            // Cerca classi con date
+            $dateNodes = $xpath->query('.//*[contains(@class, "date") or contains(@class, "time")]', $parent);
+            if ($dateNodes->length > 0) {
+                $dateStr = $this->cleanText($dateNodes->item(0)->textContent);
+                return $this->parseDate($dateStr);
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Categorizza un link
+     */
+    private function categorizeLink($url, $text) {
+        $url = strtolower($url);
+        $text = strtolower($text);
+        
+        // Social media
+        if (preg_match('/(facebook|twitter|instagram|linkedin|youtube)\.com/', $url)) {
+            return 'social';
+        }
+        
+        // Email
+        if (strpos($url, 'mailto:') === 0) {
+            return 'email';
+        }
+        
+        // Tel
+        if (strpos($url, 'tel:') === 0) {
+            return 'phone';
+        }
+        
+        // Download
+        if (preg_match('/\.(pdf|doc|docx|xls|xlsx|zip|rar)$/i', $url)) {
+            return 'download';
+        }
+        
+        // External
+        if (strpos($url, 'http') === 0) {
+            $currentHost = parse_url($this->url, PHP_URL_HOST);
+            $linkHost = parse_url($url, PHP_URL_HOST);
+            if ($currentHost !== $linkHost) {
+                return 'external';
+            }
+        }
+        
+        // Navigation
+        if (preg_match('/(home|menu|nav|about|contact|privacy|terms)/', $text)) {
+            return 'navigation';
+        }
+        
+        return 'internal';
+    }
+    
+    /**
+     * Normalizza URL relative
+     */
+    private function normalizeUrl($url) {
+        // Se è già un URL assoluto, ritornalo
+        if (preg_match('/^https?:\/\//', $url) || strpos($url, 'mailto:') === 0 || strpos($url, 'tel:') === 0) {
+            return $url;
+        }
+        
+        // Se è un anchor, ritornalo
+        if (strpos($url, '#') === 0) {
+            return $url;
+        }
+        
+        // Parse base URL
+        $parts = parse_url($this->url);
+        $base = $parts['scheme'] . '://' . $parts['host'];
+        
+        if (isset($parts['port'])) {
+            $base .= ':' . $parts['port'];
+        }
+        
+        // URL assoluto dal root
+        if (strpos($url, '/') === 0) {
+            return $base . $url;
+        }
+        
+        // URL relativo
+        $path = isset($parts['path']) ? dirname($parts['path']) : '';
+        if ($path === '/') {
+            $path = '';
+        }
+        
+        return $base . $path . '/' . $url;
     }
     
     /**
      * Pulisce il testo
      */
-    private function cleanText(string $text): string 
-    {
+    private function cleanText($text) {
+        // Rimuovi spazi multipli
+        $text = preg_replace('/\s+/', ' ', $text);
+        // Rimuovi newline eccessive
+        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+        // Trim
+        $text = trim($text);
         // Decodifica entità HTML
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         
-        // Rimuovi spazi multipli e caratteri speciali
-        $text = preg_replace('/\s+/u', ' ', $text);
-        $text = preg_replace('/[\x{00A0}\x{1680}\x{180E}\x{2000}-\x{200B}\x{202F}\x{205F}\x{3000}\x{FEFF}]/u', ' ', $text);
-        
-        return trim($text);
+        return $text;
     }
     
     /**
-     * Normalizza URL
+     * Parse una data
      */
-    private function normalizeUrl(string $href): string 
-    {
-        $href = trim($href);
-        
-        if (empty($href) || $href === '#') {
-            return '';
+    private function parseDate($dateStr) {
+        $dateStr = trim($dateStr);
+        if (empty($dateStr)) {
+            return null;
         }
         
-        if (strpos($href, 'javascript:') === 0 || strpos($href, 'mailto:') === 0) {
-            return '';
+        // Prova formati comuni
+        $formats = [
+            'Y-m-d H:i:s',
+            'Y-m-d',
+            'd/m/Y',
+            'd-m-Y',
+            'j F Y',
+            'F j, Y',
+            'Y-m-d\TH:i:sP',
+            'c'
+        ];
+        
+        foreach ($formats as $format) {
+            $date = \DateTime::createFromFormat($format, $dateStr);
+            if ($date) {
+                return $date->format('Y-m-d H:i:s');
+            }
         }
         
-        if (preg_match('/^https?:\/\//i', $href)) {
-            return $href;
+        // Prova con strtotime
+        $timestamp = strtotime($dateStr);
+        if ($timestamp !== false) {
+            return date('Y-m-d H:i:s', $timestamp);
         }
         
-        if (strpos($href, '//') === 0) {
-            return 'https:' . $href;
+        // Pattern italiano
+        if (preg_match('/(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})/i', $dateStr, $matches)) {
+            $months = [
+                'gennaio' => 1, 'febbraio' => 2, 'marzo' => 3, 'aprile' => 4,
+                'maggio' => 5, 'giugno' => 6, 'luglio' => 7, 'agosto' => 8,
+                'settembre' => 9, 'ottobre' => 10, 'novembre' => 11, 'dicembre' => 12
+            ];
+            
+            $month = $months[strtolower($matches[2])];
+            $date = sprintf('%04d-%02d-%02d', $matches[3], $month, $matches[1]);
+            return $date . ' 00:00:00';
         }
         
-        if (strpos($href, '/') === 0) {
-            return $this->baseUrl . $href;
-        }
-        
-        return $this->baseUrl . '/' . $href;
+        return null;
     }
+    
+    /**
+     * Rimuove elementi non desiderati dal DOM
+     */
+    private function removeUnwantedElements() {
+        $xpath = new \DOMXPath($this->dom);
+        
+        // Lista di elementi da rimuovere
+        $toRemove = [
+            '//script',
+            '//style',
+            '//noscript',
+            '//iframe',
+            '//form',
+            '//button',
+            '//input',
+            '//select',
+            '//textarea',
+            '//*[@class="advertisement"]',
+            '//*[@class="ad"]',
+            '//*[contains(@class, "cookie")]',
+            '//*[contains(@class, "banner")]',
+            '//*[contains(@class, "popup")]',
+            '//*[contains(@id, "advertisement")]',
+            '//*[contains(@id, "ad-")]'
+        ];
+        
+        foreach ($toRemove as $selector) {
+            $nodes = $xpath->query($selector);
+            foreach ($nodes as $node) {
+                if ($node->parentNode) {
+                    $node->parentNode->removeChild($node);
+                }
+            }
+        }
+    }
+
 }
 /*-------------
  |   ==(O)==   |
