@@ -37,6 +37,9 @@ class FlussuClaudeAi implements IAiProvider
     private $_claude_model="";
     private $_claude_chat_model="";
     
+    public function canBrowseWeb(){
+        return false;
+    }
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_claude3)){
             $this->_claude_key = config("services.ai_provider.ant_claude.auth_key");

@@ -39,6 +39,9 @@ class FlussuOpenAi implements IAiProvider
     private $_open_ai_model="";
     private $_open_ai_chat_model="";
     
+    public function canBrowseWeb(){
+        return false;
+    }
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_open_ai)){
             $this->_open_ai_key = config("services.ai_provider.open_ai.auth_key");

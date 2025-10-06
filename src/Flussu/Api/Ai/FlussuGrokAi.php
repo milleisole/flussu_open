@@ -35,6 +35,9 @@ class FlussuGrokAi implements IAiProvider
     private $_grok_ai_model="";
     private $client;
 
+    public function canBrowseWeb(){
+        return false;
+    }
     public function __construct($model=""){
         if (!isset($this->_grok_ai)){
             $this->_grok_ai_key = config("services.ai_provider.xai_grok.auth_key");

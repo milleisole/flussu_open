@@ -23,16 +23,7 @@ namespace Flussu\Contracts;
 
 interface IAiProvider
 {
-    /**
-     * Invia un SMS e restituisce un valore (true/false o un array con dettagli).
-     *
-     * @param string $keyTypeId will be "test" or "prod"
-     * @param string $paymentId
-     * @param string $productName
-     * @param string $productPrice
-     * @return mixed
-     */
-    //public function createPayLink(string $description, string $totalCost, string $image);
+    public function canBrowseWeb();
     public function chat($preChat,$text,$role);
     //public function chatContinue($arrayText);
     public function chat_WebPreview($text,$session,$maxTokens,$temperature); 

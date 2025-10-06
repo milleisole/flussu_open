@@ -36,7 +36,10 @@ class FlussuDeepSeekAi implements IAiProvider
     private $_deepseek_key="";
     private $_deepseek_model="";
     private $_deepseek_chat_model="";
-    
+    public function canBrowseWeb(){
+        return true;
+    }
+
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_deepseek)){
             $this->_deepseek_key = config("services.ai_provider.deepseek.auth_key");

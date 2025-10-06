@@ -40,7 +40,10 @@ class FlussuGeminAi implements IAiProvider
     private $_gemini_model=""; // ex: gemini-2.0-flash
     private $_gemini_chat_model=""; // ex: gemini-2.0-flash
     
-    public function __construct($model="",$chat_model=""){
+    public function canBrowseWeb(){
+        return false;
+    }
+   public function __construct($model="",$chat_model=""){
         if (!isset($this->_gemini)){
             $this->_gemini_key = config("services.ai_provider.ggl_gemini.auth_key");
             if ($model)
