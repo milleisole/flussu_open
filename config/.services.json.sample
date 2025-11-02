@@ -1,7 +1,7 @@
 {
   "flussu":{
-    "version":"4.5",
-    "release":"20250802"
+    "version":"5.0",
+    "release":"20251103"
   },
   "services": {
     "google":{

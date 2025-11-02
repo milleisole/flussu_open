@@ -33,7 +33,7 @@ use Flussu\General;
 use Flussu\Config;
 
 // VERSION
-$FlussuVersion="4.5.20250929";
+$FlussuVersion="5.0.20251103";
 $FVP=explode(".",$FlussuVersion);
 $v=$FVP[0];
 $m=$FVP[1];
