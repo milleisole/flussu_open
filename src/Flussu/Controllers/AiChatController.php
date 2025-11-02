@@ -36,6 +36,7 @@ use Flussu\Api\Ai\FlussuGrokAi;
 use Flussu\Api\Ai\FlussuGeminAi;
 use Flussu\Api\Ai\FlussuClaudeAi;
 use Flussu\Api\Ai\FlussuDeepSeekAi;
+use Flussu\Api\Ai\FlussuHuggingFaceAi;
 use Log;
 enum Platform: int {
     case INIT = -1;
@@ -44,6 +45,7 @@ enum Platform: int {
     case GEMINI = 2;
     case DEEPSEEK = 3;
     case CLAUDE = 4;
+    case HUGGINGFACE = 5;
 }
 class AiChatController 
 {
@@ -69,6 +71,10 @@ class AiChatController
                 break;
             case Platform::DEEPSEEK:
                 $this->_aiClient= new FlussuDeepSeekAi($model);
+                $this->_linkify=0;
+                break;
+            case Platform::HUGGINGFACE:
+                $this->_aiClient= new FlussuHuggingFaceAi($model);
                 $this->_linkify=0;
                 break;
         }
