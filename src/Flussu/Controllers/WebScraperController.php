@@ -39,10 +39,30 @@ class WebScraperController
         libxml_use_internal_errors(true); // Sopprimi warning per HTML malformato
     }
     
+
+
+    public function getPageHtml($url){
+        //$url = 'https://www.facebook.com/centralmarketingintelligenceitalia';
+        if ($url) {
+            $this->url = $url;
+        }
+        
+        if (!$this->url) {
+            throw new \Exception("URL non fornito");
+        }
+        $scriptPath = $_SERVER["DOCUMENT_ROOT"] . "/../src/scripts";
+        $url = escapeshellarg($this->url);
+        $cmd = "cd " . escapeshellarg($scriptPath) . " && /usr/local/bin/node browser_fetch.js " . $url . " 2>&1";
+        $this->html = shell_exec($cmd);
+        $this->dom->loadHTML($this->html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        return $this->html;
+    }
+
+
     /**
      * Recupera l'HTML completo della pagina
      */
-    public function getPageHtml($url = null) {
+    public function getPageHtml2($url) {
         if ($url) {
             $this->url = $url;
         }
@@ -51,17 +71,25 @@ class WebScraperController
             throw new \Exception("URL non fornito");
         }
         
+        $headers = [
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language: it-IT,it;q=0.9,en;q=0.8',
+            'Accept-Encoding: gzip, deflate, br',
+            'Connection: keep-alive',
+            'Upgrade-Insecure-Requests: 1',
+            'Sec-Fetch-Dest: document',
+            'Sec-Fetch-Mode: navigate',
+            'Sec-Fetch-Site: none',
+            'Sec-Fetch-User: ?1',
+            'Pragma: no-cache',
+            'Cache-Control: no-cache'
+        ];
         // Opzioni per il contesto stream
         $options = [
-            'http' => [
+            'https' => [
                 'method' => 'GET',
-                'header' => [
-                    'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language: it-IT,it;q=0.9,en;q=0.8',
-                    'Accept-Encoding: gzip, deflate',
-                    'Connection: keep-alive',
-                ],
+                'header' => $headers,
                 'timeout' => 30,
             ],
             'ssl' => [
@@ -79,7 +107,29 @@ class WebScraperController
         }
         
         if (!$this->html) {
-            throw new \Exception("Impossibile recuperare il contenuto dalla URL: " . $this->url);
+            $options = [
+                'http' => [
+                    'method' => 'GET',
+                    'header' => $headers,
+                    'timeout' => 30,
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                ]
+            ];
+            
+            $context = stream_context_create($options);
+            $this->html = @file_get_contents($this->url, false, $context);
+            
+            // Gestisci contenuto gzippato
+            if ($this->html && substr($this->html, 0, 2) === "\x1f\x8b") {
+                $this->html = gzdecode($this->html);
+            }
+
+            if (!$this->html) {
+                throw new \Exception("Impossibile recuperare il contenuto dalla URL: " . $this->url);
+            }   
         }
         
         $this->dom->loadHTML($this->html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
@@ -830,21 +880,39 @@ class WebScraperController
             '//select',
             '//textarea',
             '//*[@class="advertisement"]',
-            '//*[@class="ad"]',
+            '//*[@class="ad-"]',
+            '//*[@class="ads-"]',
             '//*[contains(@class, "cookie")]',
             '//*[contains(@class, "banner")]',
             '//*[contains(@class, "popup")]',
             '//*[contains(@id, "advertisement")]',
-            '//*[contains(@id, "ad-")]'
+            '//*[contains(@id, "ad-")]',
+            '//*[contains(@id, "ads-")]'
         ];
         
+        $debugRes="";
         foreach ($toRemove as $selector) {
             $nodes = $xpath->query($selector);
             foreach ($nodes as $node) {
-                if ($node->parentNode) {
-                    $node->parentNode->removeChild($node);
+                // DEBUG: Verifica se il nodo contiene link
+                if ($node->tagName!="html" && $node->tagName!="body") {
+                    $links = $xpath->query('.//a', $node);
+                    if ($links->length > 0) {
+                        $debugRes .= "ATTENZIONE: Rimosso elemento con {$links->length} link - Classe: " . $node->getAttribute('class') . " - ID: " . $node->getAttribute('id') . "\n";
+                    } else {
+                        $debugRes .= "ATTENZIONE: Rimosso elemento {$node->tagName} link - Classe: " . $node->getAttribute('class') . " - ID: " . $node->getAttribute('id') . "\n";
+                    }
+                    if ($node->parentNode) {
+                        $node->parentNode->removeChild($node);
+                    }
+                }
+                else {
+                    $debugRes .= "ATTENZIONE: TENTATIVO di rimozione elemento {$node->tagName} link - Classe: " . $node->getAttribute('class') . " - ID: " . $node->getAttribute('id') . "\n";
                 }
             }
+        }
+        if ($debugRes) {
+            $debugRes.="...";
         }
     }
 

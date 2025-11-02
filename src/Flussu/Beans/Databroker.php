@@ -240,6 +240,7 @@ class Databroker extends Dbh
         $pdo = $this->connect(true);
         $stmt = $pdo->prepare($sqlString);
 
+        $this->beginTransaction($pdo);
         foreach ($paramsArr as $params) {
             try {
                 $stmt->execute($params);
@@ -270,15 +271,16 @@ class Databroker extends Dbh
             foreach ($sqlArr as $sqlCmd) {
                 $SQL = $sqlCmd["SQL"];
                 $PRM = $sqlCmd["PRM"];
-
-                $eStmt = $this->_mStmt->prepare($SQL);
-                try {
-                    $ok = $eStmt->execute($PRM);
-                    $res .= "|" . ($ok ? "true" : "false");
-                } catch (Throwable $e) {
-                    $this->_lastError = $this->_mStmt->errorInfo();
-                    General::addRowLog("[DataBroker TRANS-EXEC ERROR: " . implode($this->_mStmt->errorInfo()) . "]");
-                    $res .= "|false";
+                if (!is_null($PRM) && !empty($PRM) &&is_array($PRM) && count($PRM) > 0) {
+                    $eStmt = $this->_mStmt->prepare($SQL);
+                    try {
+                        $ok = $eStmt->execute($PRM);
+                        $res .= "|" . ($ok ? "true" : "false");
+                    } catch (Throwable $e) {
+                        $this->_lastError = $this->_mStmt->errorInfo();
+                        General::addRowLog("[DataBroker TRANS-EXEC ERROR: " . implode($this->_mStmt->errorInfo()) . "]");
+                        $res .= "|false";
+                    }
                 }
             }
 

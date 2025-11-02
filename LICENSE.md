@@ -1,6 +1,6 @@
 
                                FLUSSU SERVER
-                           Version 4.3, Jun 2025
+                           Version 4.5, Nov 2025
                            https://www.flussu.com
 
  

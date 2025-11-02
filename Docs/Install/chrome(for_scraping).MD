@@ -9,3 +9,6 @@ Sarà creata una cartella "drivers" nella root del progetto, che conterrà i dri
 sudo mkdir -p /tua/dir/progetto/.cache
 sudo mkdir -p /tua/dir/progetto/.local
 sudo chown -R www-data:www-data /tua/dir/progetto/.cache /tua/dir/progetto/.local
+---
+Installare puppeteer:
+npm install puppeteer

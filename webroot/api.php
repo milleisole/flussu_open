@@ -140,8 +140,41 @@ if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"]
     It's a WEB HOOK call, if can be Flussu or other system, so we need to check
     */
     // Se la call non viene da servizi riconosciuti, allor passala a flussu!
+
     if (!checkUnattendedWebHookCall($req,$apiPage)){
-        General::log("Extcall Flussu Controller: ".$apiPage." - ".$_SERVER["REQUEST_URI"]);
+        General::log("Extcall Flussu Controller: ".$apiPage." - ".$_SERVER["REQUEST_URI"]." from ".($_SERVER["REMOTE_ADDR"]??"(no address)")." - ".($_SERVER["HTTP_ORIGIN"]??"(no origin)")." - ".($_SERVER['HTTP_USER_AGENT'])??"(no user agent)");
+
+        //Troll the websites dork hackers
+        if (stripos(strtolower(trim($apiPage)),"phpinfo")!==false){
+            header("Content-Type: text/plain");
+            die("[gd] => Array{ [GD Support] => enabled\n\t[GD Version] => bundled (800.A compatible)\n\t[FreeType Support] => enabled\n\t\t[FreeType Linkage] => with freetype\n\t[FreeType Version] => 52.16.4\n[GIF Read Support] => enabled\n\n\t\t[GIF Create Support] => enabl\ned\n[hacked_by] => a_very_good\n\t_hacker_bro");
+        }
+        if (stripos(strtolower(trim($apiPage)),"wp-")!==false || stripos(strtolower(trim($apiPage)),"secret")!==false){
+            header("Content-Type: text/plain");
+            die("<?php\n/*================\n WordPress v800A\n Wow! what a hacker u r!\n Impressed by your hacking skills, here's a secret code for you:\n E-MAIL: hack@youscared.me\n PASSWORD: 0x32778_is_800A\n Use it wisely, bro!\n==============*/\necho 'We was hacked by a very good hacker!';");
+        }
+        if (stripos(strtolower(trim($apiPage)),".zip")!==false){
+            header("Pragma: public"); // required
+            header("Content-Type: application/zip");
+            header("Content-Disposition: attachment; filename=800A.zip");
+            header("Content-Length: 1");
+            header("Content-Transfer-Encoding: binary");
+            die("HELP HELP! WE WAS HACKED!!! Trust me, this bro is a very good hacker!");
+        }
+        switch (strtolower(trim($apiPage))){
+            case ".env":
+            case "i.php":
+            case "p.php":
+            case "tiny.php":
+            case "info.php":
+                die('impressed{"code":"0x32778","very_secret_number":"#800A","whoa, you are a very good hacker bro!"}');
+            case "robots.txt":
+                header("Content-Type: text/plain");
+                die("#no robots allowed here!\nUser-agent: *\nDisallow: /");
+            default:
+                // Continua con Flussu
+                break;
+        }
         $fc=new FlussuController();
         $fc->apiCall($req,$apiPage);
     }

@@ -10,6 +10,7 @@
 /Logs
 /Log_sys
 /config/services.json
+/node_modules
 .env
 composer.lock
 *.BAK
