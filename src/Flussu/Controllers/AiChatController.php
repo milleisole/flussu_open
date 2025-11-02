@@ -51,29 +51,29 @@ class AiChatController
 {
     private $_linkify=0;
     private IAiProvider $_aiClient;
-    public function __construct(Platform $platform=Platform::CHATGPT,$model="",$chat_model=""){
+    public function __construct(\Flussu\Controllers\Platform $platform=\Flussu\Controllers\Platform::CHATGPT,$model="",$chat_model=""){
         switch ($platform) {
-            case Platform::CHATGPT:
+            case \Flussu\Controllers\Platform::CHATGPT:
                 $this->_aiClient= new FlussuOpenAi($model,$chat_model);
                 $this->_linkify=0;
                 break;
-            case Platform::GROK:
+            case \Flussu\Controllers\Platform::GROK:
                 $this->_aiClient= new FlussuGrokAi($model);
                 $this->_linkify=0;
                 break;
-            case Platform::GEMINI:
+            case \Flussu\Controllers\Platform::GEMINI:
                 $this->_aiClient= new FlussuGeminAi($model);
                 $this->_linkify=0;
                 break;
-            case Platform::CLAUDE:
+            case \Flussu\Controllers\Platform::CLAUDE:
                 $this->_aiClient= new FlussuClaudeAi($model);
                 $this->_linkify=1;
                 break;
-            case Platform::DEEPSEEK:
+            case \Flussu\Controllers\Platform::DEEPSEEK:
                 $this->_aiClient= new FlussuDeepSeekAi($model);
                 $this->_linkify=0;
                 break;
-            case Platform::HUGGINGFACE:
+            case \Flussu\Controllers\Platform::HUGGINGFACE:
                 $this->_aiClient= new FlussuHuggingFaceAi($model);
                 $this->_linkify=0;
                 break;

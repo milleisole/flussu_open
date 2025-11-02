@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v.5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,14 +28,12 @@
  * CLASS PATH:     /Flussu/Flussuserver
  * -------------------------------------------------------*
  * CREATED DATE:   25.01.2021 - Aldus
- * VERSION REL.:   4.5.1 20251003 
- * UPDATE DATE:    03.10:2025 - Aldus
+ * VERSION REL.:     5.0.0.20251103
+ * UPDATES DATE:     11.03:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
- * 4.4.1 can generate INPUT elements (IS, IE, IM) by code
- * 4.5.1 get Html, Text or Markdown from a URL (getHtml, getText, getMarkdown)
- * 4.5.1 get result from a Search on the Web (getWebSearch->DuckDuckGo)
  * -------------------------------------------------------*/
+
 
 /**
  * The Environment class is responsible for managing the execution environment for the Flussu server.
@@ -356,7 +354,7 @@ class Environment {
     }
     public function getText($url){
         $scraper = new \Flussu\Controllers\WebScraperController();
-        $text=$scraper->getPageText($url);
+        $text=$scraper->getPageContentBody($url);
         return $text;
     }
     public function getMarkdown($url){
