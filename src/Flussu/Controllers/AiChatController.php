@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5- Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0- Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,9 @@
  * 
  * CLASS-NAME:       Flussu OpenAi Controller - v3.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.4
- * VERSION REL.:     4.5.1 -def- 20251003
- * UPDATE DATE:      03.10:2025 - Aldus
+ * VERSION REL.:     5.0.0.20251103
+ * UPDATES DATE:     11.03:2025 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- * New: Whe AI reply with a Flussu Command, the result contains
- * an ARRAY: ["FLUSSU_CMD"=>the command and parameters] and
- *           ["TEXT"=>the text part to show to the user]
- * if it's not an ARRAY it's just text to show to the user
- * Added "translate" function for internal labels translation
  * -------------------------------------------------------------------*/
 namespace Flussu\Controllers;
 
