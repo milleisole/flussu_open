@@ -22,7 +22,7 @@ namespace Flussu\Flussuserver;
 
 use Flussu\General;
 use Flussu\Flussuserver\NC\HandlerNC;
-use \Flussu\Controllers\Platform;
+use Flussu\Controllers\Platform;
 use Flussu\Controllers\AiChatController;
 
 class Executor {
@@ -559,7 +559,7 @@ class Executor {
      * Handle AI agent init
      */
     private function handleInitAiAgent($Sess, $Handl, $params, $block, $WID, $res) {
-        $ctrl = $this->_getController(AiChatController::class, \Flussu\Controllers\Platform::INIT);
+        $ctrl = $this->_getController(AiChatController::class, Platform::INIT);
         $ctrl->initAgent($Sess->getId(), $params[0]);
         $Sess->recLog("AI inited with " . strlen($params[0]) . " chars");
         return null;
@@ -575,14 +575,14 @@ class Executor {
         
         // OPTIMIZATION: Array lookup instead of switch
         $platforms = [
-            1 => \Flussu\Controllers\Platform::GROK,
-            2 => \Flussu\Controllers\Platform::GEMINI,
-            3 => \Flussu\Controllers\Platform::DEEPSEEK,
-            4 => \Flussu\Controllers\Platform::CLAUDE,
-            5 => \Flussu\Controllers\Platform::HUGGINGFACE,
+            1 => Platform::GROK,
+            2 => Platform::GEMINI,
+            3 => Platform::DEEPSEEK,
+            4 => Platform::CLAUDE,
+            5 => Platform::HUGGINGFACE,
         ];
         
-        $platform = $platforms[$params[0]] ?? \Flussu\Controllers\Platform::CHATGPT;
+        $platform = $platforms[$params[0]] ?? Platform::CHATGPT;
         $ctrl = $this->_getController(AiChatController::class, $platform);
         
         $reslt = $ctrl->chat($Sess->getId(), $params[1]);

@@ -90,7 +90,7 @@ class Session {
     private $_is_expired = false;
     private $_doNotSaveHistory = false;
     private $_alreadyLoaded = false;
-    
+
     // Collections
     private $_history = [];
     private $_arVars = [];
@@ -135,8 +135,12 @@ class Session {
     // UUID caching (Optimization #1)
     private $_uuidCache = [];
     
+    private $_dirtyVars = [];        // Track modified variables
+    private $_loadedVars = [];       // Track loaded variables  
+    private $_availableVars = [];    // Metadata di variabili disponibili
+    private $enableIncrementalSave = true;  // Feature flag
+
     // Lazy serialization (Optimization #2)
-    private $_dirtyVars = false;
     private $_serializedCache = [];
     
     // Variable generation cache (Optimization #3)
@@ -454,7 +458,7 @@ class Session {
         $var->isNull = is_null($var->value);
         
         // OPTIMIZATION: Don't serialize immediately - just mark as dirty
-        $this->_dirtyVars = true;
+        $this->_dirtyVars[$varName] = true;
         unset($this->_serializedCache[$varName]); // Invalidate cache
         
         // Handle DateTime objects
@@ -503,7 +507,7 @@ class Session {
         // OPTIMIZATION: Cache result if vars haven't changed
         $cacheKey = ($alsoSysVars ? '1' : '0') . '_' . ($forExecution ? '1' : '0');
         
-        if ($this->_genVarsCacheKey === $cacheKey && !$this->_dirtyVars) {
+        if ($this->_genVarsCacheKey === $cacheKey && empty($this->_dirtyVars)) {
             return count($this->arVarKeys);
         }
         
@@ -1084,7 +1088,7 @@ class Session {
         
         $this->recLog("var $varName removed");
         $this->_varRenewed = true;
-        $this->_dirtyVars = true;
+        $this->_dirtyVars[$varName] = true;
         
         return true;
     }
@@ -1631,15 +1635,18 @@ class Session {
             
             // Close session
             $usessid = $this->_uuid2binCached($this->_sessId);
+            $dirtyVarsData = $this->getDirtyVars();  // ✅ NUOVO
             $this->_WofoDNC->closeSession(
                 $this->_MemSeStat, 
-                $this->_arVars, 
+                $this->_arVars,
+                $dirtyVarsData,      // ✅ NUOVO parametro
                 $this->_stat, 
                 $this->_history, 
                 $this->_wrklogs, 
                 $this->_subWid, 
                 $usessid
             );
+            $this->clearDirtyVars();  // ✅ NUOVO
         }
         
         $sessClose = intval((microtime(true) - $start_time) * 1000);
@@ -1647,9 +1654,51 @@ class Session {
         General::log("SID:" . $this->_sessId . ":" . ($durmsec + $sessClose) . "ms (Calc:" . $durmsec . "ms + Close:" . $sessClose . "ms)");
         
         // OPTIMIZATION: Save to session only if dirty
-        if ($this->_dirtyVars) {
+        //if ($this->hasDirtyVars()) {
             $_SESSION["vars0"] = $this->_arVars;
+        //}
+    }
+    public function getDirtyVars() {
+        if (!$this->enableIncrementalSave) {
+            return $this->_arVars;
         }
+        
+        if (empty($this->_dirtyVars)) {
+            return [];
+        }
+        
+        $dirtyData = [];
+        foreach ($this->_dirtyVars as $varName => $_) {
+            if (isset($this->_arVars[$varName])) {
+                $dirtyData[$varName] = $this->_arVars[$varName];
+            }
+        }
+        
+        return $dirtyData;
+    }
+    
+    public function getDirtyVarsCount() {
+        return count($this->_dirtyVars);
+    }
+    
+    public function clearDirtyVars() {
+        $this->_dirtyVars = [];
+    }
+    
+    public function hasDirtyVars() {
+        return !empty($this->_dirtyVars);
+    }
+    
+    public function getOptimizationStats() {
+        return [
+            'total_vars' => count($this->_arVars),
+            'dirty_vars' => count($this->_dirtyVars),
+            'dirty_percentage' => count($this->_arVars) > 0 
+                ? round(count($this->_dirtyVars) / count($this->_arVars) * 100, 2) 
+                : 0,
+            'memory_usage_mb' => round(memory_get_usage(true) / 1024 / 1024, 2),
+            'incremental_save_enabled' => $this->enableIncrementalSave
+        ];
     }
 }
  //---------------

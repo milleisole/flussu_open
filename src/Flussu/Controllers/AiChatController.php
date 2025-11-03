@@ -37,43 +37,35 @@ use Flussu\Api\Ai\FlussuGeminAi;
 use Flussu\Api\Ai\FlussuClaudeAi;
 use Flussu\Api\Ai\FlussuDeepSeekAi;
 use Flussu\Api\Ai\FlussuHuggingFaceAi;
+use Flussu\Controllers\Platform;
 use Log;
-enum Platform: int {
-    case INIT = -1;
-    case CHATGPT = 0;
-    case GROK = 1;
-    case GEMINI = 2;
-    case DEEPSEEK = 3;
-    case CLAUDE = 4;
-    case HUGGINGFACE = 5;
-}
 class AiChatController 
 {
     private $_linkify=0;
     private IAiProvider $_aiClient;
-    public function __construct(\Flussu\Controllers\Platform $platform=\Flussu\Controllers\Platform::CHATGPT,$model="",$chat_model=""){
+    public function __construct(Platform $platform=Platform::CHATGPT,$model="",$chat_model=""){
         switch ($platform) {
-            case \Flussu\Controllers\Platform::CHATGPT:
+            case Platform::CHATGPT:
                 $this->_aiClient= new FlussuOpenAi($model,$chat_model);
                 $this->_linkify=0;
                 break;
-            case \Flussu\Controllers\Platform::GROK:
+            case Platform::GROK:
                 $this->_aiClient= new FlussuGrokAi($model);
                 $this->_linkify=0;
                 break;
-            case \Flussu\Controllers\Platform::GEMINI:
+            case Platform::GEMINI:
                 $this->_aiClient= new FlussuGeminAi($model);
                 $this->_linkify=0;
                 break;
-            case \Flussu\Controllers\Platform::CLAUDE:
+            case Platform::CLAUDE:
                 $this->_aiClient= new FlussuClaudeAi($model);
                 $this->_linkify=1;
                 break;
-            case \Flussu\Controllers\Platform::DEEPSEEK:
+            case Platform::DEEPSEEK:
                 $this->_aiClient= new FlussuDeepSeekAi($model);
                 $this->_linkify=0;
                 break;
-            case \Flussu\Controllers\Platform::HUGGINGFACE:
+            case Platform::HUGGINGFACE:
                 $this->_aiClient= new FlussuHuggingFaceAi($model);
                 $this->_linkify=0;
                 break;

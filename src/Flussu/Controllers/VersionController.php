@@ -520,12 +520,124 @@ use Flussu\Flussuserver\Request;
         }
         
         // Nessun check successivo per ora (ultima versione)
-        // if ($ret)
-        //    $res.="<hr>".$this->_checkVersion13();
+        if ($ret)
+            $res.="<hr>".$this->_checkVersion13();
         
         return $res;
     }
 
+    private function _checkVersion13(){
+        /* V13 - v5.0.0 - Session Optimization
+        Ottimizzazione tabella t205_work_var per gestione incrementale sessioni
+        
+        PRIORITY 3 - Session Optimization:
+        Aggiunge campi per:
+        - Tracking modifiche incrementali (salvare solo variabili cambiate)
+        - Contatori accessi per identificare variabili hot/cold
+        - Timestamp ultimo accesso per lazy loading
+        - Indici ottimizzati per query di sessione
+        
+        BENEFICI ATTESI:
+        - Save session: +40% velocità (incremental updates)
+        - Load session: +30% velocità (lazy loading variabili cold)
+        - Memory usage: -25% (caricamento selettivo)
+        - I/O operations: -50% (write solo variabili modificate)
+        
+        STRATEGIA IMPLEMENTAZIONE:
+        1. Modified timestamp: identifica variabili da salvare
+        2. Access counter: separa variabili hot (frequenti) da cold (rare)
+        3. Last access: abilita lazy loading variabili non usate
+        4. Indici: ottimizzano query per incremental save/load
+        
+        NOTA: Questi campi sono opzionali e backward compatible.
+        Il codice esistente continuerà a funzionare senza modifiche.
+        L'ottimizzazione avviene solo quando Session.php viene aggiornato.
+        
+        Riferimenti:
+        - FLUSSU_Guida_Implementazione_v5_0.md (Priority 3)
+        - Session.php (da ottimizzare nella prossima fase)
+        */
+        $newVer=13;
+        $res="Update V".$newVer." (Session Optimization):";
+        $ret=true;
+        
+        if ($this->_thisVers<$newVer){
+            // MODIFICHE STRUTTURA TABELLA t205_work_var
+            
+            // 1. Modified timestamp: per incremental updates
+            // Aggiornato automaticamente quando c205_elm_val cambia
+            $SQL1="ALTER TABLE t205_work_var 
+                   ADD COLUMN c205_modified TIMESTAMP 
+                   DEFAULT CURRENT_TIMESTAMP 
+                   ON UPDATE CURRENT_TIMESTAMP 
+                   AFTER c205_elm_val";
+            
+            // 2. Access counter: traccia frequenza accessi
+            // Identifica variabili HOT (molto usate) vs COLD (raramente usate)
+            $SQL2="ALTER TABLE t205_work_var 
+                   ADD COLUMN c205_access_count INT UNSIGNED DEFAULT 0 
+                   AFTER c205_modified";
+            
+            // 3. Last access timestamp: per lazy loading
+            // Permette di caricare solo variabili usate recentemente
+            $SQL3="ALTER TABLE t205_work_var 
+                   ADD COLUMN c205_last_access TIMESTAMP NULL 
+                   AFTER c205_access_count";
+            
+            // 4. Size tracking: dimensione serialized data
+            // Ottimizza decisioni su cosa caricare in memoria
+            $SQL4="ALTER TABLE t205_work_var 
+                   ADD COLUMN c205_data_size INT UNSIGNED DEFAULT 0 
+                   AFTER c205_last_access";
+            
+            // INDICI PER OTTIMIZZAZIONE SESSIONI
+            
+            // 5. Indice per incremental save: trova variabili modificate
+            // Uso: SELECT * FROM t205_work_var 
+            //      WHERE c205_sess_id=? AND c205_modified > ?
+            $SQL5="CREATE INDEX IF NOT EXISTS idx_workvar_modified 
+                   ON t205_work_var(c205_sess_id, c205_modified)";
+            
+            // 6. Indice per hot/cold analysis: identifica variabili frequenti
+            // Uso: SELECT * FROM t205_work_var 
+            //      WHERE c205_sess_id=? 
+            //      ORDER BY c205_access_count DESC
+            $SQL6="CREATE INDEX IF NOT EXISTS idx_workvar_hotness 
+                   ON t205_work_var(c205_sess_id, c205_access_count DESC)";
+            
+            // 7. Indice per lazy loading: carica solo variabili usate recentemente
+            // Uso: SELECT * FROM t205_work_var 
+            //      WHERE c205_sess_id=? AND c205_last_access > ?
+            $SQL7="CREATE INDEX IF NOT EXISTS idx_workvar_lastaccess 
+                   ON t205_work_var(c205_sess_id, c205_last_access)";
+            
+            // Esecuzione script in sequenza
+            $scriptsArray = [
+                [$SQL1, null],
+                [$SQL2, null],
+                [$SQL3, null],
+                [$SQL4, null],
+                [$SQL5, null],
+                [$SQL6, null],
+                [$SQL7, null]
+            ];
+            
+            $ret=$this->_execVersion($newVer, null, $scriptsArray);
+            $res.=($ret?"OK":"Error");
+            
+            if ($ret){
+                //$res.="<br>v5.0-<strong>Session optimization</strong>";
+            }
+        } else {
+            $res.="not needed";
+        }
+        
+        // Nessun check successivo per ora (ultima versione)
+        // if ($ret)
+        //    $res.="<hr>".$this->_checkVersion14();
+        
+        return $res;
+    }
 
     private function _checkQuery($checkQuery){
         // checkquery MUST return 1 for true or 0 for false

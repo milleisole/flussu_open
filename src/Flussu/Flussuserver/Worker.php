@@ -1137,6 +1137,7 @@ try {
                 $old = ini_set('display_errors', 1);
                 
                 try {
+
                     $evalRet = @eval(" \n " . $theCode . " \n ");
                 } catch(\ParseError $e){
                     if (strpos($e->getFile(), "eval()") !== false) {

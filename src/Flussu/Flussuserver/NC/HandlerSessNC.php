@@ -147,7 +147,7 @@ class HandlerSessNC extends HandlerBaseNC {
     }
 
 
-    public function closeSession($theMemSeStat,$arVars,$stat,$history,$workLogs,$subWid,$usessid){
+    public function closeSession($theMemSeStat,$arVars,$dirtyVars,$stat,$history,$workLogs,$subWid,$usessid){
         $transExec= array();
         $dtarr=[];
         if (isset($theMemSeStat->workflowId)){
@@ -175,7 +175,32 @@ class HandlerSessNC extends HandlerBaseNC {
             }
         }
         if (isset($theMemSeStat)){
-            $SQL="UPDATE t205_work_var set c205_elm_val=:val where c205_sess_id=:sid and c205_elm_id='allValues'";
+            if (!empty($dirtyVars)) {
+                $SQL = "INSERT INTO t205_work_var 
+                        (c205_sess_id, c205_elm_id, c205_elm_val, 
+                        c205_modified, c205_data_size)
+                        VALUES (?, ?, ?, NOW(), ?)
+                        ON DUPLICATE KEY UPDATE
+                        c205_elm_val = VALUES(c205_elm_val),
+                        c205_modified = NOW(),
+                        c205_data_size = VALUES(c205_data_size)";
+                
+                foreach ($dirtyVars as $varName => $varData) {
+                    $serialized = json_encode($varData);
+                    $size = strlen($serialized);
+                    
+                    $this->execSql($SQL, [
+                        $usessid,
+                        $varName,
+                        $serialized,
+                        $size
+                    ]);
+                }
+            }
+            
+            // LEGACY: Full snapshot (backward compatibility - rimuovi dopo test)
+            $SQL="UPDATE t205_work_var set c205_elm_val=:val 
+                where c205_sess_id=:sid and c205_elm_id='allValues'";
             $this->execMultSql(
                 $SQL,
                 array(["sid"=>$usessid,"val"=>json_encode($arVars)])
