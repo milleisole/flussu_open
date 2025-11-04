@@ -530,7 +530,18 @@ class Session {
                 // Get cached JSON
                 $je = $this->_serializeVar($vKey);
                 $taf = !$var->isObject ? ",true" : "";
-                $lines[] = "$vKey=json_decode('$je'$taf);";
+                
+                // OPTIMIZATION V5.0: Use base64 for JSON to avoid apostrophe issues
+                // Apostrophes in JSON (like "dall'ultimo") break single-quoted strings
+                if (strlen($je) > 200 || strpos($je, "'") !== false) {
+                    // Use base64 for long JSON or JSON containing apostrophes
+                    $encoded = base64_encode($je);
+                    $lines[] = "$vKey=json_decode(base64_decode('{$encoded}'){$taf});";
+                } else {
+                    // Use direct JSON for short strings without apostrophes
+                    $je = str_replace("'", "\\'", $je); // Escape single quotes
+                    $lines[] = "$vKey=json_decode('$je'$taf);";
+                }
             } else {
                 $lines[] = $this->_formatScalarVar($vKey, $vValue);
             }
@@ -590,13 +601,10 @@ class Session {
         $isVeryLong = (strlen($vValue) > 300);
         
         if ($hasNewLine || $isVeryLong) {
-            // Use HEREDOC for long/multiline strings
-            $delim = 'TXT';
-            while (strpos($vValue, "\n{$delim}") !== false) {
-                $delim .= '_';
-            }
-            
-            return "$vKey=<<<'{$delim}'\n{$vValue}\n{$delim};";
+            // OPTIMIZATION V5.0: Use base64 for long/multiline strings
+            // This is 100% safe and avoids all HEREDOC parsing issues
+            $encoded = base64_encode($vValue);
+            return "$vKey=base64_decode('{$encoded}');";
         }
         
         // Normal string
@@ -991,7 +999,8 @@ class Session {
             return true;
         }
         
-        if (is_null($this->getEndBlockId())){
+        $ebid=$this->getEndBlockId();
+        if (is_null($ebid) || $ebid == "" || $ebid == 0){
             return false;
         } else {
             return true;

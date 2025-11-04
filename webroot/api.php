@@ -33,11 +33,7 @@ use Flussu\General;
 use Flussu\Config;
 
 // VERSION
-$FlussuVersion="5.0.20251103";
-$FVP=explode(".",$FlussuVersion);
-$v=$FVP[0];
-$m=$FVP[1];
-$r=$FVP[2];
+$FlussuVersion="0.0.unknown!";
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
@@ -56,6 +52,22 @@ if (!function_exists('config')) {
         return Config::init()->get($key,$default);
     }
 }
+if (!function_exists('flussuVersion')) {
+    /**
+     * Ritorna la versione corrente di Flussu Open Server
+     *
+     * @return string
+     */
+    function flussuVersion()
+    {
+        return config("flussu.version").".".config("flussu.release");
+    }
+}
+
+$FVP=explode(".",flussuVersion());
+$v=$FVP[0];
+$m=$FVP[1];
+$r=$FVP[2];
 
 if (isset($argv) && is_array($argv)){
     echo ("Flussu Server v".$_ENV['major'].".".$_ENV['minor'].".".$_ENV['release']."\n");

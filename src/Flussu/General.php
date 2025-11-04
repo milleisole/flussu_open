@@ -63,7 +63,7 @@ class General {
     private static $_genKey="Aldo08Fede05";
     private static $_myHandler=null;
     private static $_myHandlerNC=null;
-    
+
     static function initLog(){
         $_SESSION["Log"]=date("d/m H:i:s")." Start Log:\r\n";
         self::$sTime=hrtime(true);
