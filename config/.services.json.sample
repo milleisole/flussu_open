@@ -72,7 +72,27 @@
   "webhooks":{
     "zapier":{
       "sign":["Zapier"],
-      "call":"ZapierController@apicall"
+      "call":"ZapierController@apiCall",
+      "credentials": [
+        {
+          "username": "zapier_user",
+          "password": "your_secure_password_here",
+          "user_id": 16,
+          "comment": "Password can be plain text or bcrypt hash (starts with $2y$). Use: password_hash('your_password', PASSWORD_BCRYPT)"
+        }
+      ]
+    },
+    "ifttt":{
+      "sign":["IFTTT"],
+      "call":"IftttController@apiCall",
+      "credentials": [
+        {
+          "username": "ifttt",
+          "password": "your_ifttt_service_key_here",
+          "user_id": 16,
+          "comment": "This is your IFTTT service key. Can also use bcrypt hash for security."
+        }
+      ]
     },
     "stripe":{
       "sign":["Stripe/","//stripe.com/"],
