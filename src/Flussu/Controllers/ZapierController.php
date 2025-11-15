@@ -16,201 +16,142 @@
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Flussu Zapier API Controller
  * UPDATED DATE:     04.11.2022 - Aldus - Flussu v2.2.4
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     4.5.20251115
+ * UPDATES DATE:     15.11:2025
  * -------------------------------------------------------*/
 namespace Flussu\Controllers;
-use Auth;
-//use Session;
 
 use Flussu\General;
 use Flussu\Flussuserver\Request;
 use Flussu\Flussuserver\NC\HandlerNC;
-use Flussu\Flussuserver\Session;
-use Flussu\Flussuserver\Worker;
 
-use Log;
-
-// This class handles API calls from Zapier.
-// The apiCall method processes the incoming request and performs the necessary actions based on the API page.
-// The _extractData method extracts data from the request payload.
-// The _reportErrorAndDie method reports an error and terminates the script.
-// The _getWidZapierVars method retrieves workflow variables for Zapier.
-
-class ZapierController 
+/**
+ * Zapier Webhook Controller
+ * Handles API calls from Zapier automation platform
+ */
+class ZapierController extends AbsWebhookProvider
 {
-    public function apiCall(Request $request, $apiPage){
-        $isZapier=(isset($_SERVER["HTTP_USER_AGENT"]) && $_SERVER["HTTP_USER_AGENT"]=="Zapier");
-        $isPost=(isset($_SERVER["REQUEST_METHOD"]) && $_SERVER["REQUEST_METHOD"]=="POST");
+    /**
+     * Constructor - sets Zapier-specific configuration
+     */
+    public function __construct()
+    {
+        parent::__construct();
+        $this->providerName = 'ZAPIER';
+        $this->varPrefix = 'zap_';
+        $this->expectedUserAgent = 'Zapier';
+    }
 
-        $usrName=isset($_SERVER["PHP_AUTH_USER"])?$_SERVER["PHP_AUTH_USER"]:"";
-        $usrPass=isset($_SERVER["PHP_AUTH_PW"])?$_SERVER["PHP_AUTH_PW"]:"";
-        
-        //$usrName=General::getGetOrPost("usr");
-        //$usrPass=General::getGetOrPost("pass");
-               
-        $SentWID=isset($_SERVER["HTTP_WID"])?$_SERVER["HTTP_WID"]:"";
+    /**
+     * Main API call handler for Zapier requests
+     *
+     * @param Request $request The incoming request object
+     * @param string $apiPage The API endpoint being called
+     * @return void
+     */
+    public function apiCall(Request $request, $apiPage): void
+    {
+        // Set CORS headers
+        $this->setCorsHeaders();
+
+        // Extract credentials
+        list($usrName, $usrPass) = $this->extractCredentials();
+
+        // Extract workflow ID
+        list($wid, $SentWID) = $this->extractWorkflowId($request);
+
+        // Get payload data
         $rawdata = file_get_contents('php://input');
-        $theData=\json_decode($rawdata,true);
-        if (isset($theData["WID"]) && !empty($theData["WID"]))
-            $SentWID=$theData["WID"];
-        else {
-            if ($SentWID=="" && isset($theData["WID"])){
-                $SentWID=$theData=$theData["WID"];
-            }
-        }
-        $wid= HandlerNC::WID2Wofoid($SentWID);
+        $theData = json_decode($rawdata, true);
 
-        if (isset($theData) && is_array($theData) && array_key_exists("data", $theData))
-            $theData=$this->_extractData($theData["data"]);
-
-        header('Access-Control-Allow-Origin: *'); 
-        header('Access-Control-Allow-Methods: *');
-        header('Access-Control-Allow-Headers: *');
-        header('Access-Control-Max-Age: 200');
-        header('Access-Control-Expose-Headers: Content-Security-Policy, Location');
-
-        $uid=0;
-        $theFlussuUser=new \Flussu\Persons\User();
-        
-        // TEMPORANEO
-        if ($usrName=="pippuzzo" && ($usrPass=="giannuzzo123" || $usrPass=="giannuzzo"))
-            $theFlussuUser->load(16);
-        // DOVRà DIVENTARE
-        //$theFlussuUser->authenticate($usrName,$usrPass);
-        if ($usrName=="aldus" && ($usrPass=="pattavina"))
-            $theFlussuUser->load(16);
-
-
-
-
-        if ($theFlussuUser->getId()<1){
-            $this->_reportErrorAndDie("403","Unauthenticated");
-        }
-        if (strpos($apiPage,"zap?auth")!==false)
-            $this->_reportErrorAndDie("200","OK authenticated");
-
-        if (strpos($apiPage,"zap?list")!==false){
-            $db= new HandlerNC();
-            $res=$db->getFlussu(false,$theFlussuUser->getId());
-            $retArr=[];
-            $i=1;
-            foreach($res as $wf){
-                $wc=new \stdClass();
-                $wc->id=$i++;
-                $wc->wid=$wf["wid"];
-                $wc->title=$wf["name"];
-                array_push($retArr,$wc); 
-            }
-            die(json_encode($retArr));
+        // Extract data from nested structure if present
+        if (isset($theData) && is_array($theData) && array_key_exists("data", $theData)) {
+            $theData = $this->extractData($theData["data"]);
         }
 
-        if ($SentWID=="[__wzaptest__]")
-            $this->_reportErrorAndDie("200","Hi Zapier, I'm Alive :), how are u?");
-           
-        if ($wid<1)
-            $this->_reportErrorAndDie("406","Wrong Flussu WID");
+        // Authenticate user
+        $uid = $this->authenticate($usrName, $usrPass);
 
-        if (is_null($theData) || empty($theData))
-            $this->_reportErrorAndDie("406","No Data Received");
+        if ($uid < 1) {
+            $this->reportErrorAndDie("403", "Unauthenticated");
+        }
 
-        if (is_null($usrName) || empty($usrName))
-            $this->_reportErrorAndDie("406","No Username received");
+        // Handle authentication test endpoint
+        if (strpos($apiPage, "zap?auth") !== false) {
+            $this->reportErrorAndDie("200", "OK authenticated");
+        }
 
-        if (is_null($usrPass) || empty($usrPass))
-            $this->_reportErrorAndDie("406","No Password received");
+        // Handle workflow list endpoint
+        if (strpos($apiPage, "zap?list") !== false) {
+            $this->handleListWorkflows($uid);
+        }
 
-        error_reporting(0); 
+        // Handle test endpoint
+        if ($SentWID == "[__wzaptest__]") {
+            $this->reportErrorAndDie("200", "Hi Zapier, I'm Alive :), how are u?");
+        }
 
-        switch ($apiPage){
+        // Validate workflow ID
+        if ($wid < 1) {
+            $this->reportErrorAndDie("406", "Wrong Flussu WID");
+        }
+
+        // Validate data
+        if (is_null($theData) || empty($theData)) {
+            $this->reportErrorAndDie("406", "No Data Received");
+        }
+
+        // Validate credentials
+        if (is_null($usrName) || empty($usrName)) {
+            $this->reportErrorAndDie("406", "No Username received");
+        }
+
+        if (is_null($usrPass) || empty($usrPass)) {
+            $this->reportErrorAndDie("406", "No Password received");
+        }
+
+        error_reporting(0);
+
+        switch ($apiPage) {
             case "zap":
-                // Fai partire un workflow
-                $res=$this->_getWidZapierVars($wid,$SentWID,$theFlussuUser->getId(),$theData);
-                $sid=$res[0];
-                $vars=\json_encode($res[1]);
-                $vars="{".str_replace(["{","}","[","]"],"",$vars)."}";
-                $vvv=\json_encode(["result"=>"started","res"=>"","WID"=>$SentWID,"SID"=>$sid]);
-                die(str_replace("\"res\":\"\"","\"res\":".$vars,$vvv));
-                //die($vars.\json_encode(["result"=>"started","WID"=>$SentWID,"SID"=>"sessionis..223.4.5.6"]));
-
+                // Execute workflow
+                $res = $this->executeWorkflow($wid, $SentWID, $uid, $theData);
+                $sid = $res[0];
+                $vars = json_encode($res[1]);
+                $vars = "{" . str_replace(["{", "}", "[", "]"], "", $vars) . "}";
+                $vvv = json_encode(["result" => "started", "res" => "", "WID" => $SentWID, "SID" => $sid]);
+                die(str_replace("\"res\":\"\"", "\"res\":" . $vars, $vvv));
                 break;
+
             default:
-                $this->_reportErrorAndDie("403","Forbidden");
-        }
-        error_reporting(E_ALL); 
-    }
-    private function _extractData($dr){
-        $values="";
-        $res=[];
-        if (is_array($dr)){
-            for ($i=0;$i<count($dr);$i++){
-                foreach($dr[$i] as $key=>$val){
-                    if (strpos($values,$val)===false)
-                        $values.=",".$val;
-                }
-            }
-        } else {
-            foreach($dr as $key=>$val)
-            if (strpos($values,$val)===false)
-                $values.=",".$val;
+                $this->reportErrorAndDie("403", "Forbidden");
         }
 
-        $vll=explode(",",substr($values,1));
-        foreach ($vll as $vl){
-            $vl=explode(":",$vl);
-            if (count($vl)>0){
-                for ($i=2;$i<count($vl);$i++)
-                    $vl[1]=$vl[1].":".$vl[$i];
-            }
-            $vl[1]=preg_replace('~^"?(.*?)"?$~', '$1', $vl[1]);
-            if (array_key_exists($vl[0], $res) && $res[$vl[0]]!=$vl[1]){
-                $res[$vl[0]]=$res[$vl[0]].",".$vl[1];
-            } else {
-                $res=array_merge($res,[trim($vl[0])=>trim($vl[1])]);
-            }
-        }
-        return $res;
+        error_reporting(E_ALL);
     }
 
-    private function _reportErrorAndDie($httpErr,$errMsg){
-        //header('HTTP/1.0 $httpErr $errMsg');
-        die(\json_encode(["error"=>$httpErr,"message"=>$errMsg]));
-    }
+    /**
+     * Handle workflow list request
+     *
+     * @param int $userId User ID
+     * @return never
+     */
+    private function handleListWorkflows(int $userId): never
+    {
+        $db = new HandlerNC();
+        $res = $db->getFlussu(false, $userId);
+        $retArr = [];
+        $i = 1;
 
-    private function _getWidZapierVars($wid,$origWid,$userId,$theData){
-        $ret=[];
-        $sid="";
-        $handl= new HandlerNC();
-        $res=$handl->getFirstBlock($wid);
-        if (isset($res[0]["exec"])){
-
-            $LNG="IT";
-            $wSess=new Session(null);
-            $IP=General::getCallerIPAddress();
-            $UA=General::getCallerUserAgent();
-            $wSess->createNew($wid,$IP,$LNG,$UA,$userId,"ZAPIER",$origWid);
-            $sid=$wSess->getId();
-
-            //$wSess->loadWflowVars();
-            $wwork= new Worker($wSess);
-            $frmBid=$wSess->getBlockId();
-
-            $rows=explode("\n",$res[0]["exec"]);
-            foreach($rows as $row){
-                $row=trim($row);
-                if (substr($row,0,5)=="$"."zap_"){
-                    $extName=substr($row,5,strpos($row,"=")-5);
-                    $intName="$"."zap_".$extName;
-                    $wSess->assignVars($intName,isset($theData[$extName])?$theData[$extName]:"");
-                    array_push($ret,[$intName=>isset($theData[$extName])?$theData[$extName]:"---"]);
-                }
-            }
-
-            $hres=$wwork->execNextBlock($frmBid,"",false);
-            //$frmBid=$wwork->getBlockId();
-
+        foreach ($res as $wf) {
+            $wc = new \stdClass();
+            $wc->id = $i++;
+            $wc->wid = $wf["wid"];
+            $wc->title = $wf["name"];
+            array_push($retArr, $wc);
         }
-        return [$sid,$ret];
+
+        die(json_encode($retArr));
     }
 }
  //---------------
@@ -222,4 +163,4 @@ class ZapierController
  //   \__||__/   |
  //      \/      |
  //   @INXIMKR   |
- //--------------- 
+ //---------------
