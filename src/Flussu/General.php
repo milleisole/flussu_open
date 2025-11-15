@@ -77,7 +77,8 @@ class General {
         self::addLog($addRow."\r\n");
     }
     static function getVersion(){
-        return $_ENV["major"].".".$_ENV["minor"];
+        return config("flussu.version").".".config("flussu.release");
+        //return $_ENV["major"].".".$_ENV["minor"];
     }
     static function getLog(){
         return $_SESSION["Log"].=date("d/m H:i:s")." END Log\r\n(Consumed:".self::getTimeConsumedSec()." sec)";
@@ -179,7 +180,7 @@ class General {
                 try{
                     if (!file_exists($dpath."/"))
                         mkdir($dpath."/", 0775, true);
-                    $cacheContent=json_encode(["timestamp"=>time(),"image"=>self::_smartEncrypt($objImg)]);
+                    $cacheContent=json_encode(["timestamp"=>time(),"version"=>self::getVersion(),"image"=>self::_smartEncrypt($objImg)]);
                     file_put_contents($cfname, $cacheContent, FILE_APPEND);
                     self::Log_nocaller(" #".self::getCaller(debug_backtrace())."# - Persist -> ".$objId);  
                 } catch (\Throwable $e) {
@@ -228,12 +229,15 @@ class General {
                 // Mettendo @ davanti file get contents, si evita di avere l'errore di "file inesistente".
                 // Si può quindi controllare il risultato: se FALSO, allora il file non eisste.
                 $cacheContent=@file_get_contents($fname);
-                if ($cacheContent===false)
-                    return null;
+                if ($cacheContent===false) return null;
+                // ------------------------------------------------------------
+                // GESTIONE VERSIONE
+                // E' meglio restituire la cache solo se l'oggetto è stato persistito con un flussu di pari versione.
+                // ------------------------------------------------------------
+                $cacheData = json_decode($cacheContent);
+                return ($cacheData->version !== self::getVersion()) ? null : self::_smartDecrypt($cacheData->image);
                 // ------------------------------------------------------------
 
-                //self::Log_nocaller(" #".self::getCaller(debug_backtrace())."# - Deserialize <- ".$objId);   
-                return self::_smartDecrypt(json_decode($cacheContent)->image);
             } catch (\Throwable $e) {
                 self::Log("GENERAL:DESERIALIZE ERROR: ".json_encode($e));
             }

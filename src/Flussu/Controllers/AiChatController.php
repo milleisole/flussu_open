@@ -18,8 +18,8 @@
  * 
  * CLASS-NAME:       Flussu OpenAi Controller - v3.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.4
- * VERSION REL.:     5.0.0.20251103
- * UPDATES DATE:     11.03:2025 - Aldus
+ * VERSION REL.:     5.0.0.20251113
+ * UPDATES DATE:     13.11.2025 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  * -------------------------------------------------------------------*/
 namespace Flussu\Controllers;
@@ -32,6 +32,7 @@ use Flussu\Api\Ai\FlussuGeminAi;
 use Flussu\Api\Ai\FlussuClaudeAi;
 use Flussu\Api\Ai\FlussuDeepSeekAi;
 use Flussu\Api\Ai\FlussuHuggingFaceAi;
+use Flussu\Api\Ai\FlussuMoonshotAi;
 use Flussu\Controllers\Platform;
 use Log;
 class AiChatController 
@@ -62,6 +63,10 @@ class AiChatController
                 break;
             case Platform::HUGGINGFACE:
                 $this->_aiClient= new FlussuHuggingFaceAi($model);
+                $this->_linkify=0;
+                break;
+            case Platform::MOONSHOT:
+                $this->_aiClient= new FlussuMoonshotAi($model);
                 $this->_linkify=0;
                 break;
         }
@@ -103,9 +108,28 @@ TXT;
         try{
             $result=$this->_aiClient->Chat($preChat,$elems, "user");
             $ret=$result[1];
-            return ["Ok",$ret];
+            
+            // Extract token information if available
+            $tokenIn = $result['token_in'] ?? 0;
+            $tokenOut = $result['token_out'] ?? 0;
+            
+            return [
+                0 => "Ok",
+                1 => $ret,
+                'status' => "Ok",
+                'result' => $ret,
+                'token_in' => $tokenIn,
+                'token_out' => $tokenOut
+            ];
         } catch (\Throwable $e) {
-            return ["Error: ",$e->getMessage()];
+            return [
+                0 => "Error: ",
+                1 => $e->getMessage(),
+                'status' => "Error: ",
+                'result' => $e->getMessage(),
+                'token_in' => 0,
+                'token_out' => 0
+            ];
         }
     }
 
@@ -116,13 +140,17 @@ TXT;
      * @param string $role
      * @param int $maxTokens
      * @param float $temperature
-     * @return :
-     *      string: textual reply
-     *      array: command for the client
+     * @return array:
+     *      [0] => status: "Ok", "Error", or "Unknown..."
+     *      [1] => result: textual reply or command array
+     *      ['token_in'] => input tokens consumed (int)
+     *      ['token_out'] => output tokens consumed (int)
      * 
      */
     function chat($sessId, $sendText, $webPreview=false, $role="user", $maxTokens=150, $temperature=0.7) {
         $result="(no result)";
+        $tokenIn = 0;
+        $tokenOut = 0;
         
         $preChat=General::ObjRestore("AiCht".$sessId,true); 
 
@@ -137,6 +165,12 @@ TXT;
                 $result=$this->_aiClient->Chat($preChat,$sendText, $role); 
             else
                 $result=$this->_aiClient->Chat_WebPreview($sendText, $sessId,$maxTokens,$temperature); 
+
+            // Extract token information from result if available
+            if (is_array($result)) {
+                $tokenIn = $result['token_in'] ?? 0;
+                $tokenOut = $result['token_out'] ?? 0;
+            }
 
             $limitReached=$this->_checkLimitReached($result);
 
@@ -181,9 +215,25 @@ TXT;
                 }
                 $status="Ok";
             }
-            return [$status,$ret];
+            
+            // Return result with token information
+            return [
+                0 => $status,              // retrocompatibility
+                1 => $ret,                 // retrocompatibility
+                'status' => $status,
+                'result' => $ret,
+                'token_in' => $tokenIn,
+                'token_out' => $tokenOut
+            ];
         } catch (\Throwable $e) {
-            return ["Error: ",$e->getMessage()];
+            return [
+                0 => "Error: ",
+                1 => $e->getMessage(),
+                'status' => "Error: ",
+                'result' => $e->getMessage(),
+                'token_in' => 0,
+                'token_out' => 0
+            ];
         }
     }
 

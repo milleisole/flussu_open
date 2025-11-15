@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@
  * 
  * CLASS-NAME:       Flussu OpenAi interface - v1.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.5.1 20250820 
- * UPDATE DATE:      20.08:2025 - Aldus
+ * VERSION REL.:     5.0 20251113 
+ * UPDATE DATE:      13.11:2025 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\General;
@@ -114,7 +114,23 @@ class FlussuOpenAi implements IAiProvider
         } catch (\Throwable $e) {
             return "Error: no response. Details: " . $e->getMessage();
         }
-        return [$arrayText,$result->choices[0]->message->content]; 
+        
+        // Extract response text
+        $responseText = $result->choices[0]->message->content;
+        
+        // Extract token usage (default to 0 if not available)
+        $tokenIn = isset($result->usage->promptTokens) ? $result->usage->promptTokens : 0;
+        $tokenOut = isset($result->usage->completionTokens) ? $result->usage->completionTokens : 0;
+        
+        // Return standardized structure with retrocompatibility
+        return [
+            0 => $arrayText,              // retrocompatibility: conversation history
+            1 => $responseText,            // retrocompatibility: response text
+            'conversation' => $arrayText,
+            'response' => $responseText,
+            'token_in' => $tokenIn,
+            'token_out' => $tokenOut
+        ];
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
@@ -171,4 +187,4 @@ class FlussuOpenAi implements IAiProvider
  |  \__| |__/  |
  |     \|/     |
  |  @INXIMKR   |
- |------------*/ 
+ |------------*/
