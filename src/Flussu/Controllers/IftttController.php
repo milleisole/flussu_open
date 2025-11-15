@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
  * limitations under the License.
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Flussu IFTTT API Controller
- * CREATED DATE:     15.11.2025 - Claude - Flussu v4.5.1
- * VERSION REL.:     4.5.20251115
+ * CREATED DATE:     15.11.2025 - Claude - Flussu v5.0
+ * VERSION REL.:     5.0.20251115
  * UPDATES DATE:     15.11:2025
  * -------------------------------------------------------*/
 namespace Flussu\Controllers;

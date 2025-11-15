@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,19 +15,19 @@
  * limitations under the License.
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Flussu Hugging Face interface - v1.0
- * CREATED DATE:     02.11.2025 - Aldus - Flussu v4.5
- * VERSION REL.:     4.5.1 
- * UPDATE DATE:      02.11.2025 - Aldus
+ * CREATED DATE:     02.11.2025 - Aldus - Flussu v5.0
+ * VERSION REL.:     5.0.0 20251113 
+ * UPDATE DATE:      13.11.2025 - Aldus
  * -------------------------------------------------------
  * MODELLI CONSIGLIATI
  * Per Traduzione:
- *   Italiano → Inglese
+ *   Italiano â†’ Inglese
  *     "Helsinki-NLP/opus-mt-it-en"
- *   Italiano → Spagnolo
+ *   Italiano â†’ Spagnolo
  *     "Helsinki-NLP/opus-mt-it-es"
- *   Italiano → Francese
+ *   Italiano â†’ Francese
  *     "Helsinki-NLP/opus-mt-it-fr"
- *   Italiano → Tedesco
+ *   Italiano â†’ Tedesco
  *     "Helsinki-NLP/opus-mt-it-de"
  * 
  * Per Text Generation:
@@ -65,7 +65,7 @@ class FlussuHuggingFaceAi implements IAiProvider
         // Leggi token da config
         $this->_hf_token = config("services.ai_provider.huggingface.auth_token");
         
-        // Modello di default per traduzione IT→EN
+        // Modello di default per traduzione ITâ†’EN
         if ($model)
             $this->_hf_model = $model;
         else {
@@ -98,9 +98,13 @@ class FlussuHuggingFaceAi implements IAiProvider
      * Continua conversazione con storico
      * 
      * @param array $sendArray Array messaggi
-     * @return array [storico, risposta]
+     * @return array [storico, risposta, token_in, token_out]
      */
     private function _chatContinue($sendArray){
+        $tokenIn = 0;
+        $tokenOut = 0;
+        $responseText = "";
+        
         try {
             // Estrai ultimo messaggio utente
             $lastMessage = end($sendArray);
@@ -115,12 +119,27 @@ class FlussuHuggingFaceAi implements IAiProvider
             // Formatta risposta
             $responseText = $this->_formatResponse($response, $taskType);
             
-            return [$sendArray, $responseText];
+            // Note: HuggingFace Inference API typically does not return token usage
+            // Token counts remain 0 unless specific models provide this info
+            if (isset($response['usage'])) {
+                $tokenIn = $response['usage']['prompt_tokens'] ?? 0;
+                $tokenOut = $response['usage']['completion_tokens'] ?? 0;
+            }
             
         } catch (\Throwable $e) {
             //Log::error("Hugging Face API Error: " . $e->getMessage());
-            return [$sendArray, "Error: " . $e->getMessage()];
+            $responseText = "Error: " . $e->getMessage();
         }
+        
+        // Return standardized structure with retrocompatibility
+        return [
+            0 => $sendArray,               // retrocompatibility: conversation history
+            1 => $responseText,            // retrocompatibility: response text
+            'conversation' => $sendArray,
+            'response' => $responseText,
+            'token_in' => $tokenIn,
+            'token_out' => $tokenOut
+        ];
     }
 
     /**
