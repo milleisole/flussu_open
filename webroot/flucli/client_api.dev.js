@@ -15,11 +15,19 @@ per esempio un select o un altro pulsante.
 
 ----------------------------------------*/
 
-const SERVER_URL = "/srvdev4.flu.lt/api/v2.0/flussueng.php"; 
-let WID = "";  
-let SID = null; 
-let BID = null;  
-LNG = "it";  
+const SERVER_URL = "/srvdev4.flu.lt/api/v2.0/flussueng.php";
+let WID = "";
+let SID = null;
+let BID = null;
+LNG = "it";
+
+// ============================================
+// OPERATOR MODE - Real-time chat with operator
+// ============================================
+let operatorMode = false;
+let operatorName = null;
+let eventSource = null;
+const NOTIFY_URL = "/notify.php";  
 
 let defaultChatBarHTML = null;
 let lastPressedTerm = null;
@@ -116,9 +124,15 @@ async function sendStepData(termObj = {}, callback = null) {
             return null;
         }
     } else {
-        if (json.sid) { 
+        if (json.sid) {
+            const wasNewSession = !SID; // Verifica se è una nuova sessione
             SID = json.sid;
             document.getElementById("sessioncode-footer").innerHTML  = "<span style='font-size:0.6em'>"+SID+"</span>";
+
+            // Inizializza le notifiche quando si riceve un SID per la prima volta
+            if (wasNewSession) {
+                initNotifications();
+            }
         }
         if (json.bid) BID = json.bid;
         if (json.lng) LNG = json.lng;
@@ -761,10 +775,19 @@ function delCookie(name) {
 }
 
 function resetFlussuSession() {
-  delCookie(SID_COOKIE);  
+  // Ferma le notifiche prima di resettare la sessione
+  stopNotifications();
+
+  delCookie(SID_COOKIE);
   SID = null;
   BID = null;
-  startWorkflow(WID);     
+
+  // Disattiva la modalità operatore
+  if (operatorMode) {
+    disableOperatorMode();
+  }
+
+  startWorkflow(WID);
 };
 
 async function loadWorkflowInfo({ titElemId, butElemId, flussuId }) {
@@ -825,9 +848,221 @@ document.querySelectorAll('pre code').forEach((el) => {
 }
 
 
+// ============================================
+// OPERATOR MODE FUNCTIONS
+// ============================================
+
+/**
+ * Inizializza la connessione SSE per ricevere notifiche in tempo reale
+ */
+function initNotifications() {
+  if (!SID || eventSource) return;
+
+  try {
+    eventSource = new EventSource(`${NOTIFY_URL}?SID=${SID}`);
+
+    eventSource.onmessage = function(event) {
+      try {
+        const notifications = JSON.parse(event.data);
+        if (notifications && typeof notifications === 'object') {
+          Object.values(notifications).forEach(handleNotification);
+        }
+      } catch (e) {
+        console.error('Error parsing notification:', e);
+      }
+    };
+
+    eventSource.onerror = function(error) {
+      console.error('EventSource error:', error);
+      // Riconnessione automatica gestita dal browser
+      // Se la sessione è scaduta, chiudi la connessione
+      if (eventSource.readyState === EventSource.CLOSED) {
+        stopNotifications();
+      }
+    };
+
+    console.log('Notifications initialized for session:', SID);
+  } catch (e) {
+    console.error('Failed to initialize notifications:', e);
+  }
+}
+
+/**
+ * Ferma la connessione SSE
+ */
+function stopNotifications() {
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+    console.log('Notifications stopped');
+  }
+}
+
+/**
+ * Gestisce le notifiche in arrivo
+ */
+function handleNotification(notification) {
+  const { type, name, value } = notification;
+
+  console.log('Received notification:', { type, name, value });
+
+  switch(type) {
+    case 'operator-join':
+      handleOperatorJoin(name, value);
+      break;
+    case 'chat-msg':
+      handleOperatorMessage(name, value);
+      break;
+    // Altri tipi di notifiche esistenti
+    case '1': // Alert
+    case 'A':
+      showAlert(value);
+      break;
+    case '4': // Add Row
+    case 'AR':
+      // Gestito altrove se necessario
+      break;
+    default:
+      console.log('Unhandled notification type:', type);
+  }
+}
+
+/**
+ * Gestisce la notifica operator-join
+ * Attiva la modalità operatore
+ */
+function handleOperatorJoin(name, value) {
+  operatorMode = true;
+  operatorName = value || name || 'Operatore';
+
+  console.log('Operator joined:', operatorName);
+
+  // Mostra un messaggio di sistema nella chat
+  appendSystemMessage(`${operatorName} si è unito alla conversazione`);
+
+  // Aggiorna l'interfaccia per indicare la modalità operatore
+  updateOperatorModeUI(true);
+}
+
+/**
+ * Gestisce i messaggi dall'operatore
+ */
+function handleOperatorMessage(name, value) {
+  if (!operatorMode) {
+    // Se riceviamo un messaggio operatore senza aver ricevuto operator-join,
+    // attiviamo automaticamente la modalità operatore
+    handleOperatorJoin(name, name || 'Operatore');
+  }
+
+  const senderName = name || operatorName || 'Operatore';
+  console.log('Operator message from', senderName, ':', value);
+
+  // Visualizza il messaggio come se fosse del bot, ma con il nome dell'operatore
+  appendOperatorMessage(senderName, value);
+}
+
+/**
+ * Visualizza un messaggio di sistema nella chat
+ */
+function appendSystemMessage(message) {
+  const chatArea = document.getElementById('chat-area');
+  const msgArea = document.getElementById('msg-area');
+
+  if (!msgArea) return;
+
+  const systemMsg = document.createElement('div');
+  systemMsg.className = 'w-full flex justify-center my-3';
+  systemMsg.innerHTML = `
+    <div class="px-4 py-2 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-sm font-medium">
+      ${message}
+    </div>
+  `;
+
+  msgArea.appendChild(systemMsg);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+/**
+ * Visualizza un messaggio dell'operatore nella chat
+ */
+function appendOperatorMessage(operatorName, message) {
+  const chatArea = document.getElementById('chat-area');
+  const msgArea = document.getElementById('msg-area');
+
+  if (!msgArea) return;
+
+  const operatorMsg = document.createElement('div');
+  operatorMsg.className = 'w-full flex flex-col justify-start mb-3';
+  operatorMsg.innerHTML = `
+    <div class="flex items-center gap-2 mb-1">
+      <div class="w-2 h-2 rounded-full bg-green-500"></div>
+      <span class="text-xs font-semibold text-gray-600 dark:text-gray-400">${operatorName}</span>
+    </div>
+    <div class="text-sm text-left bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/40 dark:to-blue-800/40
+                text-gray-800 dark:text-gray-100 rounded-lg px-4 py-3 border-l-4 border-blue-500">
+      ${markdownLinksToHtml(message)}
+    </div>
+  `;
+
+  msgArea.appendChild(operatorMsg);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+/**
+ * Aggiorna l'interfaccia per indicare la modalità operatore
+ */
+function updateOperatorModeUI(active) {
+  const chatTitle = document.getElementById('chat-title');
+
+  if (active) {
+    // Aggiungi un indicatore visivo nell'header
+    let operatorIndicator = document.getElementById('operator-indicator');
+
+    if (!operatorIndicator) {
+      operatorIndicator = document.createElement('div');
+      operatorIndicator.id = 'operator-indicator';
+      operatorIndicator.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs font-medium';
+      operatorIndicator.innerHTML = `
+        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+        <span data-i18n="operator_online">Operatore online</span>
+      `;
+
+      // Inserisci l'indicatore accanto al titolo
+      const header = document.querySelector('header');
+      const titleContainer = chatTitle.parentElement;
+      if (titleContainer && header.contains(titleContainer)) {
+        titleContainer.appendChild(operatorIndicator);
+      }
+
+      // Applica la traduzione corrente
+      applyLanguage();
+    }
+  } else {
+    // Rimuovi l'indicatore
+    const operatorIndicator = document.getElementById('operator-indicator');
+    if (operatorIndicator) {
+      operatorIndicator.remove();
+    }
+  }
+}
+
+/**
+ * Disattiva la modalità operatore
+ */
+function disableOperatorMode() {
+  operatorMode = false;
+  operatorName = null;
+  updateOperatorModeUI(false);
+
+  // Mostra un messaggio di sistema
+  appendSystemMessage('Operatore disconnesso');
+}
+
 // EXPORT
 window.startWorkflow = startWorkflow;
 window.submitFormStep = submitFormStep;
 window.setLanguage = setLanguage;
 window.inviaTermUpload = inviaTermUpload;
 window.resetFlussuSession = resetFlussuSession;
+window.initNotifications = initNotifications;
+window.stopNotifications = stopNotifications;

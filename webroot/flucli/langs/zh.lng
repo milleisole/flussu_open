@@ -14,7 +14,8 @@
     "abort": "取消",
     "confirm_restart": "您确定要重新开始会话吗？",
     "confirm_exipred": "会话已过期。您想重新开始吗？",
-    "remove": "删除"
+    "remove": "删除",
+    "operator_online": "操作员在线"
   }
 }
 

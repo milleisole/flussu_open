@@ -14,6 +14,7 @@
     "abort":"Annuler",
     "confirm_restart": "Voulez-vous vraiment recommencer la session ?",
     "confirm_exipred": "La session a expiré. Voulez-vous recommencer ?",
-    "remove": "Supprimer"
+    "remove": "Supprimer",
+    "operator_online": "Opérateur en ligne"
   }
 }

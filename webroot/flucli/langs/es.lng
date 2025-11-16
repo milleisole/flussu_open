@@ -10,10 +10,11 @@
     "user": "Usuario",
     "session": "Sesión",
     "select_language": "Selecciona idioma",
-    "ok": "OK",   
+    "ok": "OK",
     "abort":"Cancelar",
     "confirm_restart": "¿Realmente quieres reiniciar la sesión?",
     "confirm_exipred": "La sesión ha expirado. ¿Quieres volver a empezar?",
-    "remove": "Eliminar"
+    "remove": "Eliminar",
+    "operator_online": "Operador en línea"
   }
 }

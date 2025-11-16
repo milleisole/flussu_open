@@ -10,9 +10,11 @@
     "user": "Benutzer",
     "session": "Sitzung",
     "select_language": "Sprache auswählen",
-    "ok": "OK",   
+    "ok": "OK",
+    "abort": "Abbrechen",
     "confirm_restart": "Möchten Sie die Sitzung wirklich neu starten?",
     "confirm_exipred": "Die Sitzung ist abgelaufen. Möchten Sie neu starten?",
-    "remove": "Entfernen"
+    "remove": "Entfernen",
+    "operator_online": "Operator online"
   }
 }
