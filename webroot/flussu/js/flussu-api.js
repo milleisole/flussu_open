@@ -4,7 +4,7 @@
  */
 
 class FlussuAPI {
-    constructor(baseUrl = '/api/flussu') {
+    constructor(baseUrl = '/api/user-management.php') {
         this.baseUrl = baseUrl;
         this.apiKey = this.getStoredApiKey();
         this.sessionId = this.getStoredSessionId();
@@ -14,7 +14,23 @@ class FlussuAPI {
      * Esegui chiamata API
      */
     async request(endpoint, method = 'GET', data = null) {
-        const url = `${this.baseUrl}${endpoint}`;
+        // Separa path da query parameters
+        let path = endpoint;
+        let queryParams = '';
+
+        if (endpoint.includes('?')) {
+            const parts = endpoint.split('?');
+            path = parts[0];
+            queryParams = parts[1];
+        }
+
+        // Costruisci URL con path come query parameter
+        let url = `${this.baseUrl}?path=${encodeURIComponent(path)}`;
+
+        // Aggiungi eventuali query parameters aggiuntivi
+        if (queryParams) {
+            url += '&' + queryParams;
+        }
 
         const headers = {
             'Content-Type': 'application/json'
