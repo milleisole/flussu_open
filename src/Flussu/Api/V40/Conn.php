@@ -51,6 +51,7 @@ use Flussu\General;
 use Flussu\Persons\User;
 use Flussu\Flussuserver\Command;
 use Flussu\Flussuserver\NC\HandlerNC;
+use Flussu\Api\V40\PasswordManager;
 
 class Conn {
     /**
@@ -250,6 +251,61 @@ class Conn {
                     User::changeUserPassword($theData->userId,$theData->basePass);
                     $res= array("result"=>"OK");
                     break;
+
+                // ============ PASSWORD MANAGEMENT COMMANDS ============
+                case "reqPwdReset":
+                case "reqpwdreset":
+                    // Request password reset - generates token and returns it
+                    // Data: {emailOrUsername: "user@example.com" or "username"}
+                    $pwdMgr = new PasswordManager();
+                    $db = new HandlerNC();
+                    $res = $pwdMgr->requestPasswordReset($db, $theData->emailOrUsername);
+                    break;
+
+                case "verifyResetToken":
+                case "verifyresettoken":
+                    // Verify if a reset token is valid
+                    // Data: {token: "uuid-token"}
+                    $pwdMgr = new PasswordManager();
+                    $db = new HandlerNC();
+                    $res = $pwdMgr->verifyResetToken($db, $theData->token);
+                    break;
+
+                case "resetPwd":
+                case "resetpwd":
+                    // Reset password using token
+                    // Data: {token: "uuid-token", newPassword: "newpass123"}
+                    $pwdMgr = new PasswordManager();
+                    $db = new HandlerNC();
+                    $res = $pwdMgr->resetPasswordWithToken($db, $theData->token, $theData->newPassword);
+                    break;
+
+                case "forcePwdChg":
+                case "forcepwdchg":
+                    // Force password change when user must change password (expired/temporary)
+                    // Data: {userId: "username", currentPassword: "oldpass", newPassword: "newpass123"}
+                    $pwdMgr = new PasswordManager();
+                    $res = $pwdMgr->forcePasswordChange($theData->userId, $theData->currentPassword, $theData->newPassword);
+                    break;
+
+                case "chkPwdStatus":
+                case "chkpwdstatus":
+                    // Check if user must change password
+                    // Data: {userId: "username"}
+                    $pwdMgr = new PasswordManager();
+                    $res = $pwdMgr->checkPasswordStatus($theData->userId);
+                    break;
+
+                case "cleanupTokens":
+                case "cleanuptokens":
+                    // Cleanup expired reset tokens (maintenance command)
+                    // Data: {} (no data required)
+                    $pwdMgr = new PasswordManager();
+                    $db = new HandlerNC();
+                    $res = $pwdMgr->cleanupExpiredTokens($db);
+                    break;
+                // =====================================================
+
                 default:
                     $res= array("result"=>"ERROR: unknown command [$theCmd]");
             }
