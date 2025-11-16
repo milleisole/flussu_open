@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * User Management System - AuditLogger Class
  * --------------------------------------------------------------------*/
