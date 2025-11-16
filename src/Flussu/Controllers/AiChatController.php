@@ -33,6 +33,8 @@ use Flussu\Api\Ai\FlussuClaudeAi;
 use Flussu\Api\Ai\FlussuDeepSeekAi;
 use Flussu\Api\Ai\FlussuHuggingFaceAi;
 use Flussu\Api\Ai\FlussuMoonshotAi;
+use Flussu\Api\Ai\FlussuKimiAi;
+use Flussu\Api\Ai\FlussuQwenAi;
 use Flussu\Controllers\Platform;
 use Log;
 class AiChatController 
@@ -67,6 +69,14 @@ class AiChatController
                 break;
             case Platform::MOONSHOT:
                 $this->_aiClient= new FlussuMoonshotAi($model);
+                $this->_linkify=0;
+                break;
+            case Platform::KIMI:
+                $this->_aiClient= new FlussuKimiAi($model, $chat_model);
+                $this->_linkify=0;
+                break;
+            case Platform::QWEN:
+                $this->_aiClient= new FlussuQwenAi($model, $chat_model);
                 $this->_linkify=0;
                 break;
         }

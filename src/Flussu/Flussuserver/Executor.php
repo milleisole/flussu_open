@@ -152,6 +152,7 @@ class Executor {
                         if (!is_array($res)) {
                             $res = [];
                         }
+<<<<<<< HEAD
                         $res = $this->_mergeResult($res, $result);
                     }
                 } elseif (substr($innerCmd, 0, 1) === '$') {
@@ -159,6 +160,465 @@ class Executor {
                     $this->_handleVariableAssignment($Sess, $innerCmd, $innerParams);
                 } else {
                     $Sess->recLog("Command $innerCmd unknown!");
+=======
+                        $Sess->assignVars("\$".$result->sex[0],$S);
+                        $Sess->assignVars("\$".$result->bDate[0],$B);
+                        break;
+                    case "chkPIva";
+                        $Sess->recLog("Check ".$this->arr_print($innerParams));
+                        $piva= new Command();
+                        $result=$piva->chkPIva($innerParams);
+                        $Sess->recLog("Risultato check partita iva=".$result->isGood);
+                        $Sess->assignVars("\$".$innerParams[1],$result->isGood);
+                        break;
+                    case "sendXCmdData":
+                        // INVIO DATI A COMANDI ESTERNI 
+                        $Sess->recLog("send external command ".$this->arr_print($innerParams));
+                        $result=$this->_sendCmdData($Sess,$innerParams);
+                        //array_push($res,$result);
+                        break;
+                    case "data":
+                        // GESTIONE DATI INTERNI
+                        $Sess->assignVars("\$dummy","\$wofoEnv->setDataJson('$innerParams')");
+                        break;
+                    case "sess_duration_h":
+                        $Sess->recLog("set session duration (hours): ".$this->arr_print($innerParams));
+                        $Sess->setDurationHours($innerParams);
+                        break;
+                    case "exit_to":
+                        //$Sess->recLog("set exit:".$this->arr_print($innerParams));
+                        if (!is_array($res)) $res=[];
+                        array_push($res,array("exit",$innerParams));
+                        break;
+                    case "go_to_flussu":
+                        $Sess->recLog("goto flussu".json_encode($innerParams));
+                        if (!is_array($res)) $res=[];
+                        $WID=$Handl->getFlussuWID($innerParams);
+                        General::log(" ---> Goto flussu ".json_encode($WID));
+                        array_push($res,array("WID",$WID["WID"]));
+                        break;
+                    case "back_to_flussu":
+                        $Sess->recLog("back to flussu caller".$this->arr_print($innerParams));
+                        if (!is_array($res)) $res=[];
+                        array_push($res,array("BACK",$innerParams));
+                        General::log(" <--- Back to flussu ".json_encode($innerParams));
+                        break;
+                    case "reminder_to":
+                        if (empty($innerParams)){
+                            $Sess->recLog("unsset the reminder address");
+                            $Sess->assignVars("\$reminder_to","");
+                        }
+                        else{
+                            $Sess->recLog("set reminder address".$this->arr_print($innerParams));
+                            $Sess->assignVars("\$reminder_to",$innerParams);
+                        }
+                        if (!is_array($res)) $res=[];
+                        array_push($res,array("reminder_to",$innerParams));
+                        break;
+                    case "sendEmail":
+                        $Sess->statusCallExt(true);
+                        try{
+                            $Sess->recLog("send Email ".json_encode($innerParams));
+                            $result=$this->_sendEmail($Sess,$innerParams, $block["block_id"]);
+                            //array_push($res,$result);
+                        } catch (\Throwable $e){
+                            $Sess->recLog(" SendMail - execution EXCEPTION:". json_encode($e));
+                            $Sess->statusError(true);
+                        }
+                        $Sess->statusCallExt(false);
+                        break;
+                    case "execOcr":
+                        $Sess->statusCallExt(true);
+                        $filePath=$innerParams[0];
+                        $retVarName=$innerParams[1];
+                        $reslt=$this->_execOcr($filePath);
+                        $Sess->assignVars("\$".$retVarName,$reslt[0]);
+                        $Sess->assignVars("\$".$retVarName."_error",$reslt[1]);
+                        break;
+                    case "sendSms":
+                        $Sess->statusCallExt(true);
+                        $retVarName="";
+                        if (count($innerParams)>3)
+                            $retVarName=$innerParams[3];
+                        try{
+                            $Sess->recLog("send Sms ".$this->arr_print($innerParams));
+                            $reslt=$this->_sendSms($Sess,$innerParams);
+                            if (!empty($retVarName))
+                                $Sess->assignVars("\$".$retVarName,$reslt);
+                        } catch (\Throwable $e){
+                            $Sess->recLog(" SendSms - execution EXCEPTION:".json_encode($e));
+                            $Sess->statusError(true);
+                            if (!empty($retVarName))
+                                $Sess->assignVars("\$".$retVarName,"ERROR");
+                        }
+                        $Sess->statusCallExt(false);
+                        break;
+                    case "httpSend":
+                        $Sess->statusCallExt(true);
+                        $retVarName=null;
+                        try{
+                            $Sess->recLog("call http URI".$this->arr_print($innerParams));
+                            $data=null;
+                            $retVarName="";
+                            if (count($innerParams)>2)
+                                $retVarName=$innerParams[2];
+                            if (count($innerParams)>1)
+                                $data=$innerParams[1]; 
+                            $reslt=$this->_httpSend($Sess,$innerParams[0],$data);
+                            if (!empty($retVarName))
+                                $Sess->assignVars("\$".$retVarName,$reslt);
+                            } catch (\Throwable $e){
+                            $Sess->recLog(" httpSend - execution EXCEPTION:".json_encode($e));
+                            $Sess->statusError(true);
+                            if (!empty($retVarName))
+                                $Sess->assignVars("\$".$retVarName,"ERROR");
+                        }
+                        $Sess->statusCallExt(false);
+                        break;
+                    case "doZAP":
+                        $Sess->statusCallExt(true);
+                        try{
+                            $Sess->recLog("call Zapier Uri".$this->arr_print($innerParams));
+                            $data=null;
+                            if (count($innerParams)>2)
+                                $data=$innerParams[2];
+                            $reslt=$this->_doZAP($Sess,$innerParams[0],$data);
+                            if (!empty($innerParams[1]))
+                                $Sess->assignVars("\$".$innerParams[1],$reslt);
+                        } catch (\Throwable $e){
+                            $Sess->recLog(" call Zapier - execution EXCEPTION:".json_encode($e));
+                            if (!empty($innerParams[1]))
+                                $Sess->assignVars("\$".$innerParams[1],"ERROR");
+                            $Sess->statusError(true);
+                        }
+                        $Sess->statusCallExt(false);
+                        break;
+                    case "inited":
+                        $Sess->recLog("Flussu Environment inited ".$innerParams->format("d/m/yy H:n:i"));
+                        if (!is_array($res)) $res=[];
+                        array_push($res,array("exit",0));
+                        break;
+                    case "callSubwf":
+                        $Sess->statusCallExt(true);
+                        try{
+                            $Sess->recLog("call SubWorkflow ".$this->arr_print($innerParams));
+                            $this->_callSubwf($innerParams, $block["block_id"]);
+                        } catch (\Throwable $e){
+                            $Sess->recLog(" callSubwf - execution EXCEPTION:".json_encode($e));
+                            $Sess->statusError(true);
+                        }
+                        $Sess->statusCallExt(false);
+                        break;
+                    case "initAiAgent":
+                        // V4.3 - Init AI Agent
+                        $ctrl=new AiChatController(Platform::INIT );
+                        $ctrl->initAgent($Sess->getId(), $innerParams[0]);
+                        $Sess->recLog("AI inited with ".strlen($innerParams[0])." chars");
+                        break;
+                    case "sendToAi":
+                        // V4.3 - Send to AI
+                        $Sess->statusCallExt(true);
+                        $Sess->recLog("AI provider: ".$innerParams[0]);
+                        $Sess->recLog("call AI: ".$innerParams[1]);
+                        switch  ($innerParams[0]){
+                            case 1:
+                                $ctrl=new AiChatController(Platform::GROK);
+                                break;
+                            case 2:
+                                $ctrl=new AiChatController(Platform::GEMINI);
+                                break;
+                            case 3:
+                                $ctrl=new AiChatController(Platform::DEEPSEEK);
+                                break;
+                            case 4:
+                                $ctrl=new AiChatController(Platform::CLAUDE);
+                                break;
+                            case 6:
+                                $ctrl=new AiChatController(Platform::QWEN);
+                                break;
+                            default:
+                                $ctrl=new AiChatController(Platform::CHATGPT);
+                                break;
+                        }
+                        $reslt=$ctrl->chat($Sess->getId(), $innerParams[1]);
+                        if ($reslt[0]!="Ok"){
+                            $Sess->recLog("AI response: ".json_encode($reslt[1]));
+                            $Sess->statusError(true);
+                            //$reslt[1]="[ERROR]";
+                            //break;
+                        } 
+                        $Sess->assignVars($innerParams[2],$reslt[1]);
+                        break;
+                /*
+                    case "openAi":
+                        // V2.8 - Query openAI
+                        $ctrl=new \Flussu\Controllers\OpenAiController();
+                        $reslt=$ctrl->genQueryOpenAi($innerParams[0],0);
+                        $Sess->assignVars($innerParams[1],$reslt["resp"]);
+                        break;
+                    case "explAi":
+                        // V2.8 - Try to explain as openAI
+                        $ctrl=new \Flussu\Controllers\OpenAiController();
+                        $reslt=$ctrl->genQueryOpenAi($innerParams[0],1);
+                        $Sess->assignVars($innerParams[1],$reslt["resp"]);
+                        break;
+                    case "bNlpAi":
+                        $ctrl=new \Flussu\Controllers\OpenAiController();
+                        $reslt=$ctrl->basicNlpIe($innerParams[0]);
+                        $Sess->assignVars($innerParams[1],$reslt);
+                        break;
+                    case "openAi-stsess":
+                        $ctrl=new \Flussu\Controllers\OpenAiController();
+                        $reslt=$ctrl->createChatSession($innerParams[0]);
+                        $Sess->assignVars("$"."_openAiChatSessionId",$reslt);
+                        break;
+                    case "openAi-chat":
+                        $ctrl=new \Flussu\Controllers\OpenAiController();
+                        $csid=$Sess->getVarValue("$"."_openAiChatSessionId");
+                        if (empty($csid)){
+                            $csid=$ctrl->createChatSession("");
+                            $Sess->assignVars("$"."_openAiChatSessionId",$csid);
+                        }
+                        $reslt=$ctrl->sendChatSessionText($innerParams[0],$csid);
+                        $Sess->assignVars($innerParams[1],$reslt);
+                        break;
+                */
+
+                    case "newMRec":
+                        // V2.8 - New MultiRecWorkflow
+                        $mwc=new \Flussu\Controllers\MultiWfController();
+                        $reslt=$mwc->registerNew($innerParams[0],$innerParams[1],$innerParams[2],$innerParams[3]);
+                        $reslt="[".str_replace("_","",$reslt)."]";
+                        $Sess->assignVars($innerParams[4],$reslt);
+                        break;
+                    case "addVarValue":
+                        // V2.8 - Add a var with passed name and append passed value
+                        $Sess->assignVars($innerParams[0],$innerParams[1]);
+                        break;
+                    case "print2Pdf":
+                        // V2.8 - Print in PDF without header/footer
+                        $pdfPrint=new \Flussu\Controllers\PdfController();
+                        $tmpFile=$pdfPrint->printToTempFilename($innerParams[0],$innerParams[1]);
+                        $Sess->assignVars($innerParams[2],$tmpFile);
+                        break;
+                    case "print2PdfwHF":
+                        // V2.8 - Print in PDF with header/footer
+                        $pdfPrint=new \Flussu\Controllers\PdfController();
+                        $tmpFile=$pdfPrint->printToTempFilename($innerParams[0],$innerParams[1],$innerParams[2],$innerParams[3]);
+                        $Sess->assignVars($innerParams[4],$tmpFile);
+                        break;
+                    case "printRawHtml2Pdf":
+                        // V2.9.5 - Print a RAW HTML on a sheet as PDF
+                        $pdfPrint=new \Flussu\Controllers\PdfController();
+                        //$tmpFile=$pdfPrint->pippo($innerParams[0]);
+                        $tmpFile=$pdfPrint->printHtmlPageToTempFilename($innerParams[0]);
+                        //
+                        $Sess->assignVars($innerParams[1],$tmpFile);
+                        break;
+                    case "getPaymentLink":
+                        //   0                   1                     2         3          4           5                         6                             7                            8                             9
+                        //$provider,$stripeCompanyAccountName,$stripeKeyType,$paymentId, $prodName,$prodPrice   ,$prodImg                          ,$successUri                    ,$cancelUri                  , $varStripeRetUriName
+                        // stripe  , milleisole              , test OR prod , 123456  ,  puzzle  , 4999 (49,99) , https://www.sample.com/image.jpg, https://www.sample.com/ok.php, https://www.sample.com/ko.php, stripeRetUri
+                        $res=$this->_getPaymentLink($innerParams);
+                        $Sess->assignVars("$".$innerParams[9],$res);
+                        break;
+                    case "excelAddRow":
+                        $fileName=$innerParams[0];
+                        $excelData=$innerParams[1];
+
+                        
+
+
+
+                        break;
+
+                    case "createLabel":
+                        // V3.0.1 - Add a label to the current block
+                        if (!is_array($res)){ 
+                            $res=[];
+                        }
+                        else {
+                            if (isset($res["addElements"]))
+                                $elem_arr=$res["addElements"];
+                            else
+                                $elem_arr=[];
+                        }
+                        $elem_arr[]=["type"=>"L","text"=>$innerParams[0]];
+                        $res["addElements"]=$elem_arr;
+                        break;
+                    case "createButton":
+                        // V3.0.1 - Add a label to the current block
+                        //$buttonVarName,$clickValue, $buttonText, $buttonExit=0)
+                        if (!is_array($res)){ 
+                            $res=[];
+                        }
+                        else {
+                            if (isset($res["addElements"]))
+                                $elem_arr=$res["addElements"];
+                            else
+                                $elem_arr=[];
+                        }
+                        $elem_arr[]=["type"=>"B","text"=>$innerParams[2],"value"=>$innerParams[1],"varname"=>$innerParams[0],"exit"=>$innerParams[3],"css"=>$innerParams[4],"skipValid"=>$innerParams[5]];
+                        $res["addElements"]=$elem_arr;
+                        break;
+                    case "createInput":
+                        // "IS":"IE":"IM",$inputVarName,$inputValue,$suggestText,$isMandatory,$inputCss
+                        // V4.4.1 - Add an inputbox to the current block
+                        //$inputVarName,$inputValue,$suggestText,$isMandatory,$inputCss
+                        if (!is_array($res)){ 
+                            $res=[];
+                        }
+                        else {
+                            if (isset($res["addElements"]))
+                                $elem_arr=$res["addElements"];
+                            else
+                                $elem_arr=[];
+                        }
+                        $elem_arr[]=["type"=>$innerParams[0],"varname"=>$innerParams[1],"value"=>$innerParams[2],"text"=>$innerParams[3],"mandatory"=>$innerParams[4],"css"=>$innerParams[5]];
+                        $res["addElements"]=$elem_arr;
+                        break;
+                    case "createSelect":
+                        // V4.4.1 - Add a select to the current block
+                        // $selType (standard, esclusivo, multiplo) "SS":"SE":"SM",$selectVarName,$selectArrayValues,$isMandatory,$inputCss
+                        if (!is_array($res)){ 
+                            $res=[];
+                        }
+                        else {
+                            if (isset($res["addElements"]))
+                                $elem_arr=$res["addElements"];
+                            else
+                                $elem_arr=[];
+                        }
+                        $elem_arr[]=["type"=>$innerParams[0],"varname"=>$innerParams[1],"values"=>$innerParams[2],"mandatory"=>$innerParams[3],"css"=>$innerParams[4]];
+                        $res["addElements"]=$elem_arr;
+                        break;
+                    case "timedRecall":
+                        // V3.0 - Set to recall a workflow at a specified date/time
+                        $rmins=$innerParams[1];
+                        $rdate=$innerParams[0];
+                        if (is_null($rmins)){
+                            //$to_time = strtotime("2008-12-13 10:42:00");
+                            //$from_time = strtotime("2008-12-13 10:21:00");
+                            $rdate=new \DateTime($rdate); 
+                            $datenow=new \DateTime();
+                            $rmins = round(abs(($datenow->getTimestamp() - $rdate->getTimestamp()))/60,2);
+                        }
+                        // minuti di attesa: $rmins
+                        $varWidBid=$Sess->getvarValue("$"."_dtc_recallPoint");
+                        if (!empty($varWidBid)){
+                            $rwid=substr($varWidBid,0,strpos($varWidBid,":"));
+                            $rbid=str_replace($rwid.":","",$varWidBid);
+                        }
+                        $rwid=substr_replace(substr_replace($rwid,"_",strlen($rwid)-1,1),"_",0,2);
+                        $WofoId=General::demouf($rwid);
+                        //$WofoId=General::demouf(str_replace(["[","]"],["_","_"],$rwid));
+                        if ($Handl->createTimedCall($WofoId,$Sess->getId(),$rbid,"",$rmins))
+                            $Sess->setDurationHours(round($rmins/60,2)+2);
+                        break;
+                    case "notify":
+                        // V2.2 - Notifications
+                        switch ($innerParams[0]){
+                            case "A":
+                                // alert
+                                $Sess->setNotify(1,"",$innerParams[2]);
+                                break;
+                            case "AR":
+                                // add Row to Chat
+                                $Sess->setNotify(4,"",$innerParams[2]);
+                                break;
+                            case "CI":
+                                // counter-init
+                                $Sess->setNotify(2,$innerParams[1],$innerParams[2]);
+                                break;
+                            case "CV":
+                                // counter value update
+                                $Sess->setNotify(3,$innerParams[1],$innerParams[2]);
+                                break;
+                            case "NC":
+                                // Notify Callback
+                                $cbBid="";
+                                $cbWid=$WID;
+                                if (substr($innerParams[2],0,1)=="["){
+                                    // è un wid o un wid/bid
+                                    $prm=explode(":",$innerParams[2]);
+                                    if (count($prm)>1)
+                                        $cbBid=$prm[1];
+                                    $cbWid=$prm[0];
+                                    if ($cbBid==""){
+                                        $aWid= HandlerNC::WID2Wofoid($cbWid);
+                                        $res=$Handl->getFlussuNameFirstBlock($aWid);
+                                        $cbBid=$res[0]["start_blk"];
+                                    }
+                                } elseif (substr($innerParams[2],0,4)=="exit"){
+                                    //è un BID identificato dall'uscita # indicata
+                                    // caricare il BID e selezionare il BID dell'exit prescelto.
+                                    $prm=explode("(",$innerParams[2]);
+                                    $prm=intval(str_replace(")","",$prm[1]));
+                                    $cbBid=$block["exits"][$prm]["exit_dir"];
+                                    //$cbBid=$block->exit[0];
+                                } else {
+                                    // è un BID
+                                    $cbBid=$innerParams[2];
+                                }
+
+                                $cbWid=General::curtatone(substr(str_replace("-","",$Sess->getId()),5,5),$cbWid);
+                                $cbBid=General::curtatone(substr(str_replace("-","",$Sess->getId()),5,5),$cbBid);
+
+                                $Sess->setNotify(5,$cbWid,$cbBid);
+                                break;
+                            default:
+                                // notify
+                                try{
+                                    $Sess->setNotify(0,$innerParams[1],$innerParams[2]);
+                                } catch (\Throwable $e){
+                                    // do nothing
+                                }
+                                break;
+                        }
+                        break;
+                    case "addToGoogleSheet":
+                        // V4.5 - Add a row (eventually a title row and/or formulas) to a Google Sheet
+                        $Sess->statusCallExt(true);
+                        $gSheet=new \Flussu\Controllers\GoogleDriveController();
+                        $titles=[];
+                        $newformula=[];
+                        $newrow=[];
+                        $fileId=$innerParams[0];
+                        if ($innerParams[1]=="")
+                            $sheetName="Flussu";
+                        else
+                            $sheetName=$innerParams[1];
+                        $newrow=$innerParams[2];
+                        if (count($innerParams)>3 && is_array($innerParams[3]))
+                            $newformula=$innerParams[3];
+                        if (count($innerParams)>4 && is_array($innerParams[4]))
+                            $titles=$innerParams[4];
+                        if (is_array($titles) && count($titles)>0){
+                            $Sess->recLog("Adding titles to Google Sheet: ".json_encode($titles));
+                            $reslt=$gSheet->spreadsheetLoadTitles($fileId,$titles,$sheetName);
+                        }
+                        $gSheet->spreadsheetLoadValues(
+                            $fileId, 
+                            $newrow, 
+                            $sheetName,      
+                            $newformula 
+                        );
+                        $Sess->statusCallExt(false);
+                        break;
+                    default:
+                        if (substr($innerCmd,0,1)=="$"){
+                            $vval="";
+                            if (is_array($innerParams) && count($innerParams)>0)
+                                $vval=$innerParams[0];
+                            if ($vval===true)
+                                $vval="true";
+                            else if ($vval===false)
+                                $vval="false";
+                            $Sess->assignVars($innerCmd,$vval);
+                        } else 
+                            $Sess->recLog("Command $innerCmd unknown!");
+                        break;
+>>>>>>> fd41324c3f311543030ec59ea6342e36bf0b907e
                 }
             }
         }

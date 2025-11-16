@@ -19,6 +19,8 @@ enum Platform: int {
     case GEMINI = 2;        // Google Gemini
     case DEEPSEEK = 3;      // DeepSeek AI
     case CLAUDE = 4;        // Anthropic Claude
-    case MOONSHOT = 5;          // Moonshot-Kimi AI
+    case MOONSHOT = 5;      // Moonshot-Kimi AI
+    case KIMI = 6;          // Moonshot-Kimi AI
+    case QWEN = 7;          // Qwen AI
     case HUGGINGFACE = 9;   // HuggingFace models
 }
