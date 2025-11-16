@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Flussu API Interface
  * CREATED DATE:     25.01.2021 - Aldus - Flussu v2.0
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     5.0.20251117
+ * UPDATES DATE:     17.11:2025 
  * -------------------------------------------------------*/
 
  /**
@@ -38,13 +38,13 @@
  * are handled correctly and efficiently.
  * 
  * @package App\Flussu\Statistics
- * @version 4.0.0
+ * @version 5.0.20251117
  * @license http://www.apache.org/licenses/LICENSE-2.0 Apache License 2.0
  */
 
 namespace Flussu\Api\V40;
 
-use Flussu\Flussuserver\Request;
+//use Flussu\Flussuserver\Request;
 
 use Flussu\General;
 use Flussu\Persons\User;
@@ -52,7 +52,7 @@ use Flussu\Flussuserver\NC\HandlerNC;
 use Flussu\Flussuserver\Statistic;
 
 class Stat {
-    public function extCall(Request $Req, $rawdata=null){
+    public function extCall(/*Request $Req,*/ $rawdata=null){
         //$w3e=new Wofo3Env();
         $theUser=new User();
         $authKey=General::getGetOrPost("auk");
@@ -116,7 +116,7 @@ class Stat {
         $res=["error"=>"unhautorized"];
         die(json_encode($res));
     }
-    public function exec(Request $Req, User $theUser, $funcNum, $file_rawdata=null){
+    public function exec(/*Request $Req,*/ User $theUser, $funcNum, $file_rawdata=null){
         $wSess=null;
         $terms=null;
         //$w3e=new Wofo3Env();

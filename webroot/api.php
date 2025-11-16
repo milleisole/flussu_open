@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.1 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
  *      to handle all the requests to this server. 
  * 
  * --------------------------------------------------------------------
- * VERSION REL.:     4.5.20250929
- * UPDATES DATE:     29.09.2025
+ * VERSION REL.:     5.0.20251117
+ * UPDATES DATE:     17.09.2025
  * --------------------------------------------------------------------*/
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -33,11 +33,7 @@ use Flussu\General;
 use Flussu\Config;
 
 // VERSION
-$FlussuVersion="4.5.20250929";
-$FVP=explode(".",$FlussuVersion);
-$v=$FVP[0];
-$m=$FVP[1];
-$r=$FVP[2];
+$FlussuVersion="0.0.unknown!";
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
@@ -56,6 +52,22 @@ if (!function_exists('config')) {
         return Config::init()->get($key,$default);
     }
 }
+if (!function_exists('flussuVersion')) {
+    /**
+     * Ritorna la versione corrente di Flussu Open Server
+     *
+     * @return string
+     */
+    function flussuVersion()
+    {
+        return config("flussu.version").".".config("flussu.release");
+    }
+}
+
+$FVP=explode(".",flussuVersion());
+$v=$FVP[0];
+$m=$FVP[1];
+$r=$FVP[2];
 
 if (isset($argv) && is_array($argv)){
     echo ("Flussu Server v".$_ENV['major'].".".$_ENV['minor'].".".$_ENV['release']."\n");
@@ -176,7 +188,7 @@ if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"]
                 break;
         }
         $fc=new FlussuController();
-        $fc->apiCall($req,$apiPage);
+        $fc->apiCall($apiPage);
     }
 }
 

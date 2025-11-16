@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v.5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,8 +31,8 @@
  * FOR ALDUS BEAN:   Databroker.bean
  * -------------------------------------------------------*
  * CREATED DATE:     (04.11.2020) 30.11:2023 - Aldus
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     5.0.0.20251103
+ * UPDATES DATE:     11.03:2025 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * -------------------------------------------------------*/
@@ -147,7 +147,7 @@ class HandlerSessNC extends HandlerBaseNC {
     }
 
 
-    public function closeSession($theMemSeStat,$arVars,$stat,$history,$workLogs,$subWid,$usessid){
+    public function closeSession($theMemSeStat,$arVars,$dirtyVars,$stat,$history,$workLogs,$subWid,$usessid){
         $transExec= array();
         $dtarr=[];
         if (isset($theMemSeStat->workflowId)){
@@ -175,7 +175,32 @@ class HandlerSessNC extends HandlerBaseNC {
             }
         }
         if (isset($theMemSeStat)){
-            $SQL="UPDATE t205_work_var set c205_elm_val=:val where c205_sess_id=:sid and c205_elm_id='allValues'";
+            if (!empty($dirtyVars)) {
+                $SQL = "INSERT INTO t205_work_var 
+                        (c205_sess_id, c205_elm_id, c205_elm_val, 
+                        c205_modified, c205_data_size)
+                        VALUES (?, ?, ?, NOW(), ?)
+                        ON DUPLICATE KEY UPDATE
+                        c205_elm_val = VALUES(c205_elm_val),
+                        c205_modified = NOW(),
+                        c205_data_size = VALUES(c205_data_size)";
+                
+                foreach ($dirtyVars as $varName => $varData) {
+                    $serialized = json_encode($varData);
+                    $size = strlen($serialized);
+                    
+                    $this->execSql($SQL, [
+                        $usessid,
+                        $varName,
+                        $serialized,
+                        $size
+                    ]);
+                }
+            }
+            
+            // LEGACY: Full snapshot (backward compatibility - rimuovi dopo test)
+            $SQL="UPDATE t205_work_var set c205_elm_val=:val 
+                where c205_sess_id=:sid and c205_elm_id='allValues'";
             $this->execMultSql(
                 $SQL,
                 array(["sid"=>$usessid,"val"=>json_encode($arVars)])

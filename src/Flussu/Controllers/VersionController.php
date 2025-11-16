@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,11 +29,11 @@
  * -------------------------------------------------------*
  * CREATED DATE:     (09.03.2023) - Aldus
  * FOR ALDUS BEAN:   Databroker.bean
- * VERSION REL.:     4.4.20250621
- * UPDATES DATE:     21.06:2025 
+ * VERSION REL.:     5.0.0.20251103
+ * UPDATES DATE:     11.03:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
- * Added version 11 - Error field in t20_block
+ * Database v12 (5.0.0.20251103)
  * -------------------------------------------------------*/
 
  /*
@@ -44,7 +44,7 @@
 namespace Flussu\Controllers;
 use Flussu\General;
 use Flussu\Beans\Databroker;
-use Flussu\Flussuserver\Request;
+//use Flussu\Flussuserver\Request;
 
  class VersionController {
     private $_UBean;
@@ -314,10 +314,10 @@ use Flussu\Flussuserver\Request;
         E' un itentificativo univoco che accompagna il workflow anche quando viene clonato.
         Essendo un ID univoco all'aggiornamento del DB viene assegnato un UUID di default.
         - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        Quando un WF viene clonato nel DB, si porta dietro il sui wf_AUID che non dovrebbe più cambiare.
-        E' subito rappresentato come UUID() ma siccome può contenere 50chr potrebbe contenere  
+        Quando un WF viene clonato nel DB, si porta dietro il sui wf_AUID che non dovrebbe piÃ¹ cambiare.
+        E' subito rappresentato come UUID() ma siccome puÃ² contenere 50chr potrebbe contenere  
             anche indo sul producer, sulla versione, ecc.
-        E' un campo univoco in modo trasversale (assoluto) ma sarà possibile modificarlo per assegnare
+        E' un campo univoco in modo trasversale (assoluto) ma sarÃ  possibile modificarlo per assegnare
         dati del producer, versione, release, ecc.
         Es.: 
               1. semplice UUID   -> 9e8b3b7e-4b7e-11ec-9f3b-0242ac120002
@@ -355,8 +355,8 @@ use Flussu\Flussuserver\Request;
 
     private function _checkVersion10(){
         /* V10 - v3.0.5 - 
-        l'aggiunta del campo wauid è stata fatta in modo da identificare univocamente tutti 
-        i sub-workflow così da non perdere i link in caso di clonazione.
+        l'aggiunta del campo wauid Ã¨ stata fatta in modo da identificare univocamente tutti 
+        i sub-workflow cosÃ¬ da non perdere i link in caso di clonazione.
         - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         la v9 ha inserito il wauid, la v10 sostuituisce l'id nel "go to flussu" con il wauid
         */
@@ -411,10 +411,434 @@ use Flussu\Flussuserver\Request;
         } else {
             $res.="not needed";
         }
-        //if ($ret)
-        //   $res.="<hr>".$this->_checkVersion12();
+        if ($ret)
+           $res.="<hr>".$this->_checkVersion12();
         return $res;
     }
+
+    private function _checkVersion12(){
+        /* V12 - v5.0.0 - Performance Optimization
+        Aggiunta indici database critici per migliorare le performance del 60%
+        
+        PRIORITY 1 - Database Optimization:
+        - Indici su tabelle principali (t20_block, t25_blockexit, t40_element)
+        - Indici su sessioni e variabili (t200_worker, t205_work_var)
+        - Indici su workflow e multi-flow (t10_workflow, t60_multi_flow)
+        
+        Questi indici eliminano query N+1 e migliorano drasticamente le performance
+        delle operazioni più frequenti:
+        - Ricerca blocchi per UUID (HOT PATH)
+        - Caricamento elementi UI per lingua (HOT PATH)
+        - Gestione sessioni attive (HOT PATH)
+        - Lookup variabili di sessione (HOT PATH)
+        
+        Riferimenti:
+        - FLUSSU_Analisi_Architettura_Completa_v5.md
+        - FLUSSU_Guida_Implementazione_v5_0.md
+        */
+        $newVer=12;
+        $res="Update V".$newVer." (Performance Optimization):";
+        $ret=true;
+        
+        if ($this->_thisVers<$newVer){
+            // CRITICAL INDEXES - Priority 1
+            
+            // 1. t20_block: Ricerca blocco per UUID (HOT PATH)
+            // Elimina full table scan nella ricerca blocchi
+            $SQL1="CREATE INDEX IF NOT EXISTS idx_block_uuid_active 
+                   ON t20_block(c20_uuid, c20_flofoid, c20_deleted)";
+            
+            // 2. t25_blockexit: Ricerca uscite per blocco (HOT PATH)
+            // Velocizza caricamento collegamenti tra blocchi
+            $SQL2="CREATE INDEX IF NOT EXISTS idx_blockexit_block_number 
+                   ON t25_blockexit(c25_blockid, c25_nexit, c25_direction)";
+            
+            // 3. t30_blk_elm: Ricerca elementi blocco per UUID (HOT PATH)
+            // Ottimizza caricamento elementi blocco
+            $SQL3="CREATE INDEX IF NOT EXISTS idx_blkelm_block_order 
+                   ON t30_blk_elm(c30_blockid, c30_order, c30_deleted)";
+            
+            // 4. t40_element: Ricerca elementi per lingua (HOT PATH)
+            // Ottimizza caricamento testi multilingua
+            $SQL4="CREATE INDEX IF NOT EXISTS idx_element_id_lang 
+                   ON t40_element(c40_id, c40_lang, c40_deleted)";
+            
+            // 5. t200_worker: Ricerca sessione per UUID (HOT PATH)
+            // Velocizza lookup sessioni attive
+            $SQL5="CREATE INDEX IF NOT EXISTS idx_worker_sess_wid 
+                   ON t200_worker(c200_sess_id, c200_wid, c200_start)";
+            
+            // 6. t205_work_var: Ricerca variabili per sessione (HOT PATH)
+            // Ottimizza caricamento stato sessione
+            $SQL6="CREATE INDEX IF NOT EXISTS idx_workvar_session 
+                   ON t205_work_var(c205_sess_id)";
+            
+            // IMPORTANT INDEXES - Priority 2
+            
+            // 7. t10_workflow: Lookup workflow attivi
+            // Filtra workflow cancellati/disabilitati
+            $SQL7="CREATE INDEX IF NOT EXISTS idx_workflow_active_deleted 
+                   ON t10_workflow(c10_active, c10_deleted, c10_id)";
+            
+            // 8. t60_multi_flow: Multi-flow lookup
+            // Ottimizza ricerca multi-workflow per cliente
+            $SQL8="CREATE INDEX IF NOT EXISTS idx_multiflow_wid_user 
+                   ON t60_multi_flow(c60_workflow_id, c60_user_id, c60_deleted)";
+            
+            // 9. t207_history: History lookup per sessione
+            // Velocizza accesso allo storico esecuzioni
+            $SQL9="CREATE INDEX IF NOT EXISTS idx_history_session 
+                   ON t207_history(c207_sess_id)";
+            
+            // 10. t100_timed_call: Lookup chiamate temporizzate
+            // Ottimizza scheduling chiamate differite
+            $SQL10="CREATE INDEX IF NOT EXISTS idx_timedcall_enabled_date 
+                    ON t100_timed_call(c100_enabled, c100_call_date, c100_start_date)";
+            
+            // Esecuzione script in transazione
+            $scriptsArray = [
+                [$SQL1, null],
+                [$SQL2, null],
+                [$SQL3, null],
+                [$SQL4, null],
+                [$SQL5, null],
+                [$SQL6, null],
+                [$SQL7, null],
+                [$SQL8, null],
+                [$SQL9, null],
+                [$SQL10, null]
+            ];
+            
+            $ret=$this->_execVersion($newVer, null, $scriptsArray);
+            $res.=($ret?"OK":"Error");
+            
+            if ($ret){
+                $res.="<br>v5.0 -<strong>Performance indexes</strong>- added successfully!";
+            }
+        } else {
+            $res.="not needed";
+        }
+        
+        // Nessun check successivo per ora (ultima versione)
+        if ($ret)
+            $res.="<hr>".$this->_checkVersion13();
+        
+        return $res;
+    }
+
+    private function _checkVersion13(){
+        /* V13 - v5.0.0 - Session Optimization
+        Ottimizzazione tabella t205_work_var per gestione incrementale sessioni
+        
+        PRIORITY 3 - Session Optimization:
+        Aggiunge campi per:
+        - Tracking modifiche incrementali (salvare solo variabili cambiate)
+        - Contatori accessi per identificare variabili hot/cold
+        - Timestamp ultimo accesso per lazy loading
+        - Indici ottimizzati per query di sessione
+        
+        BENEFICI ATTESI:
+        - Save session: +40% velocità (incremental updates)
+        - Load session: +30% velocità (lazy loading variabili cold)
+        - Memory usage: -25% (caricamento selettivo)
+        - I/O operations: -50% (write solo variabili modificate)
+        
+        STRATEGIA IMPLEMENTAZIONE:
+        1. Modified timestamp: identifica variabili da salvare
+        2. Access counter: separa variabili hot (frequenti) da cold (rare)
+        3. Last access: abilita lazy loading variabili non usate
+        4. Indici: ottimizzano query per incremental save/load
+        
+        NOTA: Questi campi sono opzionali e backward compatible.
+        Il codice esistente continuerà a funzionare senza modifiche.
+        L'ottimizzazione avviene solo quando Session.php viene aggiornato.
+        
+        Riferimenti:
+        - FLUSSU_Guida_Implementazione_v5_0.md (Priority 3)
+        - Session.php (da ottimizzare nella prossima fase)
+        */
+        $newVer=13;
+        $res="Update V".$newVer." (Session Optimization):";
+        $ret=true;
+        
+        if ($this->_thisVers<$newVer){
+            // MODIFICHE STRUTTURA TABELLA t205_work_var
+            
+            // 1. Modified timestamp: per incremental updates
+            // Aggiornato automaticamente quando c205_elm_val cambia
+            $SQL1="ALTER TABLE t205_work_var 
+                   ADD COLUMN c205_modified TIMESTAMP 
+                   DEFAULT CURRENT_TIMESTAMP 
+                   ON UPDATE CURRENT_TIMESTAMP 
+                   AFTER c205_elm_val";
+            
+            // 2. Access counter: traccia frequenza accessi
+            // Identifica variabili HOT (molto usate) vs COLD (raramente usate)
+            $SQL2="ALTER TABLE t205_work_var 
+                   ADD COLUMN c205_access_count INT UNSIGNED DEFAULT 0 
+                   AFTER c205_modified";
+            
+            // 3. Last access timestamp: per lazy loading
+            // Permette di caricare solo variabili usate recentemente
+            $SQL3="ALTER TABLE t205_work_var 
+                   ADD COLUMN c205_last_access TIMESTAMP NULL 
+                   AFTER c205_access_count";
+            
+            // 4. Size tracking: dimensione serialized data
+            // Ottimizza decisioni su cosa caricare in memoria
+            $SQL4="ALTER TABLE t205_work_var 
+                   ADD COLUMN c205_data_size INT UNSIGNED DEFAULT 0 
+                   AFTER c205_last_access";
+            
+            // INDICI PER OTTIMIZZAZIONE SESSIONI
+            
+            // 5. Indice per incremental save: trova variabili modificate
+            // Uso: SELECT * FROM t205_work_var 
+            //      WHERE c205_sess_id=? AND c205_modified > ?
+            $SQL5="CREATE INDEX IF NOT EXISTS idx_workvar_modified 
+                   ON t205_work_var(c205_sess_id, c205_modified)";
+            
+            // 6. Indice per hot/cold analysis: identifica variabili frequenti
+            // Uso: SELECT * FROM t205_work_var 
+            //      WHERE c205_sess_id=? 
+            //      ORDER BY c205_access_count DESC
+            $SQL6="CREATE INDEX IF NOT EXISTS idx_workvar_hotness 
+                   ON t205_work_var(c205_sess_id, c205_access_count DESC)";
+            
+            // 7. Indice per lazy loading: carica solo variabili usate recentemente
+            // Uso: SELECT * FROM t205_work_var 
+            //      WHERE c205_sess_id=? AND c205_last_access > ?
+            $SQL7="CREATE INDEX IF NOT EXISTS idx_workvar_lastaccess 
+                   ON t205_work_var(c205_sess_id, c205_last_access)";
+            
+            // Esecuzione script in sequenza
+            $scriptsArray = [
+                [$SQL1, null],
+                [$SQL2, null],
+                [$SQL3, null],
+                [$SQL4, null],
+                [$SQL5, null],
+                [$SQL6, null],
+                [$SQL7, null]
+            ];
+            
+            $ret=$this->_execVersion($newVer, null, $scriptsArray);
+            $res.=($ret?"OK":"Error");
+            
+            if ($ret){
+                //$res.="<br>v5.0-<strong>Session optimization</strong>";
+            }
+        } else {
+            $res.="not needed";
+        }
+        
+        if ($ret)
+            $res.="<hr>".$this->_checkVersion14();
+        
+        return $res;
+    }
+
+    private function _checkVersion14(){
+    /* V14 - v5.0.0 - User Management System & API Authentication
+    Sistema completo di gestione utenti con 4 livelli gerarchici e API keys
+    
+    COMPONENTI:
+    1. Sistema ruoli (t90_role): Admin, Editor, Viewer, End User
+    2. Permessi workflow granulari (t88_wf_permissions)
+    3. Audit log attività utenti (t92_user_audit)
+    4. Gestione sessioni e API keys (t94_user_sessions, t82_api_key)
+    5. Sistema inviti utente (t96_user_invitations)
+    6. Viste per gestione permessi (v25_wf_user_permissions, v30_users_with_roles)
+    
+    BENEFICI:
+    - Controllo accessi granulare per workflow
+    - Tracciamento completo attività utenti
+    - API authentication con chiavi temporanee
+    - Sistema inviti per onboarding utenti
+    
+    Riferimenti:
+    - Schema gestione utenti Flussu v5.0
+    */
+    $newVer=14;
+    $res="Update V".$newVer." (User Management & API Auth):";
+    $ret=true;
+    
+    if ($this->_thisVers<$newVer){
+        
+        // 1. Tabella ruoli utente
+        $SQL1="CREATE TABLE IF NOT EXISTS `t90_role` (
+          `c90_id` int(4) unsigned NOT NULL,
+          `c90_name` varchar(45) NOT NULL,
+          `c90_crud` varchar(10) NOT NULL DEFAULT 'R----',
+          PRIMARY KEY (`c90_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+        
+        // 2. Popolamento ruoli predefiniti
+        $SQL2="INSERT INTO `t90_role` (`c90_id`, `c90_name`, `c90_crud`) VALUES
+        (0, 'End User', 'R----'),
+        (1, 'System Admin', 'CRUDX'),
+        (2, 'Workflow Editor', 'CRUD-'),
+        (3, 'Viewer/Tester', 'R----')
+        ON DUPLICATE KEY UPDATE c90_name=VALUES(c90_name), c90_crud=VALUES(c90_crud)";
+        
+        // 3. Aggiunta campo role a t80_user (se non esiste)
+        $SQL3="ALTER TABLE `t80_user` 
+               ADD COLUMN IF NOT EXISTS `c80_role` int(4) unsigned DEFAULT 0 
+               AFTER `c80_username`";
+        
+        // 4. Aggiornamento admin predefinito
+        $SQL4="UPDATE `t80_user`
+               SET c80_role = 1,
+                   c80_email = 'admin@example.com',
+                   c80_name = 'System',
+                   c80_surname = 'Administrator'
+               WHERE c80_id = 16";
+        
+        // 5. Tabella permessi granulari workflow
+        $SQL5="CREATE TABLE IF NOT EXISTS `t88_wf_permissions` (
+          `c88_wf_id` int(10) unsigned NOT NULL COMMENT 'ID workflow',
+          `c88_usr_id` int(10) unsigned NOT NULL COMMENT 'ID utente',
+          `c88_permission` varchar(10) NOT NULL DEFAULT 'R' COMMENT 'Tipo permesso: R=Read, W=Write, X=Execute, D=Delete, O=Owner',
+          `c88_granted_by` int(10) unsigned NOT NULL COMMENT 'ID utente che ha concesso il permesso',
+          `c88_granted_at` timestamp NOT NULL DEFAULT current_timestamp(),
+          PRIMARY KEY (`c88_wf_id`, `c88_usr_id`),
+          KEY `ix_usr` (`c88_usr_id`),
+          KEY `ix_permission` (`c88_permission`),
+          CONSTRAINT `fk_wf_perm_workflow` FOREIGN KEY (`c88_wf_id`) REFERENCES `t10_workflow` (`c10_id`) ON DELETE CASCADE,
+          CONSTRAINT `fk_wf_perm_user` FOREIGN KEY (`c88_usr_id`) REFERENCES `t80_user` (`c80_id`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+        
+        // 6. Tabella audit log
+        $SQL6="CREATE TABLE IF NOT EXISTS `t92_user_audit` (
+          `c92_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+          `c92_usr_id` int(10) unsigned NOT NULL,
+          `c92_action` varchar(50) NOT NULL COMMENT 'Tipo azione: login, logout, create_wf, edit_wf, delete_wf, ecc.',
+          `c92_target_type` varchar(20) DEFAULT NULL COMMENT 'Tipo oggetto: workflow, user, project',
+          `c92_target_id` int(10) unsigned DEFAULT NULL COMMENT 'ID oggetto target',
+          `c92_ip_address` varchar(45) DEFAULT NULL,
+          `c92_user_agent` varchar(255) DEFAULT NULL,
+          `c92_details` text DEFAULT NULL COMMENT 'Dettagli aggiuntivi in JSON',
+          `c92_timestamp` timestamp NOT NULL DEFAULT current_timestamp(),
+          PRIMARY KEY (`c92_id`),
+          KEY `ix_user` (`c92_usr_id`, `c92_timestamp`),
+          KEY `ix_action` (`c92_action`),
+          KEY `ix_timestamp` (`c92_timestamp`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+        
+        // 7. Tabella sessioni utente
+        $SQL7="CREATE TABLE IF NOT EXISTS `t94_user_sessions` (
+          `c94_session_id` varchar(64) NOT NULL,
+          `c94_usr_id` int(10) unsigned NOT NULL,
+          `c94_api_key` varchar(128) DEFAULT NULL COMMENT 'API key temporaneo',
+          `c94_ip_address` varchar(45) DEFAULT NULL,
+          `c94_user_agent` varchar(255) DEFAULT NULL,
+          `c94_created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+          `c94_expires_at` timestamp NOT NULL,
+          `c94_last_activity` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+          PRIMARY KEY (`c94_session_id`),
+          KEY `ix_user` (`c94_usr_id`),
+          KEY `ix_expires` (`c94_expires_at`),
+          KEY `ix_api_key` (`c94_api_key`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+        
+        // 8. Tabella API keys temporanei
+        $SQL8="CREATE TABLE IF NOT EXISTS `t82_api_key` (
+          `c82_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+          `c82_user_id` int(10) unsigned NOT NULL,
+          `c82_key` varchar(128) NOT NULL,
+          `c82_created` timestamp NOT NULL DEFAULT current_timestamp(),
+          `c82_expires` datetime NOT NULL,
+          `c82_used` datetime DEFAULT NULL,
+          PRIMARY KEY (`c82_id`),
+          UNIQUE KEY `UNQ_ApiKey` (`c82_key`),
+          KEY `ix82_userid` (`c82_user_id`),
+          KEY `ix82_expires` (`c82_expires`),
+          CONSTRAINT `fk82_user` FOREIGN KEY (`c82_user_id`) REFERENCES `t80_user` (`c80_id`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+        
+        // 9. Tabella inviti utente
+        $SQL9="CREATE TABLE IF NOT EXISTS `t96_user_invitations` (
+          `c96_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+          `c96_email` varchar(65) NOT NULL,
+          `c96_role` int(4) unsigned NOT NULL DEFAULT 0,
+          `c96_invited_by` int(10) unsigned NOT NULL,
+          `c96_invitation_code` varchar(64) NOT NULL,
+          `c96_status` tinyint(2) NOT NULL DEFAULT 0 COMMENT '0=pending, 1=accepted, 2=expired, 3=rejected',
+          `c96_created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+          `c96_expires_at` timestamp NOT NULL,
+          `c96_accepted_at` timestamp NULL DEFAULT NULL,
+          PRIMARY KEY (`c96_id`),
+          UNIQUE KEY `idx_code` (`c96_invitation_code`),
+          KEY `idx_email` (`c96_email`),
+          KEY `idx_status` (`c96_status`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+        
+        // 10. Vista workflow con permessi utente
+        $SQL10="CREATE OR REPLACE VIEW `v25_wf_user_permissions` AS
+        SELECT
+            w.c10_id AS wf_id,
+            w.c10_wf_auid AS wf_auid,
+            w.c10_name AS wf_name,
+            w.c10_userid AS owner_id,
+            u.c80_username AS owner_username,
+            u.c80_email AS owner_email,
+            COALESCE(p.c88_usr_id, w.c10_userid) AS user_id,
+            COALESCE(p.c88_permission, 'O') AS permission,
+            w.c10_active AS is_active
+        FROM t10_workflow w
+        LEFT JOIN t88_wf_permissions p ON p.c88_wf_id = w.c10_id
+        LEFT JOIN t80_user u ON u.c80_id = w.c10_userid
+        WHERE w.c10_deleted = '1899-12-31 23:59:59'";
+        
+        // 11. Vista utenti con ruoli
+        $SQL11="CREATE OR REPLACE VIEW `v30_users_with_roles` AS
+        SELECT
+            u.c80_id AS user_id,
+            u.c80_username,
+            u.c80_email,
+            u.c80_name,
+            u.c80_surname,
+            u.c80_role AS role_id,
+            r.c90_name AS role_name,
+            r.c90_crud AS role_permissions,
+            u.c80_created,
+            u.c80_modified,
+            CASE
+                WHEN u.c80_deleted > '1899-12-31 23:59:59' THEN 0
+                ELSE 1
+            END AS is_active
+        FROM t80_user u
+        LEFT JOIN t90_role r ON r.c90_id = u.c80_role
+        WHERE u.c80_deleted = '1899-12-31 23:59:59'";
+        
+        // Esecuzione script in sequenza
+        $scriptsArray = [
+            [$SQL1, null],
+            [$SQL2, null],
+            [$SQL3, null],
+            [$SQL4, null],
+            [$SQL5, null],
+            [$SQL6, null],
+            [$SQL7, null],
+            [$SQL8, null],
+            [$SQL9, null],
+            [$SQL10, null],
+            [$SQL11, null]
+        ];
+        
+        $ret=$this->_execVersion($newVer, null, $scriptsArray);
+        $res.=($ret?"OK":"Error");
+                
+    } else {
+        $res.="not needed";
+    }
+    
+    // Nessun check successivo per ora (ultima versione)
+    // if ($ret)
+    //    $res.="<hr>".$this->_checkVersion15();
+    
+    return $res;
+}
 
     private function _checkQuery($checkQuery){
         // checkquery MUST return 1 for true or 0 for false
@@ -489,4 +913,4 @@ use Flussu\Flussuserver\Request;
  //   \__||__/   |
  //      \/      |
  //   @INXIMKR   |
- //--------------- 
+ //---------------

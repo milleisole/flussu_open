@@ -48,11 +48,12 @@ class User {
     public function getSurname()     {return $this->mSurname;}
     public function getChangePassDt(){return $this->mPsChgDt;}
 
+    /*
     public function hasARule(){
         $UsrRul=new UsrRule(General::$DEBUG);
         $UsrRul->selectUser($this->mId);
         return $UsrRul->getc15_ruleid()>0;
-    }
+    }*/
     public function hasPassword(){
         return $this->_UBean->getc80_password()!="";
     }

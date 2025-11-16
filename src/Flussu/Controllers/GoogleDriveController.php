@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
  * limitations under the License.
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Google Drive Controller
- * CREATED DATE:     01.01.2025 - EXPERIMENTAL - TBD
- * VERSION REL.:     4.5.20250625
- * UPDATES DATE:     29.07:2025
+ * CREATED DATE:     11.01.2025 - EXPERIMENTAL - TBD
+ * VERSION REL.:     5.0.20251117
+ * UPDATES DATE:     17.11:2025
  * -------------------------------------------------------*/
 
 namespace Flussu\Controllers;
