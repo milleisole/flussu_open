@@ -112,30 +112,9 @@ class User {
             return false;
         }
 
-        try {
-            // Generate a secure random key
-            $randomBytes = random_bytes(64);
-            $apiKey = bin2hex($randomBytes);
-
-            // Calculate expiration datetime
-            $expiresDateTime = date('Y-m-d H:i:s', strtotime("+{$minutesValid} minutes"));
-
-            // Insert into database using Bean connection
-            $sql = "INSERT INTO t82_api_key (c82_user_id, c82_key, c82_expires) VALUES (?, ?, ?)";
-            $stmt = $this->_UBean->connect()->prepare($sql);
-
-            if(!$stmt->execute(array($this->mId, $apiKey, $expiresDateTime))){
-                General::addRowLog("[Gen API Key] DB ERROR: ".implode($stmt->errorInfo()));
-                return false;
-            }
-
-            General::addRowLog("[Gen API Key] Success - Expires: {$expiresDateTime}");
-            return $apiKey;
-
-        } catch(\Exception $e){
-            General::addRowLog("[Gen API Key] Exception: ".$e->getMessage());
-            return false;
-        }
+        // Use HandlerUserNC for API key generation
+        $handler = new \Flussu\Flussuserver\NC\HandlerUserNC();
+        return $handler->generateApiKey($this->mId, $minutesValid);
     }
 
     /**
@@ -147,63 +126,37 @@ class User {
         General::addRowLog("[Auth from API Key]");
         $this->clear();
 
-        if (empty($theKey) || strlen($theKey) != 128){
-            General::addRowLog("[Auth from API Key] Invalid key format");
+        if (empty($theKey)){
+            General::addRowLog("[Auth from API Key] Empty key");
             return false;
         }
 
-        try {
-            // Find the API key in database
-            $sql = "SELECT c82_user_id, c82_expires, c82_used FROM t82_api_key WHERE c82_key = ? LIMIT 1";
-            $stmt = $this->_UBean->connect()->prepare($sql);
+        // Use HandlerUserNC for API key validation
+        $handler = new \Flussu\Flussuserver\NC\HandlerUserNC();
+        $keyData = $handler->validateApiKey($theKey);
 
-            if(!$stmt->execute(array($theKey))){
-                General::addRowLog("[Auth from API Key] DB ERROR: ".implode($stmt->errorInfo()));
-                return false;
-            }
+        if ($keyData === false){
+            return false;
+        }
 
-            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        // Mark key as used
+        if (!$handler->markApiKeyAsUsed($keyData['id'])){
+            General::addRowLog("[Auth from API Key] Failed to mark key as used");
+            return false;
+        }
 
-            if (!$row){
-                General::addRowLog("[Auth from API Key] Key not found");
-                return false;
-            }
-
-            // Check if key has already been used
-            if (!is_null($row['c82_used'])){
-                General::addRowLog("[Auth from API Key] Key already used");
-                return false;
-            }
-
-            // Check if key has expired
-            $now = date('Y-m-d H:i:s');
-            if ($now > $row['c82_expires']){
-                General::addRowLog("[Auth from API Key] Key expired");
-                return false;
-            }
-
-            // Mark key as used
-            $sqlUpdate = "UPDATE t82_api_key SET c82_used = ? WHERE c82_key = ?";
-            $stmtUpdate = $this->_UBean->connect()->prepare($sqlUpdate);
-            $stmtUpdate->execute(array($now, $theKey));
-
-            // Load the user
-            $userId = (int)$row['c82_user_id'];
-            if ($this->load($userId)){
-                if ($this->isActive()){
-                    General::addRowLog("[Auth from API Key] Success - User ID: {$userId}");
-                    return true;
-                } else {
-                    General::addRowLog("[Auth from API Key] User inactive");
-                    $this->clear();
-                }
+        // Load the user
+        $userId = (int)$keyData['user_id'];
+        if ($this->load($userId)){
+            if ($this->isActive()){
+                General::addRowLog("[Auth from API Key] Success - User ID: {$userId}");
+                return true;
             } else {
-                General::addRowLog("[Auth from API Key] Failed to load user");
+                General::addRowLog("[Auth from API Key] User inactive");
+                $this->clear();
             }
-
-        } catch(\Exception $e){
-            General::addRowLog("[Auth from API Key] Exception: ".$e->getMessage());
-            $this->clear();
+        } else {
+            General::addRowLog("[Auth from API Key] Failed to load user");
         }
 
         return false;
@@ -215,25 +168,10 @@ class User {
      */
     static function cleanExpiredApiKeys(){
         General::addRowLog("[Clean Expired API Keys]");
-        try {
-            $theBean = new \Flussu\Beans\User(General::$DEBUG);
-            $now = date('Y-m-d H:i:s');
-            $sql = "DELETE FROM t82_api_key WHERE c82_expires < ?";
-            $stmt = $theBean->connect()->prepare($sql);
 
-            if(!$stmt->execute(array($now))){
-                General::addRowLog("[Clean Expired API Keys] DB ERROR: ".implode($stmt->errorInfo()));
-                return 0;
-            }
-
-            $count = $stmt->rowCount();
-            General::addRowLog("[Clean Expired API Keys] Deleted {$count} expired keys");
-            return $count;
-
-        } catch(\Exception $e){
-            General::addRowLog("[Clean Expired API Keys] Exception: ".$e->getMessage());
-            return 0;
-        }
+        // Use HandlerUserNC for cleaning expired API keys
+        $handler = new \Flussu\Flussuserver\NC\HandlerUserNC();
+        return $handler->cleanExpiredApiKeys();
     }
 
     public function registerNew(string $userid, string $password, string $email, string $name="", string $surname=""){
