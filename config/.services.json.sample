@@ -66,6 +66,11 @@
         "auth_key":"6768-insert-your-api-key-8768",
         "model":"claude-3-5-sonnet-20241022",
         "chat-model":"claude-3-5-sonnet-20241022"
+      },
+      "qwen":{
+        "auth_key":"6768-insert-your-api-key-8768",
+        "model":"qwen-plus",
+        "chat-model":"qwen-plus"
       }
     }
   },

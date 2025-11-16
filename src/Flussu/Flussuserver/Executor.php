@@ -310,6 +310,9 @@ class Executor{
                             case 4:
                                 $ctrl=new AiChatController(Platform::CLAUDE);
                                 break;
+                            case 6:
+                                $ctrl=new AiChatController(Platform::QWEN);
+                                break;
                             default:
                                 $ctrl=new AiChatController(Platform::CHATGPT);
                                 break;
