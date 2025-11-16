@@ -3,21 +3,28 @@
  * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * User Management System - SessionManager Class
+ * --------------------------------------------------------------------*
+ * VERSION REL.:     5.0.20250216
+ * UPDATE DATE:      16.02:2025
+ *
+ * REFACTORED: Now uses HandlerUserNC for all database operations
+ * instead of direct DB access via Dbh extension
  * --------------------------------------------------------------------*/
 namespace Flussu\Users;
 
-use Flussu\Beans\Dbh;
 use Flussu\General;
-use PDO;
+use Flussu\Flussuserver\NC\HandlerUserNC;
 
-class SessionManager extends Dbh
+class SessionManager
 {
     private $debug = false;
     private $sessionLifetime = 7200; // 2 ore default
+    private $handler;
 
     public function __construct($debug = false, $sessionLifetime = null)
     {
         $this->debug = $debug;
+        $this->handler = new HandlerUserNC();
         if ($sessionLifetime) {
             $this->sessionLifetime = $sessionLifetime;
         }
@@ -28,6 +35,8 @@ class SessionManager extends Dbh
      */
     public function createSession($userId, $apiKeyLifetimeMinutes = 240)
     {
+        General::addRowLog("[SessionManager: Create session for User {$userId}]");
+
         $sessionId = $this->generateSessionId();
         $apiKey = General::getDateTimedApiKeyFromUser($userId, $apiKeyLifetimeMinutes);
         $expiresAt = date('Y-m-d H:i:s', time() + $this->sessionLifetime);
@@ -40,17 +49,14 @@ class SessionManager extends Dbh
                 VALUES (?, ?, ?, ?, ?, ?)";
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $result = $stmt->execute([
+            if ($this->handler->execSql($sql, [
                 $sessionId,
                 $userId,
                 $apiKey,
                 $ipAddress,
                 substr($userAgent, 0, 255),
                 $expiresAt
-            ]);
-
-            if ($result) {
+            ])) {
                 // Log audit
                 $audit = new AuditLogger($this->debug);
                 $audit->log($userId, 'session_created', 'session', null, [
@@ -58,6 +64,7 @@ class SessionManager extends Dbh
                     'expires_at' => $expiresAt
                 ]);
 
+                General::addRowLog("[SessionManager: Session created successfully]");
                 return [
                     'success' => true,
                     'session_id' => $sessionId,
@@ -66,6 +73,7 @@ class SessionManager extends Dbh
                 ];
             }
         } catch (\Exception $e) {
+            General::addRowLog("[SessionManager: Error creating session - ".$e->getMessage()."]");
             if ($this->debug) {
                 error_log("SessionManager createSession error: " . $e->getMessage());
             }
@@ -86,14 +94,14 @@ class SessionManager extends Dbh
                 WHERE s.c94_session_id = ? AND s.c94_expires_at > NOW()
                 AND u.c80_deleted = '1899-12-31 23:59:59'";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$sessionId]);
-        $session = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($session) {
-            // Aggiorna last_activity
-            $this->updateLastActivity($sessionId);
-            return ['valid' => true, 'session' => $session];
+        if ($this->handler->execSql($sql, [$sessionId])) {
+            $result = $this->handler->getData();
+            if (is_array($result) && count($result) > 0) {
+                $session = $result[0];
+                // Aggiorna last_activity
+                $this->updateLastActivity($sessionId);
+                return ['valid' => true, 'session' => $session];
+            }
         }
 
         return ['valid' => false, 'message' => 'Sessione non valida o scaduta'];
@@ -110,14 +118,14 @@ class SessionManager extends Dbh
                 WHERE s.c94_api_key = ? AND s.c94_expires_at > NOW()
                 AND u.c80_deleted = '1899-12-31 23:59:59'";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$apiKey]);
-        $session = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($session) {
-            // Aggiorna last_activity
-            $this->updateLastActivity($session['c94_session_id']);
-            return ['valid' => true, 'session' => $session];
+        if ($this->handler->execSql($sql, [$apiKey])) {
+            $result = $this->handler->getData();
+            if (is_array($result) && count($result) > 0) {
+                $session = $result[0];
+                // Aggiorna last_activity
+                $this->updateLastActivity($session['c94_session_id']);
+                return ['valid' => true, 'session' => $session];
+            }
         }
 
         // Fallback: usa sistema esistente di Flussu
@@ -126,12 +134,12 @@ class SessionManager extends Dbh
             $sql2 = "SELECT c80_id as c94_usr_id, c80_username, c80_email, c80_role
                      FROM t80_user
                      WHERE c80_id = ? AND c80_deleted = '1899-12-31 23:59:59'";
-            $stmt2 = $this->connect()->prepare($sql2);
-            $stmt2->execute([$userId]);
-            $user = $stmt2->fetch(PDO::FETCH_ASSOC);
 
-            if ($user) {
-                return ['valid' => true, 'session' => $user];
+            if ($this->handler->execSql($sql2, [$userId])) {
+                $result = $this->handler->getData();
+                if (is_array($result) && count($result) > 0) {
+                    return ['valid' => true, 'session' => $result[0]];
+                }
             }
         }
 
@@ -143,6 +151,8 @@ class SessionManager extends Dbh
      */
     public function closeSession($sessionId, $userId = null)
     {
+        General::addRowLog("[SessionManager: Close session {$sessionId}]");
+
         $sql = "DELETE FROM t94_user_sessions WHERE c94_session_id = ?";
         $params = [$sessionId];
 
@@ -152,23 +162,26 @@ class SessionManager extends Dbh
         }
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $result = $stmt->execute($params);
+            if ($this->handler->execSql($sql, $params)) {
+                if ($userId) {
+                    $audit = new AuditLogger($this->debug);
+                    $audit->log($userId, 'session_closed', 'session', null, [
+                        'session_id' => $sessionId
+                    ]);
+                }
 
-            if ($result && $userId) {
-                $audit = new AuditLogger($this->debug);
-                $audit->log($userId, 'session_closed', 'session', null, [
-                    'session_id' => $sessionId
-                ]);
+                General::addRowLog("[SessionManager: Session closed successfully]");
+                return ['success' => true, 'message' => 'Sessione chiusa'];
             }
-
-            return ['success' => true, 'message' => 'Sessione chiusa'];
         } catch (\Exception $e) {
+            General::addRowLog("[SessionManager: Error closing session - ".$e->getMessage()."]");
             if ($this->debug) {
                 error_log("SessionManager closeSession error: " . $e->getMessage());
             }
             return ['success' => false, 'message' => 'Errore durante la chiusura della sessione'];
         }
+
+        return ['success' => false, 'message' => 'Errore durante la chiusura della sessione'];
     }
 
     /**
@@ -176,22 +189,27 @@ class SessionManager extends Dbh
      */
     public function closeAllUserSessions($userId)
     {
+        General::addRowLog("[SessionManager: Close all sessions for User {$userId}]");
+
         $sql = "DELETE FROM t94_user_sessions WHERE c94_usr_id = ?";
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $stmt->execute([$userId]);
+            if ($this->handler->execSql($sql, [$userId])) {
+                $audit = new AuditLogger($this->debug);
+                $audit->log($userId, 'all_sessions_closed', 'session', null);
 
-            $audit = new AuditLogger($this->debug);
-            $audit->log($userId, 'all_sessions_closed', 'session', null);
-
-            return ['success' => true, 'message' => 'Tutte le sessioni chiuse'];
+                General::addRowLog("[SessionManager: All sessions closed successfully]");
+                return ['success' => true, 'message' => 'Tutte le sessioni chiuse'];
+            }
         } catch (\Exception $e) {
+            General::addRowLog("[SessionManager: Error closing all sessions - ".$e->getMessage()."]");
             if ($this->debug) {
                 error_log("SessionManager closeAllUserSessions error: " . $e->getMessage());
             }
             return ['success' => false, 'message' => 'Errore durante la chiusura delle sessioni'];
         }
+
+        return ['success' => false, 'message' => 'Errore durante la chiusura delle sessioni'];
     }
 
     /**
@@ -203,9 +221,10 @@ class SessionManager extends Dbh
                 WHERE c94_usr_id = ? AND c94_expires_at > NOW()
                 ORDER BY c94_last_activity DESC";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$userId]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($this->handler->execSql($sql, [$userId])) {
+            return $this->handler->getData();
+        }
+        return [];
     }
 
     /**
@@ -213,18 +232,26 @@ class SessionManager extends Dbh
      */
     public function cleanExpiredSessions()
     {
+        General::addRowLog("[SessionManager: Clean expired sessions]");
+
         $sql = "DELETE FROM t94_user_sessions WHERE c94_expires_at < NOW()";
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $stmt->execute();
-            return $stmt->rowCount();
+            if ($this->handler->execSql($sql)) {
+                $result = $this->handler->getData();
+                $count = is_array($result) ? count($result) : 0;
+                General::addRowLog("[SessionManager: Deleted {$count} expired sessions]");
+                return $count;
+            }
         } catch (\Exception $e) {
+            General::addRowLog("[SessionManager: Error cleaning sessions - ".$e->getMessage()."]");
             if ($this->debug) {
                 error_log("SessionManager cleanExpiredSessions error: " . $e->getMessage());
             }
             return 0;
         }
+
+        return 0;
     }
 
     /**
@@ -237,8 +264,7 @@ class SessionManager extends Dbh
                 WHERE c94_session_id = ?";
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $stmt->execute([$sessionId]);
+            $this->handler->execSql($sql, [$sessionId]);
         } catch (\Exception $e) {
             // Non logghiamo errori per questa operazione
         }

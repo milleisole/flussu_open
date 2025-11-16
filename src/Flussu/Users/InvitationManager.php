@@ -3,15 +3,22 @@
  * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * User Management System - InvitationManager Class
+ * --------------------------------------------------------------------*
+ * VERSION REL.:     5.0.20250216
+ * UPDATE DATE:      16.02:2025
+ *
+ * REFACTORED: Now uses HandlerUserNC for all database operations
+ * instead of direct DB access via Dbh extension
  * --------------------------------------------------------------------*/
 namespace Flussu\Users;
 
-use Flussu\Beans\Dbh;
-use PDO;
+use Flussu\General;
+use Flussu\Flussuserver\NC\HandlerUserNC;
 
-class InvitationManager extends Dbh
+class InvitationManager
 {
     private $debug = false;
+    private $handler;
 
     // Status codes
     const STATUS_PENDING = 0;
@@ -22,6 +29,7 @@ class InvitationManager extends Dbh
     public function __construct($debug = false)
     {
         $this->debug = $debug;
+        $this->handler = new HandlerUserNC();
     }
 
     /**
@@ -29,6 +37,8 @@ class InvitationManager extends Dbh
      */
     public function createInvitation($email, $role, $invitedBy, $expiresInDays = 7)
     {
+        General::addRowLog("[InvitationManager: Create invitation for {$email}]");
+
         // Verifica che l'email non esista già
         $userMgr = new UserManager($this->debug);
         if ($userMgr->emailExists($email)) {
@@ -44,12 +54,9 @@ class InvitationManager extends Dbh
                 VALUES (?, ?, ?, ?, ?)";
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $result = $stmt->execute([$email, $role, $invitedBy, $invitationCode, $expiresAt]);
+            $invitationId = $this->handler->execSqlGetId($sql, [$email, $role, $invitedBy, $invitationCode, $expiresAt]);
 
-            if ($result) {
-                $invitationId = $this->getLastInsertId();
-
+            if ($invitationId > 0) {
                 // Log audit
                 $audit = new AuditLogger($this->debug);
                 $audit->log($invitedBy, 'user_invited', 'invitation', $invitationId, [
@@ -57,6 +64,7 @@ class InvitationManager extends Dbh
                     'role' => $role
                 ]);
 
+                General::addRowLog("[InvitationManager: Invitation created with ID {$invitationId}]");
                 return [
                     'success' => true,
                     'invitation_id' => $invitationId,
@@ -66,6 +74,7 @@ class InvitationManager extends Dbh
                 ];
             }
         } catch (\Exception $e) {
+            General::addRowLog("[InvitationManager: Error creating invitation - ".$e->getMessage()."]");
             if ($this->debug) {
                 error_log("InvitationManager createInvitation error: " . $e->getMessage());
             }
@@ -85,12 +94,11 @@ class InvitationManager extends Dbh
                 AND c96_status = ?
                 AND c96_expires_at > NOW()";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$invitationCode, self::STATUS_PENDING]);
-        $invitation = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($invitation) {
-            return ['valid' => true, 'invitation' => $invitation];
+        if ($this->handler->execSql($sql, [$invitationCode, self::STATUS_PENDING])) {
+            $result = $this->handler->getData();
+            if (is_array($result) && count($result) > 0) {
+                return ['valid' => true, 'invitation' => $result[0]];
+            }
         }
 
         return ['valid' => false, 'message' => 'Invito non valido o scaduto'];
@@ -101,6 +109,8 @@ class InvitationManager extends Dbh
      */
     public function acceptInvitation($invitationCode, $userData)
     {
+        General::addRowLog("[InvitationManager: Accept invitation {$invitationCode}]");
+
         $validation = $this->validateInvitation($invitationCode);
 
         if (!$validation['valid']) {
@@ -123,13 +133,13 @@ class InvitationManager extends Dbh
                     SET c96_status = ?, c96_accepted_at = NOW()
                     WHERE c96_invitation_code = ?";
 
-            $stmt = $this->connect()->prepare($sql);
-            $stmt->execute([self::STATUS_ACCEPTED, $invitationCode]);
+            $this->handler->execSql($sql, [self::STATUS_ACCEPTED, $invitationCode]);
 
             // Log audit
             $audit = new AuditLogger($this->debug);
             $audit->log($result['user_id'], 'invitation_accepted', 'invitation', $invitation['c96_id']);
 
+            General::addRowLog("[InvitationManager: Invitation accepted, user created]");
             return [
                 'success' => true,
                 'user_id' => $result['user_id'],
@@ -145,18 +155,19 @@ class InvitationManager extends Dbh
      */
     public function rejectInvitation($invitationCode)
     {
+        General::addRowLog("[InvitationManager: Reject invitation {$invitationCode}]");
+
         $sql = "UPDATE t96_user_invitations
                 SET c96_status = ?
                 WHERE c96_invitation_code = ? AND c96_status = ?";
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $result = $stmt->execute([self::STATUS_REJECTED, $invitationCode, self::STATUS_PENDING]);
-
-            if ($result) {
+            if ($this->handler->execSql($sql, [self::STATUS_REJECTED, $invitationCode, self::STATUS_PENDING])) {
+                General::addRowLog("[InvitationManager: Invitation rejected]");
                 return ['success' => true, 'message' => 'Invito rifiutato'];
             }
         } catch (\Exception $e) {
+            General::addRowLog("[InvitationManager: Error rejecting invitation - ".$e->getMessage()."]");
             return ['success' => false, 'message' => 'Errore: ' . $e->getMessage()];
         }
 
@@ -172,9 +183,10 @@ class InvitationManager extends Dbh
                 WHERE c96_invited_by = ?
                 ORDER BY c96_created_at DESC";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$userId]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($this->handler->execSql($sql, [$userId])) {
+            return $this->handler->getData();
+        }
+        return [];
     }
 
     /**
@@ -188,9 +200,10 @@ class InvitationManager extends Dbh
                 WHERE i.c96_status = ? AND i.c96_expires_at > NOW()
                 ORDER BY i.c96_created_at DESC";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([self::STATUS_PENDING]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($this->handler->execSql($sql, [self::STATUS_PENDING])) {
+            return $this->handler->getData();
+        }
+        return [];
     }
 
     /**
@@ -198,20 +211,28 @@ class InvitationManager extends Dbh
      */
     public function markExpiredInvitations()
     {
+        General::addRowLog("[InvitationManager: Mark expired invitations]");
+
         $sql = "UPDATE t96_user_invitations
                 SET c96_status = ?
                 WHERE c96_status = ? AND c96_expires_at < NOW()";
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $stmt->execute([self::STATUS_EXPIRED, self::STATUS_PENDING]);
-            return $stmt->rowCount();
+            if ($this->handler->execSql($sql, [self::STATUS_EXPIRED, self::STATUS_PENDING])) {
+                $result = $this->handler->getData();
+                $count = is_array($result) ? count($result) : 0;
+                General::addRowLog("[InvitationManager: Marked {$count} expired invitations]");
+                return $count;
+            }
         } catch (\Exception $e) {
+            General::addRowLog("[InvitationManager: Error marking expired - ".$e->getMessage()."]");
             if ($this->debug) {
                 error_log("InvitationManager markExpiredInvitations error: " . $e->getMessage());
             }
             return 0;
         }
+
+        return 0;
     }
 
     /**

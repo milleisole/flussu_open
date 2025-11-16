@@ -3,15 +3,22 @@
  * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * User Management System - RoleManager Class
+ * --------------------------------------------------------------------*
+ * VERSION REL.:     5.0.20250216
+ * UPDATE DATE:      16.02:2025
+ *
+ * REFACTORED: Now uses HandlerUserNC for all database operations
+ * instead of direct DB access via Dbh extension
  * --------------------------------------------------------------------*/
 namespace Flussu\Users;
 
-use Flussu\Beans\Dbh;
-use PDO;
+use Flussu\General;
+use Flussu\Flussuserver\NC\HandlerUserNC;
 
-class RoleManager extends Dbh
+class RoleManager
 {
     private $debug = false;
+    private $handler;
 
     // Role IDs
     const ROLE_END_USER = 0;
@@ -30,6 +37,7 @@ class RoleManager extends Dbh
     public function __construct($debug = false)
     {
         $this->debug = $debug;
+        $this->handler = new HandlerUserNC();
     }
 
     /**
@@ -37,10 +45,7 @@ class RoleManager extends Dbh
      */
     public function getAllRoles()
     {
-        $sql = "SELECT * FROM t90_role ORDER BY c90_id";
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $this->handler->getAllRoles();
     }
 
     /**
@@ -48,10 +53,7 @@ class RoleManager extends Dbh
      */
     public function getRoleById($roleId)
     {
-        $sql = "SELECT * FROM t90_role WHERE c90_id = ?";
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$roleId]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        return $this->handler->getRoleById($roleId);
     }
 
     /**
@@ -74,38 +76,45 @@ class RoleManager extends Dbh
     {
         // Prima verifica se è il proprietario
         $sql = "SELECT c10_userid FROM t10_workflow WHERE c10_id = ?";
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$workflowId]);
-        $workflow = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$workflow) {
+        if ($this->handler->execSql($sql, [$workflowId])) {
+            $result = $this->handler->getData();
+            if (!is_array($result) || count($result) == 0) {
+                return false;
+            }
+            $workflow = $result[0];
+
+            // Se è il proprietario, ha tutti i permessi
+            if ($workflow['c10_userid'] == $userId) {
+                return true;
+            }
+        } else {
             return false;
-        }
-
-        // Se è il proprietario, ha tutti i permessi
-        if ($workflow['c10_userid'] == $userId) {
-            return true;
         }
 
         // Verifica permessi espliciti
         $sql = "SELECT c88_permission FROM t88_wf_permissions
                 WHERE c88_wf_id = ? AND c88_usr_id = ?";
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$workflowId, $userId]);
-        $permission = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($permission) {
-            return strpos($permission['c88_permission'], $requiredPermission) !== false;
+        if ($this->handler->execSql($sql, [$workflowId, $userId])) {
+            $result = $this->handler->getData();
+            if (is_array($result) && count($result) > 0) {
+                $permission = $result[0];
+                return strpos($permission['c88_permission'], $requiredPermission) !== false;
+            }
         }
 
         // Verifica se è in un progetto condiviso
-        $sql = "SELECT COUNT(*) FROM t85_prj_wflow pw
+        $sql = "SELECT COUNT(*) as count FROM t85_prj_wflow pw
                 INNER JOIN t87_prj_user pu ON pu.c87_prj_id = pw.c85_prj_id
                 WHERE pw.c85_flofoid = ? AND pu.c87_usr_id = ?";
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$workflowId, $userId]);
 
-        return $stmt->fetchColumn() > 0;
+        if ($this->handler->execSql($sql, [$workflowId, $userId])) {
+            $result = $this->handler->getData();
+            return is_array($result) && count($result) > 0 && $result[0]['count'] > 0;
+        }
+
+        return false;
     }
 
     /**
@@ -113,6 +122,8 @@ class RoleManager extends Dbh
      */
     public function grantWorkflowPermission($workflowId, $userId, $permission, $grantedBy)
     {
+        General::addRowLog("[RoleManager: Grant workflow {$workflowId} permission to User {$userId}]");
+
         // Verifica che chi concede abbia i permessi
         if (!$this->canAccessWorkflow($grantedBy, $workflowId, self::PERM_UPDATE)) {
             return ['success' => false, 'message' => 'Non hai i permessi per concedere accesso'];
@@ -127,10 +138,7 @@ class RoleManager extends Dbh
                 c88_granted_at = CURRENT_TIMESTAMP";
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $result = $stmt->execute([$workflowId, $userId, $permission, $grantedBy]);
-
-            if ($result) {
+            if ($this->handler->execSql($sql, [$workflowId, $userId, $permission, $grantedBy])) {
                 // Log audit
                 $audit = new AuditLogger($this->debug);
                 $audit->log($grantedBy, 'permission_granted', 'workflow', $workflowId, [
@@ -138,9 +146,11 @@ class RoleManager extends Dbh
                     'permission' => $permission
                 ]);
 
+                General::addRowLog("[RoleManager: Permission granted successfully]");
                 return ['success' => true, 'message' => 'Permesso concesso con successo'];
             }
         } catch (\Exception $e) {
+            General::addRowLog("[RoleManager: Error granting permission - ".$e->getMessage()."]");
             return ['success' => false, 'message' => 'Errore: ' . $e->getMessage()];
         }
 
@@ -152,6 +162,8 @@ class RoleManager extends Dbh
      */
     public function revokeWorkflowPermission($workflowId, $userId, $revokedBy)
     {
+        General::addRowLog("[RoleManager: Revoke workflow {$workflowId} permission from User {$userId}]");
+
         // Verifica che chi revoca abbia i permessi
         if (!$this->canAccessWorkflow($revokedBy, $workflowId, self::PERM_UPDATE)) {
             return ['success' => false, 'message' => 'Non hai i permessi per revocare accesso'];
@@ -161,19 +173,18 @@ class RoleManager extends Dbh
                 WHERE c88_wf_id = ? AND c88_usr_id = ?";
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $result = $stmt->execute([$workflowId, $userId]);
-
-            if ($result) {
+            if ($this->handler->execSql($sql, [$workflowId, $userId])) {
                 // Log audit
                 $audit = new AuditLogger($this->debug);
                 $audit->log($revokedBy, 'permission_revoked', 'workflow', $workflowId, [
                     'from_user' => $userId
                 ]);
 
+                General::addRowLog("[RoleManager: Permission revoked successfully]");
                 return ['success' => true, 'message' => 'Permesso revocato con successo'];
             }
         } catch (\Exception $e) {
+            General::addRowLog("[RoleManager: Error revoking permission - ".$e->getMessage()."]");
             return ['success' => false, 'message' => 'Errore: ' . $e->getMessage()];
         }
 
@@ -201,9 +212,10 @@ class RoleManager extends Dbh
                 WHERE p.c88_wf_id = ?
                 ORDER BY p.c88_granted_at DESC";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$workflowId]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($this->handler->execSql($sql, [$workflowId])) {
+            return $this->handler->getData();
+        }
+        return [];
     }
 
     /**
@@ -235,9 +247,10 @@ class RoleManager extends Dbh
                 {$activeCond}
                 ORDER BY w.c10_name";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$userId, $userId, $userId, $userId]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($this->handler->execSql($sql, [$userId, $userId, $userId, $userId])) {
+            return $this->handler->getData();
+        }
+        return [];
     }
 
     /**
@@ -245,12 +258,7 @@ class RoleManager extends Dbh
      */
     public function isAdmin($userId)
     {
-        $sql = "SELECT c80_role FROM t80_user WHERE c80_id = ?";
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$userId]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        return $user && $user['c80_role'] == self::ROLE_ADMIN;
+        return $this->handler->checkUserRoleLevel($userId, self::ROLE_ADMIN);
     }
 
     /**
@@ -258,15 +266,12 @@ class RoleManager extends Dbh
      */
     public function canEditWorkflow($userId)
     {
-        $sql = "SELECT c80_role FROM t80_user WHERE c80_id = ?";
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$userId]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $userData = $this->handler->getUserById($userId);
 
-        if (!$user) {
+        if (!$userData) {
             return false;
         }
 
-        return in_array($user['c80_role'], [self::ROLE_ADMIN, self::ROLE_EDITOR]);
+        return in_array($userData['c80_role'], [self::ROLE_ADMIN, self::ROLE_EDITOR]);
     }
 }

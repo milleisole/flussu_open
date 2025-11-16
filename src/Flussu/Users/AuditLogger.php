@@ -3,19 +3,27 @@
  * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * User Management System - AuditLogger Class
+ * --------------------------------------------------------------------*
+ * VERSION REL.:     5.0.20250216
+ * UPDATE DATE:      16.02:2025
+ *
+ * REFACTORED: Now uses HandlerUserNC for all database operations
+ * instead of direct DB access via Dbh extension
  * --------------------------------------------------------------------*/
 namespace Flussu\Users;
 
-use Flussu\Beans\Dbh;
-use PDO;
+use Flussu\General;
+use Flussu\Flussuserver\NC\HandlerUserNC;
 
-class AuditLogger extends Dbh
+class AuditLogger
 {
     private $debug = false;
+    private $handler;
 
     public function __construct($debug = false)
     {
         $this->debug = $debug;
+        $this->handler = new HandlerUserNC();
     }
 
     /**
@@ -32,8 +40,7 @@ class AuditLogger extends Dbh
                 VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $stmt->execute([
+            $this->handler->execSql($sql, [
                 $userId,
                 $action,
                 $targetType,
@@ -62,9 +69,10 @@ class AuditLogger extends Dbh
                 ORDER BY c92_timestamp DESC
                 LIMIT ? OFFSET ?";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$userId, $limit, $offset]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($this->handler->execSql($sql, [$userId, $limit, $offset])) {
+            return $this->handler->getData();
+        }
+        return [];
     }
 
     /**
@@ -79,9 +87,10 @@ class AuditLogger extends Dbh
                 ORDER BY a.c92_timestamp DESC
                 LIMIT ? OFFSET ?";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$action, $limit, $offset]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($this->handler->execSql($sql, [$action, $limit, $offset])) {
+            return $this->handler->getData();
+        }
+        return [];
     }
 
     /**
@@ -96,9 +105,10 @@ class AuditLogger extends Dbh
                 ORDER BY a.c92_timestamp DESC
                 LIMIT ?";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute([$targetType, $targetId, $limit]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($this->handler->execSql($sql, [$targetType, $targetId, $limit])) {
+            return $this->handler->getData();
+        }
+        return [];
     }
 
     /**
@@ -128,9 +138,10 @@ class AuditLogger extends Dbh
                 GROUP BY c92_action
                 ORDER BY count DESC";
 
-        $stmt = $this->connect()->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($this->handler->execSql($sql, $params)) {
+            return $this->handler->getData();
+        }
+        return [];
     }
 
     /**
@@ -138,20 +149,27 @@ class AuditLogger extends Dbh
      */
     public function cleanOldLogs($daysToKeep = 90)
     {
-        $cutoffDate = date('Y-m-d H:i:s', strtotime("-{$daysToKeep} days"));
+        General::addRowLog("[AuditLogger: Clean old logs (>{$daysToKeep} days)]");
 
+        $cutoffDate = date('Y-m-d H:i:s', strtotime("-{$daysToKeep} days"));
         $sql = "DELETE FROM t92_user_audit WHERE c92_timestamp < ?";
 
         try {
-            $stmt = $this->connect()->prepare($sql);
-            $stmt->execute([$cutoffDate]);
-            return $stmt->rowCount();
+            if ($this->handler->execSql($sql, [$cutoffDate])) {
+                $result = $this->handler->getData();
+                $count = is_array($result) ? count($result) : 0;
+                General::addRowLog("[AuditLogger: Deleted {$count} old logs]");
+                return $count;
+            }
         } catch (\Exception $e) {
+            General::addRowLog("[AuditLogger: Error cleaning logs - ".$e->getMessage()."]");
             if ($this->debug) {
                 error_log("AuditLogger cleanOldLogs error: " . $e->getMessage());
             }
             return 0;
         }
+
+        return 0;
     }
 
     /**
