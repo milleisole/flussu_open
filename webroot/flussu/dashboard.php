@@ -23,48 +23,7 @@
  * UPDATES DATE:     17.09.2025
  * --------------------------------------------------------------------*/
 
-<<<<<<< HEAD
 require_once 'inc/includebase.php';
-=======
-define('PROJECT_ROOT', dirname(__DIR__, 2)."/");
-
-require_once PROJECT_ROOT . 'vendor/autoload.php';
-
-use Flussu\Persons\User;
-use Flussu\General;
-use Flussu\Config;
-
-$dotenv = Dotenv\Dotenv::createImmutable(PROJECT_ROOT);
-$dotenv->load();
-
-if (!function_exists('config')) {
-    function config(string $key,$default=null) {
-        return Config::init()->get($key,$default);
-    }
-}
-
-$FVP=explode(".", config("flussu.version","5.0").".".config("flussu.release","0"));
-$v=$FVP[0];
-$m=$FVP[1];
-
-// Avvia sessione
-session_start();
-
-// Verifica se l'utente è autenticato
-if (!isset($_SESSION['flussu_logged_in']) || $_SESSION['flussu_logged_in'] !== true) {
-    header("Location: login.php");
-    exit;
-}
-
-// Ottieni dati utente dalla sessione
-$userId = $_SESSION['flussu_user_id'] ?? 0;
-$username = $_SESSION['flussu_username'] ?? '';
-$userEmail = $_SESSION['flussu_email'] ?? '';
-$userDisplayName = trim(($_SESSION['flussu_name'] ?? '') . ' ' . ($_SESSION['flussu_surname'] ?? ''));
-if (empty($userDisplayName)) {
-    $userDisplayName = $username;
-}
->>>>>>> 355b2a08918d807d3517d6ce2c39239ab1ede32e
 
 ?>
 <!DOCTYPE html>
@@ -90,13 +49,8 @@ if (empty($userDisplayName)) {
                 </nav>
 
                 <div class="user-info">
-<<<<<<< HEAD
                     <span id="userDisplayName">...</span>
                     <button class="btn btn-secondary btn-sm" id="logoutBtn">Esci</button>
-=======
-                    <span id="userDisplayName"><?php echo htmlspecialchars($userDisplayName); ?></span>
-                    <a href="logout.php" class="btn btn-secondary btn-sm">Esci</a>
->>>>>>> 355b2a08918d807d3517d6ce2c39239ab1ede32e
                 </div>
             </div>
         </div>
