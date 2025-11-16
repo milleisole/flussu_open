@@ -23,56 +23,7 @@
  * UPDATES DATE:     17.09.2025
  * --------------------------------------------------------------------*/
 
-// Carica configurazione (con fallback se non disponibile)
-$v = "4";
-$m = "5";
-$r = "1";
-
-try {
-    // Prova a caricare vendor/autoload se esiste
-    if (file_exists(__DIR__ . '/../../vendor/autoload.php')) {
-        require_once __DIR__ . '/../../vendor/autoload.php';
-
-        use Flussu\General;
-        use Flussu\Config;
-
-        // Carica .env se esiste
-        if (class_exists('Dotenv\Dotenv')) {
-            $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../../');
-            $dotenv->safeLoad();
-        }
-
-        // Helper config se non esiste
-        if (!function_exists('config')) {
-            function config(string $key, $default = null)
-            {
-                try {
-                    return Config::init()->get($key, $default);
-                } catch (Exception $e) {
-                    return $default;
-                }
-            }
-        }
-
-        // Prova a leggere versione da config
-        $version = config("flussu.version", "4.5");
-        $release = config("flussu.release", "1");
-        $FVP = explode(".", $version . "." . $release);
-        $v = $FVP[0];
-        $m = $FVP[1];
-        $r = $FVP[2] ?? "1";
-    } elseif (file_exists(__DIR__ . '/../../.env')) {
-        // Fallback: leggi direttamente da .env
-        $envContent = parse_ini_file(__DIR__ . '/../../.env');
-        $v = $envContent['major'] ?? "4";
-        $m = $envContent['minor'] ?? "5";
-        $r = $envContent['release'] ?? "1";
-    }
-} catch (Exception $e) {
-    // Usa valori di default se qualcosa va storto
-    error_log("Login page config error: " . $e->getMessage());
-}
-
+require_once 'inc/includebase.php';
 ?>
 <!DOCTYPE html>
 <html lang="it">

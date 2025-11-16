@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
  * --------------------------------------------------------------------*
  * CLASS-NAME:     Contracts - Interface for Webhook providers classes
  * CREATE DATE:    15.11:2025
- * VERSION REL.:   4.5.20251115
- * UPDATES DATE:   15.11:2025
+ * VERSION REL.:   5.0.20251117
+ * UPDATES DATE:   17.11:2025
  * -------------------------------------------------------*/
 namespace Flussu\Contracts;
 
-use Flussu\Flussuserver\Request;
+//use Flussu\Flussuserver\Request;
 
 interface IWebhookProvider
 {
@@ -32,7 +32,7 @@ interface IWebhookProvider
      * @param string $apiPage The API endpoint being called
      * @return void Outputs JSON response and terminates
      */
-    public function apiCall(Request $request, string $apiPage): void;
+    public function apiCall(/*Request $request,*/ string $apiPage): void;
 
     /**
      * Authenticate the webhook request

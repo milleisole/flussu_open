@@ -27,7 +27,7 @@ class UserManagementController
     /**
      * Gestisce le richieste API
      */
-    public function handleRequest($request)
+    public function handleRequest()
     {
         header('Content-Type: application/json; charset=UTF-8');
         header('Access-Control-Allow-Origin: *');
@@ -72,7 +72,7 @@ class UserManagementController
 
             // User routes
             if ($path === '/users' && $method === 'GET') {
-                return $this->getUsers($request);
+                return $this->getUsers();
             }
 
             if ($path === '/users' && $method === 'POST') {
@@ -136,11 +136,11 @@ class UserManagementController
 
             // Audit routes (admin only)
             if (preg_match('#^/audit/users/(\d+)$#', $path, $matches) && $method === 'GET') {
-                return $this->getUserLogs($matches[1], $request);
+                return $this->getUserLogs($matches[1]);
             }
 
             if ($path === '/audit/stats' && $method === 'GET') {
-                return $this->getUsageStats($request);
+                return $this->getUsageStats();
             }
 
             // Route non trovata
@@ -271,11 +271,11 @@ class UserManagementController
 
     // ==================== USER ENDPOINTS ====================
 
-    private function getUsers($request)
+    private function getUsers()
     {
         $this->requireAdmin();
 
-        $includeDeleted = isset($request['includeDeleted']) && $request['includeDeleted'] === 'true';
+        $includeDeleted = General::getGetOrPost('includeDeleted') === 'true';
 
         $userMgr = new UserManager($this->debug);
         $users = $userMgr->getAllUsers($includeDeleted);
@@ -464,12 +464,12 @@ class UserManagementController
 
     // ==================== AUDIT ENDPOINTS ====================
 
-    private function getUserLogs($userId, $request)
+    private function getUserLogs($userId)
     {
         $this->requireAdmin();
 
-        $limit = $request['limit'] ?? 100;
-        $offset = $request['offset'] ?? 0;
+        $limit = General::getGetOrPost('limit') ?? 100;
+        $offset = General::getGetOrPost('offset') ?? 0;
 
         $audit = new AuditLogger($this->debug);
         $logs = $audit->getUserLogs($userId, $limit, $offset);
@@ -477,12 +477,12 @@ class UserManagementController
         return ['success' => true, 'logs' => $logs];
     }
 
-    private function getUsageStats($request)
+    private function getUsageStats()
     {
         $this->requireAdmin();
 
-        $startDate = $request['startDate'] ?? null;
-        $endDate = $request['endDate'] ?? null;
+        $startDate = General::getGetOrPost('startDate') ?? null;
+        $endDate = General::getGetOrPost('endDate') ?? null;
 
         $audit = new AuditLogger($this->debug);
         $stats = $audit->getUsageStats($startDate, $endDate);

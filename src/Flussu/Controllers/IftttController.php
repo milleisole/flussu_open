@@ -22,7 +22,7 @@
 namespace Flussu\Controllers;
 
 use Flussu\General;
-use Flussu\Flussuserver\Request;
+//use Flussu\Flussuserver\Request;
 use Flussu\Flussuserver\NC\HandlerNC;
 
 /**
@@ -49,7 +49,7 @@ class IftttController extends AbsWebhookProvider
      * @param string $apiPage The API endpoint being called
      * @return void
      */
-    public function apiCall(Request $request, $apiPage): void
+    public function apiCall(/*Request $request,*/ $apiPage): void
     {
         // Set CORS headers
         $this->setCorsHeaders();
@@ -58,7 +58,7 @@ class IftttController extends AbsWebhookProvider
         list($usrName, $usrPass) = $this->extractIftttCredentials();
 
         // Extract workflow ID
-        list($wid, $SentWID) = $this->extractWorkflowId($request);
+        list($wid, $SentWID) = $this->extractWorkflowId(/*$request*/);
 
         // Get payload data
         $rawdata = file_get_contents('php://input');

@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.1 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
  *      to handle all the requests to this server. 
  * 
  * --------------------------------------------------------------------
- * VERSION REL.:     4.5.20250929
- * UPDATES DATE:     29.09.2025
+ * VERSION REL.:     5.0.20251117
+ * UPDATES DATE:     17.09.2025
  * --------------------------------------------------------------------*/
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -188,7 +188,7 @@ if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"]
                 break;
         }
         $fc=new FlussuController();
-        $fc->apiCall($req,$apiPage);
+        $fc->apiCall($apiPage);
     }
 }
 

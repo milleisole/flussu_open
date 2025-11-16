@@ -22,7 +22,7 @@
 namespace Flussu\Controllers;
 
 use Flussu\Contracts\IWebhookProvider;
-use Flussu\Flussuserver\Request;
+//use Flussu\Flussuserver\Request;
 use Flussu\Flussuserver\NC\HandlerNC;
 use Flussu\Flussuserver\Session;
 use Flussu\Flussuserver\Worker;
@@ -232,7 +232,7 @@ abstract class AbsWebhookProvider implements IWebhookProvider
      * @param Request $request The request object
      * @return array [workflowId, originalWid]
      */
-    protected function extractWorkflowId(Request $request): array
+    protected function extractWorkflowId(/*Request $request*/): array
     {
         $SentWID = isset($_SERVER["HTTP_WID"]) ? $_SERVER["HTTP_WID"] : "";
         $rawdata = file_get_contents('php://input');
