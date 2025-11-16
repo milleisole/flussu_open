@@ -46,15 +46,21 @@ class UserManager
      */
     public function getUserById($userId)
     {
-        return $this->handler->getUserById($userId);
+        $user=new \Flussu\Persons\User();
+        $user->load($userId);
+        return $user;
     }
 
     /**
      * Ottieni utente per username o email
      */
-    public function getUserByUsernameOrEmail($identifier)
+    public function getUserByUsernameOrEmail($identifier): object|bool
     {
-        return $this->handler->getUserByUsernameOrEmail($identifier);
+        $data = $this->handler->getUserByUsernameOrEmail($identifier);
+        if ($data!==false && isset($data['c80_id']) && ($data['c80_id']>0 && $data['is_active']!==0)) {
+            return $this->getUserById($data['c80_id']);
+        }
+        return false;
     }
 
     /**

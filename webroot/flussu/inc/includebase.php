@@ -4,7 +4,6 @@ define('PROJECT_ROOT', dirname(__DIR__, 2)."/../");
 
 require_once PROJECT_ROOT . 'vendor/autoload.php';
 
-use Flussu\General;
 use Flussu\Config;
 
 // VERSION
@@ -50,6 +49,18 @@ if (isset($_SESSION["user"])) {
         redirect("dashboard.php");
     }
 } 
-if ($_SERVER["SCRIPT_URL"]!="/flussu/login.php" && $_SERVER["SCRIPT_URL"]!="/flussu/forgot-password.php")
-    redirect("login.php");
+
+$su=end(explode("/", $_SERVER["SCRIPT_URL"]));
+switch($su){
+    case "login.php":   
+    case "forgot-password.php":
+    case "register.php":
+        break;
+    default:
+    if (!$user->isActive) {
+        redirect("login.php");
+    }
+    break;
+}
+
 

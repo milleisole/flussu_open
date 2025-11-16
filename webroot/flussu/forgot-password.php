@@ -23,6 +23,17 @@
  * --------------------------------------------------------------------*/
 
 require_once 'inc/includebase.php';
+$user=null;
+$changeref=Flussu\General::getGetOrPost("emailOrUsername");
+if (!empty($changeref)){
+    $usrMng=new Flussu\Users\UserManager();
+    $user=$usrMng->getUserByUsernameOrEmail($changeref);
+    if ($user->is_active){
+
+    } else {
+        $user=null;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -46,7 +57,12 @@ require_once 'inc/includebase.php';
                 Inserisci il tuo username o email per ricevere le istruzioni per il reset della password.
             </p>
 
-            <form id="forgotPasswordForm">
+            <?php 
+        if ($user!==null) {
+            echo '<div class="alert alert-success">Se l\'indirizzo email o lo username esistono nel sistema, riceverai a breve le istruzioni per il reset della password.</div>';
+        } else {
+            ?>
+            <form id="forgotPasswordForm" method="POST">
                 <div class="form-group">
                     <label for="emailOrUsername" class="form-label">Username o Email</label>
                     <input
@@ -56,6 +72,7 @@ require_once 'inc/includebase.php';
                         placeholder="Inserisci username o email"
                         required
                         autocomplete="username"
+                        name="emailOrUsername"
                     />
                 </div>
 
@@ -65,7 +82,7 @@ require_once 'inc/includebase.php';
                     Richiedi Reset Password
                 </button>
             </form>
-
+        <?php } ?>
             <div class="text-center mt-3">
                 <a href="login.php" style="color: #188d4d; text-decoration: none;">
                     &larr; Torna al Login
@@ -81,76 +98,21 @@ require_once 'inc/includebase.php';
         </div>
     </div>
 
-    <script src="js/flussu-password-api.js"></script>
     <script>
-        const passwordAPI = new FlussuPasswordAPI();
-        const passwordUI = new FlussuPasswordUI();
+    document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
+        const emailOrUsername = document.getElementById('emailOrUsername').value.trim();
+        const messageDiv = document.getElementById('message');
 
-        // Gestione form richiesta reset password
-        document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Validazione base
+        if (!emailOrUsername) {
+            e.preventDefault(); // Blocca il submit solo se non valido
+            messageDiv.className = 'alert alert-danger';
+            messageDiv.textContent = 'Inserisci username o email';
+            messageDiv.style.display = 'block';
+            return;
+        }
 
-            const emailOrUsername = document.getElementById('emailOrUsername').value.trim();
-            const messageDiv = document.getElementById('message');
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-
-            // Nascondi messaggi precedenti
-            passwordUI.hideMessage(messageDiv);
-
-            // Validazione base
-            if (!emailOrUsername) {
-                passwordUI.showError(messageDiv, 'Inserisci username o email');
-                return;
-            }
-
-            try {
-                // Disabilita pulsante durante l'elaborazione
-                passwordUI.disableButton(submitBtn, 'Invio in corso...');
-
-                const result = await passwordAPI.requestPasswordReset(emailOrUsername);
-
-                if (result.result === "OK") {
-                    // Mostra messaggio di successo
-                    passwordUI.showSuccess(
-                        messageDiv,
-                        'Se l\'account esiste, riceverai un\'email con le istruzioni per il reset della password. ' +
-                        'Controlla la tua casella di posta (e la cartella spam).'
-                    );
-
-                    // Reset form
-                    e.target.reset();
-
-                    // Reindirizza al login dopo 5 secondi
-                    setTimeout(() => {
-                        window.location.href = 'login.php';
-                    }, 5000);
-                } else {
-                    // Anche in caso di errore, per sicurezza mostriamo lo stesso messaggio
-                    // (non riveliamo se l'utente esiste o no)
-                    passwordUI.showSuccess(
-                        messageDiv,
-                        'Se l\'account esiste, riceverai un\'email con le istruzioni per il reset della password. ' +
-                        'Controlla la tua casella di posta (e la cartella spam).'
-                    );
-
-                    // Reset form
-                    e.target.reset();
-
-                    // Reindirizza al login dopo 5 secondi
-                    setTimeout(() => {
-                        window.location.href = 'login.php';
-                    }, 5000);
-                }
-            } catch (error) {
-                console.error('Forgot password error:', error);
-                passwordUI.showError(
-                    messageDiv,
-                    'Si è verificato un errore. Riprova più tardi.'
-                );
-            } finally {
-                passwordUI.enableButton(submitBtn);
-            }
-        });
+    });
     </script>
 </body>
 </html>

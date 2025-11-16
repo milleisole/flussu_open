@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * --------------------------------------------------------------------
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     5.0.20251117
+ * UPDATES DATE:     17.11:2025 
  * --------------------------------------------------------------------
  * TBD - INCOMPLETE
  * --------------------------------------------------------------------*/
- namespace Flussu\Persons;
+namespace Flussu\Persons;
 use Flussu\Beans;
 use Flussu;
 use Flussu\General;
+use Flussu\Flussuserver\NC\HandlerUserNC;
 class User {
     protected $mId=0;
     protected $mActive=0;
@@ -32,13 +33,17 @@ class User {
     protected $mSurname="";
     private   $mDBPass="";
     private   $mPsChgDt;
-    private   $_UBean;
+    //private   $_UBean;
+    private   $_uHandler;
+    private   $_userData;
 
     public function __construct (){
         General::addRowLog("[Costr User]");
-        $this->_UBean=new \Flussu\Beans\User(General::$DEBUG);
+        //$this->_UBean=new \Flussu\Beans\User(General::$DEBUG);
         $this->mPsChgDt= date('Y-m-d', strtotime("-1 week", date('now')));
         $this->clear();
+        $this->_uHandler=new HandlerUserNC();
+        $this->_userData=null;
     }
 
     public function getId()          {return $this->mId;}
@@ -55,7 +60,7 @@ class User {
         return $UsrRul->getc15_ruleid()>0;
     }*/
     public function hasPassword(){
-        return $this->_UBean->getc80_password()!="";
+        return $this->_userData["c80_password"]!="";
     }
     public function mustChangePassword(){
         if ($this->mId>0){
@@ -72,7 +77,6 @@ class User {
         $this->mName  = "";
         $this->mDBPass = "";
         $this->mSurname   = "";
-        $this->_UBean->clear();
     }
 
     /**
@@ -82,7 +86,7 @@ class User {
     public function isActive(){
         if ($this->mId>0){
             // User is active if not deleted (deleted date is default '1899-12-31 23:59:59')
-            $deletedDate = $this->_UBean->getc80_deleted();
+            $deletedDate = $this->_userData["c80_deleted"];
             return ($deletedDate == '1899-12-31 23:59:59' || strtotime($deletedDate) < strtotime('1900-01-01'));
         }
         return false;
@@ -114,8 +118,7 @@ class User {
         }
 
         // Use HandlerUserNC for API key generation
-        $handler = new \Flussu\Flussuserver\NC\HandlerUserNC();
-        return $handler->generateApiKey($this->mId, $minutesValid);
+        return $this->_uHandler->generateApiKey($this->mId, $minutesValid);
     }
 
     /**
@@ -133,15 +136,14 @@ class User {
         }
 
         // Use HandlerUserNC for API key validation
-        $handler = new \Flussu\Flussuserver\NC\HandlerUserNC();
-        $keyData = $handler->validateApiKey($theKey);
+        $keyData = $this->_uHandler->validateApiKey($theKey);
 
         if ($keyData === false){
             return false;
         }
 
         // Mark key as used
-        if (!$handler->markApiKeyAsUsed($keyData['id'])){
+        if (!$this->_uHandler->markApiKeyAsUsed($keyData['id'])){
             General::addRowLog("[Auth from API Key] Failed to mark key as used");
             return false;
         }
@@ -171,22 +173,19 @@ class User {
         General::addRowLog("[Clean Expired API Keys]");
 
         // Use HandlerUserNC for cleaning expired API keys
-        $handler = new \Flussu\Flussuserver\NC\HandlerUserNC();
+        $handler = new HandlerUserNC();
         return $handler->cleanExpiredApiKeys();
     }
 
     public function registerNew(string $userid, string $password, string $email, string $name="", string $surname=""){
         // CREATE NEW USER ON DATABASE USING USERID
-
-        $this->_UBean->setc80_username($userid);
-        $this->_UBean->setc80_email($email);
-        $this->_UBean->setc80_name($name);
-        $this->_UBean->setc80_surname($surname);
-        $effectiveDate = date('Y-m-d', strtotime("-1 week", date('now')));
-        $this->_UBean->setc80_pwd_chng($effectiveDate);
-
-        $this->_UBean->insert();
-//        $this->setNewEmailCheck();
+        $data=[];
+        $data['username']=$email;
+        $data['email']=$email;
+        $data['password']=$password;
+        $data['name']=$name;
+        $data['surname']=$surname;
+        $id=$this->_uHandler->createUser($data);
 
         General::addRowLog("[Register NEW User=".$userid."] -> ".$this->_UBean->getLog());
         // GET $mId
@@ -203,33 +202,25 @@ class User {
 
     public function emailExist($emailAddress){
         if (trim($emailAddress)!=""){
-            $row=$this->_UBean->selectDataUsingEmail($emailAddress);
-            if (is_array($row))
-                return array(true,$row["UID"],$row["LOGIN_ID"]);
+            return $this->_uHandler->emailExists($emailAddress);
         }
-        return array(false,0,"","1899/12/31 23:59:59");
+        return false;
     }
 
     public function load($userid){
       // LOAD FROM DATABASE
       $this->clear();
         try{
-            if (is_numeric($userid))
-                $this->_UBean->select($userid);
-            else
-                $this->_UBean->load($userid);
-
-
+            $this->_userData=$this->_uHandler->getUserByUsernameOrEmail($userid);
             //echo "UBEAN UID=".$this->_UBean->getc80_id()." ";
-
-            if ($this->_UBean->getc80_id()>0){
-                $this->mId     = (int)$this->_UBean->getc80_id();
-                $this->mUName  = $this->_UBean->getc80_username();
-                $this->mEmail  = $this->_UBean->getc80_email();
-                $this->mDBPass = $this->_UBean->getc80_password();
-                $this->mName   = $this->_UBean->getc80_name();
-                $this->mSurname= $this->_UBean->getc80_surname();
-                $this->mPsChgDt= $this->_UBean->getc80_pwd_chng();
+            if ($this->_userData["c80_id"]>0){
+                $this->mId     = (int)$this->_userData["c80_id"];
+                $this->mUName  = $this->_userData["c80_username"];
+                $this->mEmail  = $this->_userData["c80_email"];
+                $this->mDBPass = $this->_userData["c80_password"];
+                $this->mName   = $this->_userData["c80_name"];
+                $this->mSurname= $this->_userData["c80_surname"];
+                $this->mPsChgDt= $this->_userData["c80_pwd_chng"];
                 return ($this->mId>0);
             }
         } catch(\Exception $e){
