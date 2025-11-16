@@ -87,11 +87,8 @@ class Conn {
         $CMD=General::getGetOrPost("C");
         $UUID=General::getGetOrPost("K");
 
-        header('Access-Control-Allow-Origin: *'); 
-        header('Access-Control-Allow-Methods: *');
-        header('Access-Control-Allow-Headers: *');
-        header('Access-Control-Max-Age: 200');
-        header('Access-Control-Expose-Headers: Content-Security-Policy, Location');
+        // SECURITY FIX: Use secure CORS headers with origin validation
+        General::setSecureCorsHeaders();
         header('Content-Type: application/json; charset=UTF-8');
 
         $rcvData=file_get_contents('php://input');
@@ -200,7 +197,10 @@ class Conn {
         $db->execSql($SQL,array($otp));
         if (isset($db->getData()[0]["cmd"])){
             $res= $db->getData()[0]["cmd"];
-            $db->execSql("DELETE from c50_command where where c50_key=?",array($otp));
+            // SECURITY FIX: Corrected SQL syntax error and table name
+            // Was: "DELETE from c50_command where where c50_key=?" (wrong table, double WHERE)
+            // Now: Properly deletes OTP after use to prevent replay attacks
+            $db->execSql("DELETE FROM t50_otcmd WHERE c50_key=?",array($otp));
         }
         return $res;
     }

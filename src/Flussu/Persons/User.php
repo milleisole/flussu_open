@@ -161,8 +161,65 @@ class User {
         $this->clear();
         return false;
     }
+    /**
+     * Authenticate user using a temporary token
+     *
+     * SECURITY FIX: Implemented proper token authentication
+     * Verifies that:
+     * - Token exists in database
+     * - Token belongs to the specified user
+     * - Token has not expired (5 minute validity)
+     *
+     * @param string $userId User ID or username
+     * @param string $token Temporary authentication token
+     * @return bool True if authentication succeeds, false otherwise
+     */
     public function authenticateToken(string $userId, string $token){
-        // DA IMPLEMENTARE
+        General::addRowLog("[Auth Token]");
+
+        // Validate inputs
+        if (empty($userId) || empty($token)) {
+            General::addRowLog("[Auth Token FAILED: Empty userId or token]");
+            return false;
+        }
+
+        // Load user
+        $res = $this->load($userId);
+        if (!$res) {
+            General::addRowLog("[Auth Token FAILED: User not found]");
+            return false;
+        }
+
+        // Verify token in database
+        $SQL = "SELECT c50_uid, c50_dtins FROM t50_otcmd WHERE c50_key = ? LIMIT 1";
+        $db = new \Flussu\Flussuserver\NC\HandlerNC();
+        $db->execSql($SQL, array($token));
+        $data = $db->getData();
+
+        if (empty($data) || count($data) === 0) {
+            General::addRowLog("[Auth Token FAILED: Token not found in database]");
+            return false;
+        }
+
+        $tokenUserId = $data[0]['c50_uid'];
+        $tokenCreated = $data[0]['c50_dtins'];
+
+        // Verify token belongs to this user
+        if ((int)$tokenUserId !== $this->mId) {
+            General::addRowLog("[Auth Token FAILED: Token does not belong to user]");
+            return false;
+        }
+
+        // Verify token has not expired (5 minute validity)
+        $tokenAge = time() - strtotime($tokenCreated);
+        if ($tokenAge > 300) { // 300 seconds = 5 minutes
+            General::addRowLog("[Auth Token FAILED: Token expired (age: {$tokenAge}s)]");
+            // Delete expired token
+            $db->execSql("DELETE FROM t50_otcmd WHERE c50_key = ?", array($token));
+            return false;
+        }
+
+        General::addRowLog("[Auth Token OK]");
         return true;
     }
 
@@ -178,13 +235,38 @@ class User {
         }
 
         if($res){
-            // AUTH but MUST CHANGE PASS ---------------------
-            if ($this->mId>0 && $this->mDBPass==="") return true;
-            // -----------------------------------------------
+            // SECURITY FIX: Removed insecure bypass for empty passwords
+            // Users without passwords should use a secure token-based authentication instead
+            if ($this->mId>0 && $this->mDBPass==="") {
+                General::addRowLog("[Auth FAILED: User has no password set]");
+                $this->clear();
+                return false;
+            }
 
-            $gpwd=$this->_genPwd($this->mId, $this->mUName, $password);
-            if (General::$DEBUG) $_SESSION["(debug only) AUTH using PWD"]=$gpwd;
-            $authOk=($gpwd===$this->mDBPass);
+            // SECURITY FIX: Support both bcrypt and legacy password hashing
+            // New passwords use bcrypt (starting with $2y$)
+            // Legacy passwords use old algorithm for backward compatibility
+            $authOk = false;
+
+            if (substr($this->mDBPass, 0, 4) === '$2y$') {
+                // Modern bcrypt password
+                $authOk = password_verify($password, $this->mDBPass);
+
+                // Password verified successfully
+                if ($authOk) {
+                    General::addRowLog("[Auth OK with bcrypt]");
+                }
+            } else {
+                // Legacy password hash - verify with old algorithm
+                $gpwd=$this->_genPwd($this->mId, $this->mUName, $password);
+                $authOk=($gpwd===$this->mDBPass);
+
+                if ($authOk) {
+                    General::addRowLog("[Auth OK with legacy hash - recommend password update]");
+                    // TODO: Consider auto-migrating to bcrypt on successful login
+                }
+            }
+
             if ($authOk)
                 return true;
             else
@@ -249,7 +331,10 @@ class User {
     public function setPassword($password,$temporary=false){
         General::addLog("[Set User pwd]:");
         if ($this->mId>0){
-            $this->mPass=$this->_genPwd($this->mId, $this->mUName, $password);
+            // SECURITY FIX: Use bcrypt for password hashing instead of custom algorithm
+            // This provides proper security with salt, cost factor, and industry-standard protection
+            $this->mPass = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+
             if ($this->mPass!=""){
                 //PUT ON DATABASE
                 if ($this->mId != $this->_UBean->getc80_id())
@@ -262,7 +347,7 @@ class User {
                 //$scadDate=date("Y/m/d H:i:s",$sca);
                 $this->_UBean->setc80_pwd_chng( $sca );
                 $done= $this->_UBean->updatePassword();
-                if ($done) General::addRowLog(" done");
+                if ($done) General::addRowLog(" done (using bcrypt)");
                 if (!$done) General::addRowLog(" NOT REG ON DB!");
                 return $done;
             } else {
@@ -274,8 +359,20 @@ class User {
         return false;
     }
 
+    /**
+     * DEPRECATED: Legacy password hashing algorithm
+     *
+     * This method is kept ONLY for backward compatibility with existing password hashes.
+     * DO NOT use for new passwords - use password_hash() with PASSWORD_BCRYPT instead.
+     *
+     * SECURITY WARNING: This custom algorithm is cryptographically weak and should not
+     * be used for new implementations. It lacks proper salt, uses predictable seeding,
+     * and relies on XOR operations that are easily reversible.
+     *
+     * @deprecated Use password_hash() instead
+     */
     private function _genPwd(int $iId, string $Uid, string $Pwd){
-        General::addRowLog("[Gen Usr Pass]");
+        General::addRowLog("[Gen Usr Pass - LEGACY]");
         if($iId>0 && strlen($Uid)>=4 && strlen($Pwd)>4){
             if (strlen($Uid)<16){
                 if (strlen($Uid)%2==0)

@@ -770,6 +770,61 @@ class General {
         }
     }
 
+    /**
+     * Set secure CORS headers based on configuration
+     *
+     * SECURITY FIX: Implements proper CORS validation to prevent CSRF attacks
+     * Instead of allowing all origins (*), validates against a whitelist
+     *
+     * @return void
+     */
+    static function setSecureCorsHeaders(): void {
+        $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+        // Get CORS configuration
+        $corsConfig = \Flussu\Config::init()->get('security.cors', []);
+        $enabled = $corsConfig['enabled'] ?? true;
+
+        if (!$enabled) {
+            // CORS disabled - don't set any headers
+            return;
+        }
+
+        $allowedOrigins = $corsConfig['allowed_origins'] ?? [];
+        $allowCredentials = $corsConfig['allow_credentials'] ?? true;
+        $maxAge = $corsConfig['max_age'] ?? 3600;
+
+        // Check if origin is in whitelist
+        if (!empty($origin) && in_array($origin, $allowedOrigins)) {
+            // Origin is allowed
+            header("Access-Control-Allow-Origin: $origin");
+        } else if (empty($allowedOrigins)) {
+            // No whitelist configured - use wildcard (backward compatibility)
+            // WARNING: This is less secure and should only be used in development
+            header('Access-Control-Allow-Origin: *');
+        } else {
+            // Origin not allowed - don't set CORS headers
+            // Request will be blocked by browser
+            return;
+        }
+
+        // Set other CORS headers
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, WID');
+        header("Access-Control-Max-Age: $maxAge");
+        header('Access-Control-Expose-Headers: Content-Security-Policy, Location');
+
+        if ($allowCredentials) {
+            header('Access-Control-Allow-Credentials: true');
+        }
+
+        // Handle preflight OPTIONS request
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            http_response_code(200);
+            exit();
+        }
+    }
+
     static function hasScriptErrors($code,$description="") {
         /* create lint result using a temporary file */
         $log_dir=$_SERVER['DOCUMENT_ROOT']."/../Logs/";

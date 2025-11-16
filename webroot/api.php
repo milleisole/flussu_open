@@ -105,6 +105,8 @@ if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"]
     $srv=$_ENV["server"];
     die(json_encode(["host"=>$hostname,"server"=>$srv,"Flussu Open"=>$FlussuVersion,"v"=>$v,"m"=>$m,"r"=>$r,"db"=>$dbv,"pv"=>phpversion()]));
 } else if ($_SERVER["REQUEST_URI"]=="/notify"){
+    // SECURITY FIX: Apply CORS headers for notify endpoint
+    General::setSecureCorsHeaders();
     /* 
         PHP Session is blocking asyncrhonous calls if you use the same session_id, so the
         notifications mechanism must be session-agnostic.

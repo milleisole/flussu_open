@@ -3,6 +3,19 @@
     "version":"4.5",
     "release":"20250802"
   },
+  "security":{
+    "cors":{
+      "enabled": true,
+      "allowed_origins": [
+        "https://your-frontend-domain.com",
+        "https://app.example.com",
+        "http://localhost:3000"
+      ],
+      "allow_credentials": true,
+      "max_age": 3600,
+      "comment": "SECURITY: List specific domains instead of using '*' to prevent CSRF attacks"
+    }
+  },
   "services": {
     "google":{
         "type": "service_account",

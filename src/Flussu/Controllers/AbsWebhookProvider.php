@@ -204,14 +204,11 @@ abstract class AbsWebhookProvider implements IWebhookProvider
 
     /**
      * Set CORS headers for webhook responses
+     * SECURITY FIX: Use secure CORS implementation
      */
     protected function setCorsHeaders(): void
     {
-        header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Methods: *');
-        header('Access-Control-Allow-Headers: *');
-        header('Access-Control-Max-Age: 200');
-        header('Access-Control-Expose-Headers: Content-Security-Policy, Location');
+        General::setSecureCorsHeaders();
     }
 
     /**
