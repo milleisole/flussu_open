@@ -74,7 +74,19 @@ require_once 'inc/includebase.php';
                 <button type="submit" class="btn btn-primary" style="width: 100%;">
                     Accedi
                 </button>
+
+                <div class="text-center mt-3">
+                    <a href="forgot-password.php" style="color: #188d4d; text-decoration: none;">
+                        Password dimenticata?
+                    </a>
+                </div>
             </form>
+
+            <div class="text-center mt-3">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 10px;">
+                    Non hai un account? <a href="register.php" style="color: #188d4d; text-decoration: none; font-weight: 600;">Registrati</a>
+                </p>
+            </div>
 
             <div class="text-center mt-3">
                 <p class="text-muted" style="font-size: 12px;">
@@ -86,8 +98,10 @@ require_once 'inc/includebase.php';
     </div>
 
     <script src="js/flussu-api.js"></script>
+    <script src="js/flussu-password-api.js"></script>
     <script>
         const api = new FlussuAPI();
+        const passwordAPI = new FlussuPasswordAPI();
 
         // Verifica se già autenticato
         if (api.isAuthenticated()) {
@@ -121,6 +135,20 @@ require_once 'inc/includebase.php';
                 const result = await api.login(username, password);
 
                 if (result.success) {
+                    // Verifica se l'utente deve cambiare password
+                    try {
+                        const passwordStatus = await passwordAPI.checkPasswordStatus(username);
+
+                        if (passwordStatus.result === "OK" && passwordStatus.mustChangePassword) {
+                            // Redirect a change-password.php
+                            window.location.href = `change-password.php?username=${encodeURIComponent(username)}`;
+                            return;
+                        }
+                    } catch (pwdError) {
+                        console.warn('Could not check password status:', pwdError);
+                        // In caso di errore nel controllo password, procedi comunque con il login
+                    }
+
                     // Redirect alla dashboard
                     window.location.href = 'dashboard.html';
                 } else {
