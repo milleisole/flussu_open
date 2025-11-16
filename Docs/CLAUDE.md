@@ -40,7 +40,7 @@ Flussu Server is a **PHP-based workflow automation platform** that enables:
 - **Web Server**: Apache2 with mod_rewrite (or Nginx)
 
 **Key Dependencies**:
-- AI: Claude, OpenAI, Gemini, DeepSeek, Grok, Hugging Face
+- AI: Claude, OpenAI, Gemini, DeepSeek, Grok, Hugging Face, Mooonshot, Kimi
 - Payments: Stripe, Revolut
 - Cloud: Google Drive, AWS
 - Documents: DomPDF, PhpSpreadsheet
