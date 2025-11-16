@@ -50,6 +50,6 @@ if (isset($_SESSION["user"])) {
         redirect("dashboard.php");
     }
 } 
-if ($_SERVER["SCRIPT_URL"]!="/flussu/login.php")
+if ($_SERVER["SCRIPT_URL"]!="/flussu/login.php" && $_SERVER["SCRIPT_URL"]!="/flussu/forgot-password.php")
     redirect("login.php");
 
