@@ -40,7 +40,7 @@ class UserManagementController
         }
 
         $method = $_SERVER['REQUEST_METHOD'];
-        $path = $request['path'] ?? '';
+        $path =  $_REQUEST['path'] ?? '';
 
         try {
             // Route pubbliche (no auth)
