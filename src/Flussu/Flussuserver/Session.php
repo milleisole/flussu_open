@@ -566,6 +566,13 @@ class Session {
     private $_subWid=[];
     public function moveTo(string $WID, string $backToBlockId, string $gotoBlockId=null){
         //$this->_subWid=$this->_MemSeStat->subWID;
+
+        // Registra l'uso del workflow principale prima di passare al sub-workflow
+        if (!empty($backToBlockId)) {
+            $bidId = $this->_WofoD->getBlockIdFromUUID($backToBlockId);
+            $this->recUseStat($bidId, json_encode(["moveTo"=>$WID]), $this->_sessId, false, 0);
+        }
+
         $this->_MemSeStat->subWID[]=((object)array("wid"=>$this->_MemSeStat->wid,"wwid"=>$this->_MemSeStat->Wwid,"bid"=>$backToBlockId,"title"=>$this->_MemSeStat->title));
         $this->_MemSeStat->returnToWid=$this->_MemSeStat->wid;
         $this->_MemSeStat->returnToWwid=$this->_MemSeStat->Wwid;
@@ -627,6 +634,13 @@ class Session {
         $this->_MemSeStat->returnToWid=$lastSW->wid;
         $this->_MemSeStat->returnToWwid=$lastSW->wwid;
         $this->_MemSeStat->returnToBid=$lastSW->bid;
+
+        // Registra il ritorno al workflow principale
+        if (!empty($theblk)) {
+            $bidId = $this->_WofoD->getBlockIdFromUUID($theblk);
+            $this->recUseStat($bidId, json_encode(["moveBack"=>$lastSW->wwid]), $this->_sessId, false, 0);
+        }
+
         $this->_updateStat();
         return $theblk;
     }

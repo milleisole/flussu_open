@@ -83,8 +83,9 @@ class Stat {
             $index=0;
             foreach ($res1 as $key => $value) {
                 $arr=[$key,intval($res1[$key]),intval($res2[$key]),intval($res1[$key])+intval($res2[$key]),""];
-                $a=[];
-                eval("$"."a=".$res3["values"][$index++][2].";");
+                $a=json_decode($res3["values"][$index++][2],true);
+                if (!is_array($a))
+                    $a=[];
                 $arr=array_merge($arr,$a);
                 //array_push($arr,intval($res1[$key])+intval($res2[$key]));
                 array_push($res,$arr);

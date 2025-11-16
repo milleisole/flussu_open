@@ -98,9 +98,11 @@ class Statistic {
             $des=$objs[$i]["b_desc"];
             if (strpos($des,"#OBJ_")!==false)
                 $des=substr($des,strpos($des,"#OBJ_")+5);
+            else if (strpos($des,"#object_")!==false)
+                $des=substr($des,strpos($des,"#object_")+8);
             array_push($labels,"% ".$des);
-            array_push($bidSel,$objs[$i]["b_id"]);    
-            array_push($zero,"0");
+            array_push($bidSel,$objs[$i]["b_id"]);
+            array_push($zero,0);
         }
         $arrRes=[];
         for ($i=0;$i<count($data);$i++){
@@ -109,9 +111,9 @@ class Statistic {
             $vals=[];
             if($data[$i]->value>0){
                 $recs=$this->_extractWfUse($stD,$bidSel);
-                $tot=$data[$i]->value;
+                $tot=intval($data[$i]->value);
                 for ($j=0;$j<count($recs);$j++){
-                    $use=$recs[$j]["b_use"];
+                    $use=intval($recs[$j]["b_use"]);
                     $pct=0;
                     if ($use>0)
                         $pct=intval(($use/$tot)*100);
@@ -121,7 +123,7 @@ class Statistic {
                 $vals=$zero;
             }
             //$data[$i]->objsv=json_encode($vals);
-            array_push ($arrRes,[$data[$i]->label,$data[$i]->value,json_encode($vals)]);
+            array_push ($arrRes,[$data[$i]->label,intval($data[$i]->value),json_encode($vals)]);
         }
         return ["labels"=>$labels,"values"=>$arrRes];
     }
@@ -164,9 +166,9 @@ class Statistic {
  ================================================================================== */
 
     private function _getWorkflowObjectives(){
-        $SQL="select c20_desc as b_desc, c20_id as b_id from t20_block where c20_flofoid=? and c20_desc like '%#OBJ_%'";
+        $SQL="select c20_desc as b_desc, c20_id as b_id from t20_block where c20_flofoid=? and (c20_desc like '%#OBJ_%' or c20_desc like '%#object_%')";
         $this->_WofoD->execSql($SQL,array($this->wid));
-        return $this->_WofoD->getData(); 
+        return $this->_WofoD->getData();
     }
 
     private function _getLastWorkflowBlock(){
