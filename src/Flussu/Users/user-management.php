@@ -67,6 +67,7 @@ try {
         $path = substr($path, 0, strpos($path, '?'));
     }
 
+    /*
     // Prepara request data
     $request = [
         'path' => $path,
@@ -79,9 +80,10 @@ try {
             $request[$key] = $value;
         }
     }
+    */
 
     // Esegui request
-    $result = $controller->handleRequest($request);
+    $result = $controller->handleRequest(); //$request);
 
     // Output result
     if (is_array($result)) {
