@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flussu - Gestione Utenti</title>
+    <link rel="stylesheet" href="css/flussu-admin.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="dashboard.html" class="logo">FLUSSU</a>
+
+                <nav>
+                    <ul class="nav-menu">
+                        <li><a href="dashboard.html">Dashboard</a></li>
+                        <li><a href="users.html" class="active">Utenti</a></li>
+                        <li><a href="workflows.html">Workflow</a></li>
+                    </ul>
+                </nav>
+
+                <div class="user-info">
+                    <span id="userDisplayName">...</span>
+                    <button class="btn btn-secondary btn-sm" id="logoutBtn">Esci</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="d-flex justify-between align-center mb-3">
+                <h1 class="page-title">Gestione Utenti</h1>
+                <button class="btn btn-primary" id="addUserBtn">
+                    ➕ Nuovo Utente
+                </button>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Utenti Totali</div>
+                    <div class="stat-value" id="statTotal">-</div>
+                </div>
+                <div class="stat-card" style="border-left-color: #28a745;">
+                    <div class="stat-label">Utenti Attivi</div>
+                    <div class="stat-value" id="statActive">-</div>
+                </div>
+                <div class="stat-card" style="border-left-color: #6A5ACD;">
+                    <div class="stat-label">Amministratori</div>
+                    <div class="stat-value" id="statAdmins">-</div>
+                </div>
+                <div class="stat-card" style="border-left-color: #ffc107;">
+                    <div class="stat-label">Editor</div>
+                    <div class="stat-value" id="statEditors">-</div>
+                </div>
+            </div>
+
+            <!-- Users Table -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-between align-center">
+                        <span>Elenco Utenti</span>
+                        <div class="d-flex gap-1">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="showDeletedCheckbox" />
+                                <span>Mostra disattivati</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table class="table" id="usersTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome Utente</th>
+                                <th>Email</th>
+                                <th>Ruolo</th>
+                                <th>Stato</th>
+                                <th>Creato</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="7" class="text-center">Caricamento...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Aggiungi/Modifica Utente -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Nuovo Utente</h2>
+                <button class="modal-close" onclick="closeUserModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId" />
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="username" class="form-label">Username *</label>
+                            <input type="text" id="username" class="form-control" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="email" class="form-label">Email *</label>
+                            <input type="email" id="email" class="form-control" required />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="name" class="form-label">Nome</label>
+                            <input type="text" id="name" class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label for="surname" class="form-label">Cognome</label>
+                            <input type="text" id="surname" class="form-control" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="role" class="form-label">Ruolo *</label>
+                        <select id="role" class="form-control form-select" required>
+                            <option value="0">Utente Finale</option>
+                            <option value="1">Amministratore</option>
+                            <option value="2">Editor</option>
+                            <option value="3">Visualizzatore/Tester</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="passwordGroup">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" id="password" class="form-control" />
+                        <small class="text-muted">Lascia vuoto per forzare il cambio al primo accesso</small>
+                    </div>
+
+                    <div id="formError" class="alert alert-danger" style="display: none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeUserModal()">Annulla</button>
+                <button class="btn btn-primary" id="saveUserBtn">Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/flussu-api.js"></script>
+    <script>
+        const api = new FlussuAPI();
+        let currentUser = null;
+        let allUsers = [];
+
+        // Verifica autenticazione e permessi
+        if (!api.isAuthenticated()) {
+            window.location.href = 'login.php';
+        }
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            if (FlussuUI.confirm('Sei sicuro di voler uscire?')) {
+                await api.logout();
+                window.location.href = 'login.php';
+            }
+        });
+
+        // Verifica permessi admin
+        async function checkAdminPermissions() {
+            try {
+                const result = await api.getCurrentUser();
+                if (result.success) {
+                    currentUser = result.user;
+                    document.getElementById('userDisplayName').textContent =
+                        `${currentUser.c80_name || ''} ${currentUser.c80_surname || ''}`.trim() ||
+                        currentUser.c80_username;
+
+                    // Solo admin possono accedere a questa pagina
+                    if (currentUser.c80_role !== 1) {
+                        FlussuUI.showAlert('Accesso negato: solo gli amministratori possono gestire gli utenti', 'danger');
+                        setTimeout(() => window.location.href = 'dashboard.html', 2000);
+                    }
+                }
+            } catch (error) {
+                window.location.href = 'login.php';
+            }
+        }
+
+        // Carica utenti
+        async function loadUsers(includeDeleted = false) {
+            try {
+                const result = await api.getUsers(includeDeleted);
+
+                if (result.success) {
+                    allUsers = result.users || [];
+
+                    // Aggiorna statistiche
+                    updateStats();
+
+                    // Popola tabella
+                    populateUsersTable();
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                FlussuUI.showAlert('Errore durante il caricamento degli utenti', 'danger');
+            }
+        }
+
+        // Aggiorna statistiche
+        function updateStats() {
+            const activeUsers = allUsers.filter(u => u.is_active);
+            const admins = allUsers.filter(u => u.role_id === 1 && u.is_active);
+            const editors = allUsers.filter(u => u.role_id === 2 && u.is_active);
+
+            document.getElementById('statTotal').textContent = allUsers.length;
+            document.getElementById('statActive').textContent = activeUsers.length;
+            document.getElementById('statAdmins').textContent = admins.length;
+            document.getElementById('statEditors').textContent = editors.length;
+        }
+
+        // Popola tabella utenti
+        function populateUsersTable() {
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '';
+
+            if (allUsers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Nessun utente trovato</td></tr>';
+                return;
+            }
+
+            allUsers.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.user_id}</td>
+                    <td>${FlussuUI.escapeHtml(user.c80_username)}</td>
+                    <td>${FlussuUI.escapeHtml(user.c80_email)}</td>
+                    <td>${FlussuUI.getRoleBadge(user.role_id, user.role_name)}</td>
+                    <td>${FlussuUI.getStatusBadge(user.is_active)}</td>
+                    <td>${FlussuUI.formatDate(user.c80_created)}</td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-primary btn-sm" onclick="editUser(${user.user_id})" title="Modifica">
+                                ✏️
+                            </button>
+                            ${user.is_active ?
+                                `<button class="btn btn-warning btn-sm" onclick="disableUser(${user.user_id})" title="Disattiva">🚫</button>` :
+                                `<button class="btn btn-success btn-sm" onclick="enableUser(${user.user_id})" title="Attiva">✓</button>`
+                            }
+                            <button class="btn btn-secondary btn-sm" onclick="resetPassword(${user.user_id})" title="Reset Password">🔑</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Apri modal nuovo utente
+        document.getElementById('addUserBtn').addEventListener('click', () => {
+            document.getElementById('modalTitle').textContent = 'Nuovo Utente';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('passwordGroup').style.display = 'block';
+            document.getElementById('formError').style.display = 'none';
+            FlussuUI.showModal('userModal');
+        });
+
+        // Modifica utente
+        async function editUser(userId) {
+            try {
+                const result = await api.getUser(userId);
+                if (result.success) {
+                    const user = result.user;
+
+                    document.getElementById('modalTitle').textContent = 'Modifica Utente';
+                    document.getElementById('userId').value = user.user_id;
+                    document.getElementById('username').value = user.c80_username;
+                    document.getElementById('email').value = user.c80_email;
+                    document.getElementById('name').value = user.c80_name || '';
+                    document.getElementById('surname').value = user.c80_surname || '';
+                    document.getElementById('role').value = user.role_id;
+                    document.getElementById('passwordGroup').style.display = 'none';
+                    document.getElementById('formError').style.display = 'none';
+
+                    FlussuUI.showModal('userModal');
+                }
+            } catch (error) {
+                FlussuUI.showAlert('Errore durante il caricamento dell\'utente', 'danger');
+            }
+        }
+
+        // Chiudi modal
+        function closeUserModal() {
+            FlussuUI.hideModal('userModal');
+        }
+
+        // Salva utente
+        document.getElementById('saveUserBtn').addEventListener('click', async () => {
+            const userId = document.getElementById('userId').value;
+            const userData = {
+                username: document.getElementById('username').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                name: document.getElementById('name').value.trim(),
+                surname: document.getElementById('surname').value.trim(),
+                role: parseInt(document.getElementById('role').value)
+            };
+
+            const password = document.getElementById('password').value;
+            if (password) {
+                userData.password = password;
+            }
+
+            try {
+                let result;
+                if (userId) {
+                    // Update
+                    result = await api.updateUser(userId, userData);
+                } else {
+                    // Create
+                    result = await api.createUser(userData);
+                }
+
+                if (result.success) {
+                    FlussuUI.showAlert(result.message || 'Utente salvato con successo', 'success');
+                    closeUserModal();
+                    await loadUsers(document.getElementById('showDeletedCheckbox').checked);
+                } else {
+                    document.getElementById('formError').textContent = result.message;
+                    document.getElementById('formError').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error saving user:', error);
+                document.getElementById('formError').textContent = 'Errore durante il salvataggio';
+                document.getElementById('formError').style.display = 'block';
+            }
+        });
+
+        // Disattiva utente
+        async function disableUser(userId) {
+            if (!FlussuUI.confirm('Sei sicuro di voler disattivare questo utente?')) {
+                return;
+            }
+
+            try {
+                const result = await api.setUserStatus(userId, false);
+                if (result.success) {
+                    FlussuUI.showAlert('Utente disattivato', 'success');
+                    await loadUsers(document.getElementById('showDeletedCheckbox').checked);
+                }
+            } catch (error) {
+                FlussuUI.showAlert('Errore durante la disattivazione', 'danger');
+            }
+        }
+
+        // Attiva utente
+        async function enableUser(userId) {
+            try {
+                const result = await api.setUserStatus(userId, true);
+                if (result.success) {
+                    FlussuUI.showAlert('Utente attivato', 'success');
+                    await loadUsers(document.getElementById('showDeletedCheckbox').checked);
+                }
+            } catch (error) {
+                FlussuUI.showAlert('Errore durante l\'attivazione', 'danger');
+            }
+        }
+
+        // Reset password
+        async function resetPassword(userId) {
+            if (!FlussuUI.confirm('Vuoi generare una password temporanea per questo utente?')) {
+                return;
+            }
+
+            const tempPassword = 'Temp' + Math.random().toString(36).slice(-8) + '!';
+
+            try {
+                const result = await api.changePassword(userId, tempPassword, true);
+                if (result.success) {
+                    alert(`Password temporanea generata:\n\n${tempPassword}\n\nL'utente dovrà cambiarla al prossimo accesso.`);
+                }
+            } catch (error) {
+                FlussuUI.showAlert('Errore durante il reset della password', 'danger');
+            }
+        }
+
+        // Checkbox mostra disattivati
+        document.getElementById('showDeletedCheckbox').addEventListener('change', (e) => {
+            loadUsers(e.target.checked);
+        });
+
+        // Inizializza
+        checkAdminPermissions().then(() => {
+            loadUsers();
+        });
+    </script>
+</body>
+</html>
