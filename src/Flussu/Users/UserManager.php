@@ -37,20 +37,8 @@ class UserManager
      */
     public function getAllUsers($includeDeleted = false)
     {
-        $sql = "SELECT u.*, r.c90_name as role_name,
-                (CASE WHEN u.c80_deleted = '1899-12-31 23:59:59' THEN 1 ELSE 0 END) as is_active
-                FROM t80_user u
-                LEFT JOIN t90_role r ON r.c90_id = u.c80_role";
-
-        if (!$includeDeleted) {
-            $sql .= " WHERE u.c80_deleted = '1899-12-31 23:59:59'";
-        }
-        $sql .= " ORDER BY u.c80_id";
-
-        if ($this->handler->execSql($sql)) {
-            return $this->handler->getData();
-        }
-        return [];
+        $result = $this->handler->getAllUsers($includeDeleted);
+        return $result ? $result : [];
     }
 
     /**
@@ -66,17 +54,7 @@ class UserManager
      */
     public function getUserByUsernameOrEmail($identifier)
     {
-        $sql = "SELECT u.*, r.c90_name as role_name,
-                (CASE WHEN u.c80_deleted = '1899-12-31 23:59:59' THEN 1 ELSE 0 END) as is_active
-                FROM t80_user u
-                LEFT JOIN t90_role r ON r.c90_id = u.c80_role
-                WHERE (u.c80_username = ? OR u.c80_email = ?) AND u.c80_deleted = '1899-12-31 23:59:59'";
-
-        if ($this->handler->execSql($sql, [$identifier, $identifier])) {
-            $result = $this->handler->getData();
-            return is_array($result) && count($result) > 0 ? $result[0] : false;
-        }
-        return false;
+        return $this->handler->getUserByUsernameOrEmail($identifier);
     }
 
     /**
@@ -101,26 +79,21 @@ class UserManager
             return ['success' => false, 'message' => 'Email già esistente'];
         }
 
-        $sql = "INSERT INTO t80_user
-                (c80_username, c80_email, c80_password, c80_role, c80_name, c80_surname, c80_pwd_chng)
-                VALUES (?, ?, ?, ?, ?, ?, ?)";
-
-        $role = $data['role'] ?? self::ROLE_END_USER;
-        $name = $data['name'] ?? '';
-        $surname = $data['surname'] ?? '';
         $password = isset($data['password']) ? $this->hashPassword($data['password'], $data['username']) : '';
         $pwdChange = isset($data['password']) ? date('Y-m-d H:i:s', strtotime('+1 year')) : date('Y-m-d H:i:s', strtotime('-1 week'));
 
+        $userData = [
+            'username' => $data['username'],
+            'email' => $data['email'],
+            'password' => $password,
+            'role' => $data['role'] ?? self::ROLE_END_USER,
+            'name' => $data['name'] ?? '',
+            'surname' => $data['surname'] ?? '',
+            'pwd_chng' => $pwdChange
+        ];
+
         try {
-            $userId = $this->handler->execSqlGetId($sql, [
-                $data['username'],
-                $data['email'],
-                $password,
-                $role,
-                $name,
-                $surname,
-                $pwdChange
-            ]);
+            $userId = $this->handler->createUser($userData);
 
             if ($userId > 0) {
                 // Log audit
@@ -157,48 +130,39 @@ class UserManager
         }
 
         $updateFields = [];
-        $params = [];
 
         if (isset($data['email']) && $data['email'] !== $user['c80_email']) {
             if ($this->emailExists($data['email'], $userId)) {
                 return ['success' => false, 'message' => 'Email già esistente'];
             }
-            $updateFields[] = 'c80_email = ?';
-            $params[] = $data['email'];
+            $updateFields['c80_email'] = $data['email'];
         }
 
         if (isset($data['username']) && $data['username'] !== $user['c80_username']) {
             if ($this->usernameExists($data['username'], $userId)) {
                 return ['success' => false, 'message' => 'Username già esistente'];
             }
-            $updateFields[] = 'c80_username = ?';
-            $params[] = $data['username'];
+            $updateFields['c80_username'] = $data['username'];
         }
 
         if (isset($data['name'])) {
-            $updateFields[] = 'c80_name = ?';
-            $params[] = $data['name'];
+            $updateFields['c80_name'] = $data['name'];
         }
 
         if (isset($data['surname'])) {
-            $updateFields[] = 'c80_surname = ?';
-            $params[] = $data['surname'];
+            $updateFields['c80_surname'] = $data['surname'];
         }
 
         if (isset($data['role'])) {
-            $updateFields[] = 'c80_role = ?';
-            $params[] = $data['role'];
+            $updateFields['c80_role'] = $data['role'];
         }
 
         if (empty($updateFields)) {
             return ['success' => false, 'message' => 'Nessun campo da aggiornare'];
         }
 
-        $params[] = $userId;
-        $sql = "UPDATE t80_user SET " . implode(', ', $updateFields) . " WHERE c80_id = ?";
-
         try {
-            if ($this->handler->execSql($sql, $params)) {
+            if ($this->handler->updateUser($userId, $updateFields)) {
                 // Log audit
                 $audit = new AuditLogger($this->debug);
                 $audit->log($userId, 'user_updated', 'user', $userId, [
@@ -227,10 +191,8 @@ class UserManager
         $deletedDate = $active ? '1899-12-31 23:59:59' : date('Y-m-d H:i:s');
         $deletedBy = $active ? 0 : ($disabledBy ?? 0);
 
-        $sql = "UPDATE t80_user SET c80_deleted = ?, c80_deleted_by = ? WHERE c80_id = ?";
-
         try {
-            if ($this->handler->execSql($sql, [$deletedDate, $deletedBy, $userId])) {
+            if ($this->handler->setUserStatus($userId, $deletedDate, $deletedBy)) {
                 $action = $active ? 'user_enabled' : 'user_disabled';
                 $audit = new AuditLogger($this->debug);
                 $audit->log($userId, $action, 'user', $userId, [
@@ -265,10 +227,8 @@ class UserManager
             ? date('Y-m-d H:i:s', strtotime('-1 week'))
             : date('Y-m-d H:i:s', strtotime('+1 year'));
 
-        $sql = "UPDATE t80_user SET c80_password = ?, c80_pwd_chng = ? WHERE c80_id = ?";
-
         try {
-            if ($this->handler->execSql($sql, [$hashedPassword, $pwdChange, $userId])) {
+            if ($this->handler->changePassword($userId, $hashedPassword, $pwdChange)) {
                 $audit = new AuditLogger($this->debug);
                 $audit->log($userId, 'password_changed', 'user', $userId, [
                     'temporary' => $temporary
@@ -290,19 +250,7 @@ class UserManager
      */
     public function usernameExists($username, $excludeUserId = null)
     {
-        $sql = "SELECT COUNT(*) as count FROM t80_user WHERE c80_username = ?";
-        $params = [$username];
-
-        if ($excludeUserId) {
-            $sql .= " AND c80_id != ?";
-            $params[] = $excludeUserId;
-        }
-
-        if ($this->handler->execSql($sql, $params)) {
-            $result = $this->handler->getData();
-            return is_array($result) && count($result) > 0 && $result[0]['count'] > 0;
-        }
-        return false;
+        return $this->handler->usernameExists($username, $excludeUserId);
     }
 
     /**
@@ -310,19 +258,7 @@ class UserManager
      */
     public function emailExists($email, $excludeUserId = null)
     {
-        $sql = "SELECT COUNT(*) as count FROM t80_user WHERE c80_email = ?";
-        $params = [$email];
-
-        if ($excludeUserId) {
-            $sql .= " AND c80_id != ?";
-            $params[] = $excludeUserId;
-        }
-
-        if ($this->handler->execSql($sql, $params)) {
-            $result = $this->handler->getData();
-            return is_array($result) && count($result) > 0 && $result[0]['count'] > 0;
-        }
-        return false;
+        return $this->handler->emailExists($email, $excludeUserId);
     }
 
     /**
@@ -360,17 +296,7 @@ class UserManager
      */
     public function getUserStats()
     {
-        $sql = "SELECT
-                    r.c90_name as role_name,
-                    COUNT(u.c80_id) as user_count,
-                    SUM(CASE WHEN u.c80_deleted = '1899-12-31 23:59:59' THEN 1 ELSE 0 END) as active_count
-                FROM t80_user u
-                LEFT JOIN t90_role r ON r.c90_id = u.c80_role
-                GROUP BY u.c80_role, r.c90_name";
-
-        if ($this->handler->execSql($sql)) {
-            return $this->handler->getData();
-        }
-        return [];
+        $result = $this->handler->getUserStats();
+        return $result ? $result : [];
     }
 }

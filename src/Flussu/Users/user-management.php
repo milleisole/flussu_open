@@ -9,7 +9,7 @@
 error_reporting(E_ALL);
 ini_set('display_errors', '0'); // Cambia a '0' in produzione
 ini_set('log_errors', '1');
-ini_set('error_log', __DIR__ . '/../Logs/api_errors.log');
+ini_set('error_log', __DIR__ . '/../../../Logs/api_errors.log');
 
 // Headers CORS
 header('Access-Control-Allow-Origin: *');
@@ -24,10 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Carica autoloader
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../../../vendor/autoload.php';
 
 // Carica configurazione
-$envFile = __DIR__ . '/../.env';
+$envFile = __DIR__ . '/../../../.env';
 if (file_exists($envFile)) {
     $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {

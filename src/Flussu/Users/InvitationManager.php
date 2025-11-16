@@ -49,12 +49,8 @@ class InvitationManager
         $invitationCode = $this->generateInvitationCode();
         $expiresAt = date('Y-m-d H:i:s', strtotime("+{$expiresInDays} days"));
 
-        $sql = "INSERT INTO t96_user_invitations
-                (c96_email, c96_role, c96_invited_by, c96_invitation_code, c96_expires_at)
-                VALUES (?, ?, ?, ?, ?)";
-
         try {
-            $invitationId = $this->handler->execSqlGetId($sql, [$email, $role, $invitedBy, $invitationCode, $expiresAt]);
+            $invitationId = $this->handler->createInvitation($email, $role, $invitedBy, $invitationCode, $expiresAt);
 
             if ($invitationId > 0) {
                 // Log audit
@@ -89,16 +85,10 @@ class InvitationManager
      */
     public function validateInvitation($invitationCode)
     {
-        $sql = "SELECT * FROM t96_user_invitations
-                WHERE c96_invitation_code = ?
-                AND c96_status = ?
-                AND c96_expires_at > NOW()";
+        $invitation = $this->handler->getInvitationByCode($invitationCode, self::STATUS_PENDING);
 
-        if ($this->handler->execSql($sql, [$invitationCode, self::STATUS_PENDING])) {
-            $result = $this->handler->getData();
-            if (is_array($result) && count($result) > 0) {
-                return ['valid' => true, 'invitation' => $result[0]];
-            }
+        if ($invitation !== false) {
+            return ['valid' => true, 'invitation' => $invitation];
         }
 
         return ['valid' => false, 'message' => 'Invito non valido o scaduto'];
@@ -129,11 +119,7 @@ class InvitationManager
 
         if ($result['success']) {
             // Marca invito come accettato
-            $sql = "UPDATE t96_user_invitations
-                    SET c96_status = ?, c96_accepted_at = NOW()
-                    WHERE c96_invitation_code = ?";
-
-            $this->handler->execSql($sql, [self::STATUS_ACCEPTED, $invitationCode]);
+            $this->handler->updateInvitationStatus($invitationCode, self::STATUS_ACCEPTED, date('Y-m-d H:i:s'));
 
             // Log audit
             $audit = new AuditLogger($this->debug);
@@ -157,12 +143,8 @@ class InvitationManager
     {
         General::addRowLog("[InvitationManager: Reject invitation {$invitationCode}]");
 
-        $sql = "UPDATE t96_user_invitations
-                SET c96_status = ?
-                WHERE c96_invitation_code = ? AND c96_status = ?";
-
         try {
-            if ($this->handler->execSql($sql, [self::STATUS_REJECTED, $invitationCode, self::STATUS_PENDING])) {
+            if ($this->handler->updateInvitationStatus($invitationCode, self::STATUS_REJECTED)) {
                 General::addRowLog("[InvitationManager: Invitation rejected]");
                 return ['success' => true, 'message' => 'Invito rifiutato'];
             }
@@ -179,14 +161,8 @@ class InvitationManager
      */
     public function getUserInvitations($userId)
     {
-        $sql = "SELECT * FROM t96_user_invitations
-                WHERE c96_invited_by = ?
-                ORDER BY c96_created_at DESC";
-
-        if ($this->handler->execSql($sql, [$userId])) {
-            return $this->handler->getData();
-        }
-        return [];
+        $result = $this->handler->getUserInvitations($userId);
+        return $result ? $result : [];
     }
 
     /**
@@ -194,16 +170,8 @@ class InvitationManager
      */
     public function getPendingInvitations()
     {
-        $sql = "SELECT i.*, u.c80_username as invited_by_username
-                FROM t96_user_invitations i
-                INNER JOIN t80_user u ON u.c80_id = i.c96_invited_by
-                WHERE i.c96_status = ? AND i.c96_expires_at > NOW()
-                ORDER BY i.c96_created_at DESC";
-
-        if ($this->handler->execSql($sql, [self::STATUS_PENDING])) {
-            return $this->handler->getData();
-        }
-        return [];
+        $result = $this->handler->getPendingInvitations(self::STATUS_PENDING);
+        return $result ? $result : [];
     }
 
     /**
@@ -213,16 +181,10 @@ class InvitationManager
     {
         General::addRowLog("[InvitationManager: Mark expired invitations]");
 
-        $sql = "UPDATE t96_user_invitations
-                SET c96_status = ?
-                WHERE c96_status = ? AND c96_expires_at < NOW()";
-
         try {
-            if ($this->handler->execSql($sql, [self::STATUS_EXPIRED, self::STATUS_PENDING])) {
-                $result = $this->handler->getData();
-                $count = is_array($result) ? count($result) : 0;
-                General::addRowLog("[InvitationManager: Marked {$count} expired invitations]");
-                return $count;
+            if ($this->handler->markExpiredInvitations(self::STATUS_EXPIRED, self::STATUS_PENDING)) {
+                General::addRowLog("[InvitationManager: Expired invitations marked]");
+                return true;
             }
         } catch (\Exception $e) {
             General::addRowLog("[InvitationManager: Error marking expired - ".$e->getMessage()."]");

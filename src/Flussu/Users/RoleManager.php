@@ -75,46 +75,24 @@ class RoleManager
     public function canAccessWorkflow($userId, $workflowId, $requiredPermission = self::PERM_READ)
     {
         // Prima verifica se è il proprietario
-        $sql = "SELECT c10_userid FROM t10_workflow WHERE c10_id = ?";
-
-        if ($this->handler->execSql($sql, [$workflowId])) {
-            $result = $this->handler->getData();
-            if (!is_array($result) || count($result) == 0) {
-                return false;
-            }
-            $workflow = $result[0];
-
-            // Se è il proprietario, ha tutti i permessi
-            if ($workflow['c10_userid'] == $userId) {
-                return true;
-            }
-        } else {
+        $ownerId = $this->handler->getWorkflowOwner($workflowId);
+        if ($ownerId === false) {
             return false;
         }
 
-        // Verifica permessi espliciti
-        $sql = "SELECT c88_permission FROM t88_wf_permissions
-                WHERE c88_wf_id = ? AND c88_usr_id = ?";
+        // Se è il proprietario, ha tutti i permessi
+        if ($ownerId == $userId) {
+            return true;
+        }
 
-        if ($this->handler->execSql($sql, [$workflowId, $userId])) {
-            $result = $this->handler->getData();
-            if (is_array($result) && count($result) > 0) {
-                $permission = $result[0];
-                return strpos($permission['c88_permission'], $requiredPermission) !== false;
-            }
+        // Verifica permessi espliciti
+        $permission = $this->handler->getWorkflowPermission($workflowId, $userId);
+        if ($permission !== false && strpos($permission, $requiredPermission) !== false) {
+            return true;
         }
 
         // Verifica se è in un progetto condiviso
-        $sql = "SELECT COUNT(*) as count FROM t85_prj_wflow pw
-                INNER JOIN t87_prj_user pu ON pu.c87_prj_id = pw.c85_prj_id
-                WHERE pw.c85_flofoid = ? AND pu.c87_usr_id = ?";
-
-        if ($this->handler->execSql($sql, [$workflowId, $userId])) {
-            $result = $this->handler->getData();
-            return is_array($result) && count($result) > 0 && $result[0]['count'] > 0;
-        }
-
-        return false;
+        return $this->handler->hasWorkflowProjectAccess($workflowId, $userId);
     }
 
     /**
@@ -129,16 +107,8 @@ class RoleManager
             return ['success' => false, 'message' => 'Non hai i permessi per concedere accesso'];
         }
 
-        $sql = "INSERT INTO t88_wf_permissions
-                (c88_wf_id, c88_usr_id, c88_permission, c88_granted_by)
-                VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                c88_permission = VALUES(c88_permission),
-                c88_granted_by = VALUES(c88_granted_by),
-                c88_granted_at = CURRENT_TIMESTAMP";
-
         try {
-            if ($this->handler->execSql($sql, [$workflowId, $userId, $permission, $grantedBy])) {
+            if ($this->handler->grantWorkflowPermission($workflowId, $userId, $permission, $grantedBy)) {
                 // Log audit
                 $audit = new AuditLogger($this->debug);
                 $audit->log($grantedBy, 'permission_granted', 'workflow', $workflowId, [
@@ -169,11 +139,8 @@ class RoleManager
             return ['success' => false, 'message' => 'Non hai i permessi per revocare accesso'];
         }
 
-        $sql = "DELETE FROM t88_wf_permissions
-                WHERE c88_wf_id = ? AND c88_usr_id = ?";
-
         try {
-            if ($this->handler->execSql($sql, [$workflowId, $userId])) {
+            if ($this->handler->revokeWorkflowPermission($workflowId, $userId)) {
                 // Log audit
                 $audit = new AuditLogger($this->debug);
                 $audit->log($revokedBy, 'permission_revoked', 'workflow', $workflowId, [
@@ -196,26 +163,8 @@ class RoleManager
      */
     public function getWorkflowPermissions($workflowId)
     {
-        $sql = "SELECT
-                    p.c88_usr_id as user_id,
-                    u.c80_username,
-                    u.c80_email,
-                    u.c80_name,
-                    u.c80_surname,
-                    p.c88_permission as permission,
-                    p.c88_granted_by as granted_by,
-                    gb.c80_username as granted_by_username,
-                    p.c88_granted_at as granted_at
-                FROM t88_wf_permissions p
-                INNER JOIN t80_user u ON u.c80_id = p.c88_usr_id
-                LEFT JOIN t80_user gb ON gb.c80_id = p.c88_granted_by
-                WHERE p.c88_wf_id = ?
-                ORDER BY p.c88_granted_at DESC";
-
-        if ($this->handler->execSql($sql, [$workflowId])) {
-            return $this->handler->getData();
-        }
-        return [];
+        $result = $this->handler->getWorkflowPermissions($workflowId);
+        return $result ? $result : [];
     }
 
     /**
@@ -223,34 +172,8 @@ class RoleManager
      */
     public function getUserWorkflows($userId, $includeInactive = false)
     {
-        $activeCond = $includeInactive ? '' : ' AND c10_active = 1';
-
-        $sql = "SELECT DISTINCT
-                    w.c10_id as wf_id,
-                    w.c10_wf_auid as wf_auid,
-                    w.c10_name as wf_name,
-                    w.c10_description,
-                    w.c10_active as is_active,
-                    w.c10_userid as owner_id,
-                    u.c80_username as owner_username,
-                    CASE
-                        WHEN w.c10_userid = ? THEN 'O'
-                        ELSE COALESCE(p.c88_permission, 'R')
-                    END as permission
-                FROM t10_workflow w
-                INNER JOIN t80_user u ON u.c80_id = w.c10_userid
-                LEFT JOIN t88_wf_permissions p ON p.c88_wf_id = w.c10_id AND p.c88_usr_id = ?
-                LEFT JOIN t85_prj_wflow pw ON pw.c85_flofoid = w.c10_id
-                LEFT JOIN t87_prj_user pu ON pu.c87_prj_id = pw.c85_prj_id AND pu.c87_usr_id = ?
-                WHERE (w.c10_userid = ? OR p.c88_usr_id IS NOT NULL OR pu.c87_usr_id IS NOT NULL)
-                AND w.c10_deleted = '1899-12-31 23:59:59'
-                {$activeCond}
-                ORDER BY w.c10_name";
-
-        if ($this->handler->execSql($sql, [$userId, $userId, $userId, $userId])) {
-            return $this->handler->getData();
-        }
-        return [];
+        $result = $this->handler->getUserWorkflows($userId, $includeInactive);
+        return $result ? $result : [];
     }
 
     /**

@@ -43,20 +43,17 @@ class SessionManager
         $ipAddress = $this->getClientIP();
         $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
 
-        $sql = "INSERT INTO t94_user_sessions
-                (c94_session_id, c94_usr_id, c94_api_key, c94_ip_address,
-                 c94_user_agent, c94_expires_at)
-                VALUES (?, ?, ?, ?, ?, ?)";
+        $sessionData = [
+            'session_id' => $sessionId,
+            'user_id' => $userId,
+            'api_key' => $apiKey,
+            'ip_address' => $ipAddress,
+            'user_agent' => substr($userAgent, 0, 255),
+            'expires_at' => $expiresAt
+        ];
 
         try {
-            if ($this->handler->execSql($sql, [
-                $sessionId,
-                $userId,
-                $apiKey,
-                $ipAddress,
-                substr($userAgent, 0, 255),
-                $expiresAt
-            ])) {
+            if ($this->handler->createSession($sessionData)) {
                 // Log audit
                 $audit = new AuditLogger($this->debug);
                 $audit->log($userId, 'session_created', 'session', null, [
@@ -88,20 +85,12 @@ class SessionManager
      */
     public function validateSession($sessionId)
     {
-        $sql = "SELECT s.*, u.c80_username, u.c80_email, u.c80_role
-                FROM t94_user_sessions s
-                INNER JOIN t80_user u ON u.c80_id = s.c94_usr_id
-                WHERE s.c94_session_id = ? AND s.c94_expires_at > NOW()
-                AND u.c80_deleted = '1899-12-31 23:59:59'";
+        $session = $this->handler->getSessionById($sessionId);
 
-        if ($this->handler->execSql($sql, [$sessionId])) {
-            $result = $this->handler->getData();
-            if (is_array($result) && count($result) > 0) {
-                $session = $result[0];
-                // Aggiorna last_activity
-                $this->updateLastActivity($sessionId);
-                return ['valid' => true, 'session' => $session];
-            }
+        if ($session !== false) {
+            // Aggiorna last_activity
+            $this->updateLastActivity($sessionId);
+            return ['valid' => true, 'session' => $session];
         }
 
         return ['valid' => false, 'message' => 'Sessione non valida o scaduta'];
@@ -112,34 +101,25 @@ class SessionManager
      */
     public function validateApiKey($apiKey)
     {
-        $sql = "SELECT s.*, u.c80_username, u.c80_email, u.c80_role
-                FROM t94_user_sessions s
-                INNER JOIN t80_user u ON u.c80_id = s.c94_usr_id
-                WHERE s.c94_api_key = ? AND s.c94_expires_at > NOW()
-                AND u.c80_deleted = '1899-12-31 23:59:59'";
+        $session = $this->handler->getSessionByApiKey($apiKey);
 
-        if ($this->handler->execSql($sql, [$apiKey])) {
-            $result = $this->handler->getData();
-            if (is_array($result) && count($result) > 0) {
-                $session = $result[0];
-                // Aggiorna last_activity
-                $this->updateLastActivity($session['c94_session_id']);
-                return ['valid' => true, 'session' => $session];
-            }
+        if ($session !== false) {
+            // Aggiorna last_activity
+            $this->updateLastActivity($session['c94_session_id']);
+            return ['valid' => true, 'session' => $session];
         }
 
         // Fallback: usa sistema esistente di Flussu
         $userId = General::getUserFromDateTimedApiKey($apiKey);
         if ($userId > 0) {
-            $sql2 = "SELECT c80_id as c94_usr_id, c80_username, c80_email, c80_role
-                     FROM t80_user
-                     WHERE c80_id = ? AND c80_deleted = '1899-12-31 23:59:59'";
-
-            if ($this->handler->execSql($sql2, [$userId])) {
-                $result = $this->handler->getData();
-                if (is_array($result) && count($result) > 0) {
-                    return ['valid' => true, 'session' => $result[0]];
-                }
+            $user = $this->handler->getUserById($userId);
+            if ($user && $user['c80_deleted'] == '1899-12-31 23:59:59') {
+                return ['valid' => true, 'session' => [
+                    'c94_usr_id' => $user['c80_id'],
+                    'c80_username' => $user['c80_username'],
+                    'c80_email' => $user['c80_email'],
+                    'c80_role' => $user['c80_role']
+                ]];
             }
         }
 
@@ -153,16 +133,8 @@ class SessionManager
     {
         General::addRowLog("[SessionManager: Close session {$sessionId}]");
 
-        $sql = "DELETE FROM t94_user_sessions WHERE c94_session_id = ?";
-        $params = [$sessionId];
-
-        if ($userId) {
-            $sql .= " AND c94_usr_id = ?";
-            $params[] = $userId;
-        }
-
         try {
-            if ($this->handler->execSql($sql, $params)) {
+            if ($this->handler->deleteSession($sessionId, $userId)) {
                 if ($userId) {
                     $audit = new AuditLogger($this->debug);
                     $audit->log($userId, 'session_closed', 'session', null, [
@@ -191,10 +163,8 @@ class SessionManager
     {
         General::addRowLog("[SessionManager: Close all sessions for User {$userId}]");
 
-        $sql = "DELETE FROM t94_user_sessions WHERE c94_usr_id = ?";
-
         try {
-            if ($this->handler->execSql($sql, [$userId])) {
+            if ($this->handler->deleteAllUserSessions($userId)) {
                 $audit = new AuditLogger($this->debug);
                 $audit->log($userId, 'all_sessions_closed', 'session', null);
 
@@ -217,14 +187,8 @@ class SessionManager
      */
     public function getUserActiveSessions($userId)
     {
-        $sql = "SELECT * FROM t94_user_sessions
-                WHERE c94_usr_id = ? AND c94_expires_at > NOW()
-                ORDER BY c94_last_activity DESC";
-
-        if ($this->handler->execSql($sql, [$userId])) {
-            return $this->handler->getData();
-        }
-        return [];
+        $result = $this->handler->getUserActiveSessions($userId);
+        return $result ? $result : [];
     }
 
     /**
@@ -234,14 +198,10 @@ class SessionManager
     {
         General::addRowLog("[SessionManager: Clean expired sessions]");
 
-        $sql = "DELETE FROM t94_user_sessions WHERE c94_expires_at < NOW()";
-
         try {
-            if ($this->handler->execSql($sql)) {
-                $result = $this->handler->getData();
-                $count = is_array($result) ? count($result) : 0;
-                General::addRowLog("[SessionManager: Deleted {$count} expired sessions]");
-                return $count;
+            if ($this->handler->cleanExpiredSessions()) {
+                General::addRowLog("[SessionManager: Expired sessions cleaned]");
+                return true;
             }
         } catch (\Exception $e) {
             General::addRowLog("[SessionManager: Error cleaning sessions - ".$e->getMessage()."]");
@@ -259,12 +219,8 @@ class SessionManager
      */
     private function updateLastActivity($sessionId)
     {
-        $sql = "UPDATE t94_user_sessions
-                SET c94_last_activity = CURRENT_TIMESTAMP
-                WHERE c94_session_id = ?";
-
         try {
-            $this->handler->execSql($sql, [$sessionId]);
+            $this->handler->updateSessionActivity($sessionId);
         } catch (\Exception $e) {
             // Non logghiamo errori per questa operazione
         }
