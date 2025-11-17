@@ -42,6 +42,19 @@
       "aws_secret_access_key": "xxxxxx/xxxxxxxxxxxxxx/xxxxxxxxxxxxxxxEXAMPLE",
       "region": "us-east-1"
     },
+    "email":{
+      "default": "smtp_provider",
+      "smtp_provider": {
+        "smtp_host": "smtp.example.com",
+        "smtp_port": 587,
+        "smtp_auth": 1,
+        "smtp_user": "noreply@example.com",
+        "smtp_pass": "your_smtp_password_here",
+        "smtp_encrypt": "STARTTLS",
+        "from_email": "noreply@example.com",
+        "from_name": "Flussu Password Reset"
+      }
+    },
     "ai_provider":{
       "open_ai":{
         "auth_key":"6768-insert-your-api-key-8768",

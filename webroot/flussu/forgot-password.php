@@ -21,6 +21,9 @@
 
 require_once 'inc/includebase.php';
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception as PHPMailerException;
+
 // Imposta gli header per le risposte JSON
 header('Content-Type: application/json; charset=UTF-8');
 header('Access-Control-Allow-Origin: *');
@@ -118,28 +121,122 @@ function cleanupExpiredTokens() {
 }
 
 /**
- * Invia email con il link di reset (stub - da implementare con sistema email reale)
+ * Invia email con il link di reset usando PHPMailer
  */
 function sendResetEmail($email, $token) {
-    // NOTA: Questa è una funzione stub. In produzione, integrare con un servizio email
-    // come SendGrid, Mailgun, AWS SES, etc.
+    try {
+        $resetLink = "http://" . $_SERVER['HTTP_HOST'] . "/flussu/forgot-password.php?action=verify&token=" . $token;
 
-    $resetLink = "http://" . $_SERVER['HTTP_HOST'] . "/forgot-password.php?action=verify&token=" . $token;
+        // Log per debug
+        Flussu\General::addRowLog("[Password Reset] Token generato per $email: $resetLink");
 
-    // Log per debug (rimuovere in produzione)
-    Flussu\General::addRowLog("[Password Reset] Token generato per $email: $resetLink");
+        // Carica configurazione email
+        $emailConfig = config('services.email.default');
+        if (empty($emailConfig)) {
+            throw new Exception('Email configuration not found');
+        }
 
-    // TODO: Implementare invio email reale
-    // Esempio:
-    // $subject = "Reset Password - Flussu";
-    // $message = "Clicca sul seguente link per resettare la password: $resetLink";
-    // mail($email, $subject, $message);
+        $provider = 'services.email.' . $emailConfig;
+        $smtpHost = config($provider . '.smtp_host');
+        $smtpPort = config($provider . '.smtp_port');
+        $smtpAuth = config($provider . '.smtp_auth', 0) != 0;
+        $smtpUser = config($provider . '.smtp_user');
+        $smtpPass = config($provider . '.smtp_pass');
+        $smtpEncrypt = config($provider . '.smtp_encrypt');
+        $fromEmail = config($provider . '.from_email', $smtpUser);
+        $fromName = config($provider . '.from_name', 'Flussu');
 
-    return [
-        'sent' => true,
-        'debug_link' => $resetLink, // Rimuovere in produzione!
-        'note' => 'Email sending not implemented. Use debug_link for testing.'
-    ];
+        // Decrypt password if encrypted
+        if (Flussu\General::isCurtatoned($smtpPass)) {
+            $smtpPass = Flussu\General::montanara($smtpPass, 999);
+        }
+
+        // Create PHPMailer instance
+        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+
+        // SMTP configuration
+        $mail->isSMTP();
+        $mail->Host = $smtpHost;
+        $mail->SMTPAuth = $smtpAuth;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+        $mail->Port = $smtpPort;
+        
+        if ($smtpEncrypt == "STARTTLS") {
+            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        } elseif ($smtpEncrypt == "SMTPS" || $smtpEncrypt == "SSL") {
+            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+        }
+
+        // Email content
+        $mail->setFrom($fromEmail, $fromName);
+        $mail->addAddress($email);
+        $mail->CharSet = 'UTF-8';
+        $mail->isHTML(true);
+        $mail->Subject = 'Reset Password - Flussu';
+
+        // HTML body
+        $mail->Body = '
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background-color: #4CAF50; color: white; padding: 20px; text-align: center; }
+                .content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; }
+                .button { display: inline-block; padding: 12px 30px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+                .footer { text-align: center; padding: 20px; font-size: 12px; color: #777; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>Reset Password</h1>
+                </div>
+                <div class="content">
+                    <p>Ciao,</p>
+                    <p>Hai richiesto il reset della tua password. Clicca sul pulsante qui sotto per procedere:</p>
+                    <p style="text-align: center;">
+                        <a href="' . $resetLink . '" class="button">Reset Password</a>
+                    </p>
+                    <p>Oppure copia e incolla questo link nel tuo browser:</p>
+                    <p style="word-break: break-all; color: #666;">' . $resetLink . '</p>
+                    <p><strong>Nota:</strong> Questo link è valido per 24 ore.</p>
+                    <p>Se non hai richiesto questo reset, ignora questa email.</p>
+                </div>
+                <div class="footer">
+                    <p>&copy; ' . date('Y') . ' Flussu. All rights reserved.</p>
+                    <p><a href="https://www.flussu.com">www.flussu.com</a></p>
+                </div>
+            </div>
+        </body>
+        </html>';
+
+        // Plain text alternative
+        $mail->AltBody = "Ciao,\n\n"
+            . "Hai richiesto il reset della tua password.\n\n"
+            . "Clicca sul seguente link per procedere:\n"
+            . $resetLink . "\n\n"
+            . "Nota: Questo link è valido per 24 ore.\n\n"
+            . "Se non hai richiesto questo reset, ignora questa email.\n\n"
+            . "Flussu Team";
+
+        // Send email
+        $mail->send();
+
+        return [
+            'sent' => true,
+            'message' => 'Email sent successfully'
+        ];
+
+    } catch (Exception $e) {
+        Flussu\General::addRowLog("[Password Reset] Error sending email to $email: " . $e->getMessage());
+        
+        return [
+            'sent' => false,
+            'error' => 'Failed to send email: ' . $e->getMessage()
+        ];
+    }
 }
 
 // Routing basato sull'azione richiesta
@@ -176,16 +273,24 @@ try {
 
             // Genera e salva il token
             $token = generateResetToken();
-            saveResetToken($email, $token, $emailExists[1]);
+            $userEmail = $user->getEmail();
+            $userId = $user->getUserID();
+            saveResetToken($userEmail, $token, $userId);
 
-            // Invia email (o mostra link per debug)
-            $emailResult = sendResetEmail($user->getEmail(), $token);
+            // Invia email
+            $emailResult = sendResetEmail($userEmail, $token);
 
-            echo json_encode([
+            $response = [
                 'success' => true,
-                'message' => 'Password reset link has been sent to your email.',
-                'debug' => $emailResult // Rimuovere in produzione!
-            ]);
+                'message' => 'Password reset link has been sent to your email.'
+            ];
+
+            // Include debug info only if email sending failed or in debug mode
+            if (!$emailResult['sent'] || (defined('DEBUG_MODE') && DEBUG_MODE)) {
+                $response['debug'] = $emailResult;
+            }
+
+            echo json_encode($response);
             break;
 
         case 'verify':
