@@ -29,7 +29,8 @@ if (!empty($changeref)){
     $usrMng=new Flussu\Users\UserManager();
     $user=$usrMng->getUserByUsernameOrEmail($changeref);
     if ($user->is_active){
-
+        // to do: 
+        // execute what needed to generate id and send email with reset link
     } else {
         $user=null;
     }
