@@ -456,6 +456,83 @@ class User {
         return false;
     }
 
+    /**
+     * Login user and store in session
+     * Uses AuthManager to handle session storage
+     *
+     * @param string $userId Username or email
+     * @param string $password User password
+     * @return bool True if login successful, false otherwise
+     */
+    public static function login(string $userId, string $password): bool
+    {
+        return AuthManager::login($userId, $password);
+    }
+
+    /**
+     * Login user with token and store in session
+     * Uses AuthManager to handle session storage
+     *
+     * @param string $userId User ID
+     * @param string $token Authentication token
+     * @return bool True if login successful, false otherwise
+     */
+    public static function loginWithToken(string $userId, string $token): bool
+    {
+        return AuthManager::loginWithToken($userId, $token);
+    }
+
+    /**
+     * Logout current user from session
+     *
+     * @return void
+     */
+    public static function logout(): void
+    {
+        AuthManager::logout();
+    }
+
+    /**
+     * Check if user is currently authenticated
+     *
+     * @return bool True if user is authenticated, false otherwise
+     */
+    public static function isUserAuthenticated(): bool
+    {
+        return AuthManager::isAuthenticated();
+    }
+
+    /**
+     * Get current authenticated user from session
+     *
+     * @return User|null User object if authenticated, null otherwise
+     */
+    public static function getCurrentUser(): ?User
+    {
+        return AuthManager::getUser();
+    }
+
+    /**
+     * Get current authenticated user ID
+     *
+     * @return int User ID if authenticated, 0 otherwise
+     */
+    public static function getCurrentUserId(): int
+    {
+        return AuthManager::getUserId();
+    }
+
+    /**
+     * Require authentication or die with error
+     *
+     * @param string $errorMessage Custom error message
+     * @return void Dies if not authenticated
+     */
+    public static function requireAuthentication(string $errorMessage = "Authentication required"): void
+    {
+        AuthManager::requireAuth($errorMessage);
+    }
+
     public function __destruct(){
       General::addRowLog("[Distr User ".$this->mId);
     }
