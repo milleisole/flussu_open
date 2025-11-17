@@ -125,7 +125,9 @@ function cleanupExpiredTokens() {
  */
 function sendResetEmail($email, $token) {
     try {
-        $resetLink = "http://" . $_SERVER['HTTP_HOST'] . "/flussu/forgot-password.php?action=verify&token=" . $token;
+        // Use HTTPS if available, otherwise HTTP
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $resetLink = $protocol . "://" . $_SERVER['HTTP_HOST'] . "/flussu/forgot-password.php?action=verify&token=" . urlencode($token);
 
         // Log per debug
         Flussu\General::addRowLog("[Password Reset] Token generato per $email: $resetLink");
@@ -197,10 +199,10 @@ function sendResetEmail($email, $token) {
                     <p>Ciao,</p>
                     <p>Hai richiesto il reset della tua password. Clicca sul pulsante qui sotto per procedere:</p>
                     <p style="text-align: center;">
-                        <a href="' . $resetLink . '" class="button">Reset Password</a>
+                        <a href="' . htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8') . '" class="button">Reset Password</a>
                     </p>
                     <p>Oppure copia e incolla questo link nel tuo browser:</p>
-                    <p style="word-break: break-all; color: #666;">' . $resetLink . '</p>
+                    <p style="word-break: break-all; color: #666;">' . htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8') . '</p>
                     <p><strong>Nota:</strong> Questo link è valido per 24 ore.</p>
                     <p>Se non hai richiesto questo reset, ignora questa email.</p>
                 </div>
@@ -230,11 +232,13 @@ function sendResetEmail($email, $token) {
         ];
 
     } catch (Exception $e) {
+        // Log detailed error for debugging
         Flussu\General::addRowLog("[Password Reset] Error sending email to $email: " . $e->getMessage());
         
+        // Return generic error message to avoid exposing configuration details
         return [
             'sent' => false,
-            'error' => 'Failed to send email: ' . $e->getMessage()
+            'error' => 'Failed to send email. Please contact support if the problem persists.'
         ];
     }
 }
