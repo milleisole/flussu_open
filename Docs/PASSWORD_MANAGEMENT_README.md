@@ -152,24 +152,39 @@ const TOKEN_VALIDITY_MINUTES = 60; // Default: 1 ora
 
 Modifica il metodo `generateResetLink()` in `PasswordManager.php` per personalizzare l'URL.
 
-### Invio Email
+### Invio Email ✅ IMPLEMENTATO
 
-Il metodo `sendResetEmail()` è un placeholder. Per implementarlo:
+Il sistema ora supporta l'invio email reale tramite PHPMailer:
 
-1. Installa PHPMailer o altra libreria email:
+1. **PHPMailer** è già incluso nelle dipendenze del progetto
+
+2. **Configura SMTP** in `/config/.services.json`:
+   ```json
+   {
+     "services": {
+       "email": {
+         "default": "smtp_provider",
+         "smtp_provider": {
+           "smtp_host": "smtp.example.com",
+           "smtp_port": 587,
+           "smtp_auth": 1,
+           "smtp_user": "noreply@example.com",
+           "smtp_pass": "your_smtp_password",
+           "smtp_encrypt": "STARTTLS",
+           "from_email": "noreply@example.com",
+           "from_name": "Flussu Password Reset"
+         }
+       }
+     }
+   }
+   ```
+
+3. **Test configurazione** con lo script di test:
    ```bash
-   composer require phpmailer/phpmailer
+   php webroot/flussu/test-email-config.php
    ```
 
-2. Configura SMTP in `.env`:
-   ```
-   SMTP_HOST=smtp.example.com
-   SMTP_PORT=587
-   SMTP_USER=noreply@example.com
-   SMTP_PASS=password
-   ```
-
-3. Implementa il metodo in `PasswordManager.php`
+Per dettagli completi, vedi [EMAIL_CONFIGURATION.md](EMAIL_CONFIGURATION.md)
 
 ## 🛡️ Sicurezza
 
@@ -253,7 +268,7 @@ $pwdMgr->cleanupExpiredTokens($db);
 
 ## 📝 TODO / Miglioramenti Futuri
 
-- [ ] Implementare invio email reale
+- [x] Implementare invio email reale ✅ (Implementato con PHPMailer - vedi Docs/EMAIL_CONFIGURATION.md)
 - [ ] Aggiungere rate limiting per reset password
 - [ ] Implementare validazione complessità password
 - [ ] Aggiornare algoritmo hash (bcrypt/Argon2)
