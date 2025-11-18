@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = 'La tua password è scaduta. Devi cambiarla prima di continuare.';
                 } else {
                     // Login successful
-                    $_SESSION['user'] = $user;
+                    $_SESSION['user_id'] = $user->getId();
                     $_SESSION['logged_in'] = true;
 
                     General::log("User " . $user->getId() . " logged in successfully");

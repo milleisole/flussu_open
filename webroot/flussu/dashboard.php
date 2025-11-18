@@ -27,39 +27,8 @@ require_once 'inc/includebase.php';
 // TODO: Recuperare i workflow dell'utente
 // TODO: inoltre recuperare i dati dell'utente e creare il link della testata
 // TODO: separare corpo, header e footer in file diversi
+require_once 'inc/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flussu - Dashboard</title>
-    <link rel="stylesheet" href="css/flussu-admin.css">
-</head>
-<body>
-    <header class="header">
-        <div class="container">
-            <div class="header-content">
-                <a href="dashboard.html" class="logo">FLUSSU</a>
-
-                <nav>
-                    <ul class="nav-menu">
-                        <li><a href="dashboard.html" class="active">Dashboard</a></li>
-                        <li><a href="users.html" id="usersLink" style="display:none;">Utenti</a></li>
-                        <li><a href="workflows.html">Workflow</a></li>
-                    </ul>
-                </nav>
-
-                <div class="user-info">
-                    <span id="userDisplayName">...</span>
-                    <button class="btn btn-secondary btn-sm" id="logoutBtn">Esci</button>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <main class="main-content">
-        <div class="container">
             <h1 class="page-title">Dashboard</h1>
 
             <!-- Stats Cards -->
@@ -132,24 +101,7 @@ require_once 'inc/includebase.php';
             </div>
         </div>
     </main>
-
-    <script src="js/flussu-api.js"></script>
     <script>
-        const api = new FlussuAPI();
-        let currentUser = null;
-
-        // Verifica autenticazione
-        if (!api.isAuthenticated()) {
-            window.location.href = 'login.php';
-        }
-
-        // Logout
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            if (FlussuUI.confirm('Sei sicuro di voler uscire?')) {
-                await api.logout();
-                window.location.href = 'login.php';
-            }
-        });
 
         // Carica dati iniziali
         async function loadDashboard() {
@@ -251,5 +203,6 @@ require_once 'inc/includebase.php';
         // Aggiorna sessioni attive (placeholder)
         document.getElementById('statActiveSessions').textContent = '1';
     </script>
-</body>
-</html>
+<?php 
+    require_once 'inc/footer.php'; 
+?>

@@ -37,5 +37,5 @@ if (isset($_COOKIE[session_name()])) {
 session_destroy();
 
 // Redirect al login
-header("Location: login.php?logout=success");
+header("Location: /flussu/login.php?logout=success");
 exit;

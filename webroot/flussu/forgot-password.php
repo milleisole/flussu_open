@@ -84,7 +84,7 @@ if (!empty($changeref)){
             </form>
         <?php } ?>
             <div class="text-center mt-3">
-                <a href="login.php" style="color: #188d4d; text-decoration: none;">
+                <a href="/flussu/login.php" style="color: #188d4d; text-decoration: none;">
                     &larr; Torna al Login
                 </a>
             </div>

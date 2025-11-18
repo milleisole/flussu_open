@@ -155,7 +155,7 @@ $username = isset($_GET['username']) ? htmlspecialchars($_GET['username']) : '';
             </form>
 
             <div class="text-center mt-3">
-                <a href="login.php" style="color: #188d4d; text-decoration: none;">
+                <a href="/flussu/login.php" style="color: #188d4d; text-decoration: none;">
                     &larr; Torna al Login
                 </a>
             </div>
@@ -271,7 +271,7 @@ $username = isset($_GET['username']) ? htmlspecialchars($_GET['username']) : '';
 
                     // Reindirizza al login dopo 2 secondi
                     setTimeout(() => {
-                        window.location.href = 'login.php';
+                        window.location.href = '/flussu/login.php';
                     }, 2000);
                 } else {
                     passwordUI.showError(

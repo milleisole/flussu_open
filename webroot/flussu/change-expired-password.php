@@ -237,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php echo htmlspecialchars($success); ?>
             </div>
 
-            <a href="login.php" class="btn">Vai al Login</a>
+            <a href="/flussu/login.php" class="btn">Vai al Login</a>
 
         <?php else: ?>
             <div class="warning-box">

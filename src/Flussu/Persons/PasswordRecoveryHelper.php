@@ -357,9 +357,9 @@ Questa è un'email automatica, si prega di non rispondere.
             $mail->Body = $htmlBody;
             $mail->AltBody = $textBody;
 
-            $mail->send();
+            $res=$mail->send();
 
-            General::log("Recovery email sent to " . $user->getEmail());
+            General::log("Recovery email sent (".$res.") to " . $user->getEmail());
 
             return [
                 'success' => true,

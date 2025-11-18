@@ -174,7 +174,7 @@ require_once 'inc/includebase.php';
 
             <div class="text-center mt-3">
                 <p class="text-muted" style="font-size: 14px;">
-                    Hai già un account? <a href="login.php" style="color: #188d4d; text-decoration: none; font-weight: 600;">Accedi</a>
+                    Hai già un account? <a href="/flussu/login.php" style="color: #188d4d; text-decoration: none; font-weight: 600;">Accedi</a>
                 </p>
             </div>
 
@@ -316,7 +316,7 @@ require_once 'inc/includebase.php';
 
                     // Reindirizza al login dopo 2 secondi
                     setTimeout(() => {
-                        window.location.href = 'login.php';
+                        window.location.href = '/flussu/login.php';
                     }, 2000);
                 } else {
                     passwordUI.showError(

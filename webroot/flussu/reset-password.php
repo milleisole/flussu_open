@@ -276,7 +276,7 @@ if (empty($token)) {
                 La tua password è stata reimpostata con successo. Ora puoi effettuare il login con la nuova password.
             </div>
 
-            <a href="login.php" class="btn">Vai al Login</a>
+            <a href="/flussu/login.php" class="btn">Vai al Login</a>
 
         <?php elseif ($tokenValid): ?>
             <div class="warning-box">
@@ -331,7 +331,7 @@ if (empty($token)) {
             <div class="links">
                 <a href="forgot-password.php">Richiedi un nuovo link</a>
                 <br><br>
-                <a href="login.php">← Torna al Login</a>
+                <a href="/flussu/login.php">← Torna al Login</a>
             </div>
         <?php endif; ?>
 

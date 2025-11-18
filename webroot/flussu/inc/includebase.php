@@ -42,29 +42,69 @@ $r=$FVP[2];
 if (!isset($_SESSION)) {
     session_start();
 }
-
+$SID= session_id();
+$SDATA= print_r($_SESSION, true);
+$user_id=$_SESSION["user_id"] ?? 0;
 // QUI NON C'E' L'UTENTE ALLA RIPARTENZA
 $user=new \Flussu\Persons\User();
-if (isset($_SESSION["user"])) {
-    $user=$_SESSION["user"];
-    if ($user->isActive) {
-        redirect("dashboard.php");
-    }
+if ($user_id>0) {
+    $user->load($user_id);
+    $_SESSION["username"] = $user->getEmail();
+    $auk=\Flussu\General::getDateTimedApiKeyFromUser($user_id,60);
+    $_SESSION["auk"] = $auk;
 } 
 
-$su=end(explode("/", $_SERVER["SCRIPT_URL"]));
-switch($su){
-    case "dashboard.php":   
-    case "login.php":   
-    case "forgot-password.php":
-    case "reset-password.php":
-    case "register.php":
-        break;
-    default:
-    if (!$user->isActive) {
-        redirect("login.php");
-    }
-    break;
+function isUserLoggedIn() {
+    global $user;
+    return isset($user) && $user->getId()>0;
 }
 
+// Ottieni l'utente corrente
+function getCurrentUser() {
+    global $user;
+    if (!isUserLoggedIn()) {
+        return null;
+    }
+    return $user;
+}
+
+// Reindirizza al login se non autenticato
+function requireLogin() {
+    if (!isUserLoggedIn()) {
+        header('Location: /flussu/login.php');
+        exit;
+    }
+}
+
+// Logout
+function doLogout() {
+    session_unset();
+    session_destroy();
+    header('Location: /flussu/login.php');
+    exit;
+}
+
+// Gestione logout
+if (isset($_GET['action']) && $_GET['action'] === 'logout') {
+    doLogout();
+}
+
+if (!(isset($user) && $user->getId()>0)){
+    $su=end(explode("/", $_SERVER["SCRIPT_URL"]));
+    switch($su){
+        //case "dashboard.php":   
+        case "login.php":   
+        case "forgot-password.php":
+        case "reset-password.php":
+        case "register.php":
+            break;
+        default:
+        if (!$user->isActive()) {
+            redirect("login.php");
+        }
+        break;
+    }
+}
+
+$test="a123";
 
