@@ -1325,7 +1325,7 @@ class Session {
     
     private function _chkExists($sessId){
         $SQL = "SELECT c200_sess_id as sid FROM t200_worker WHERE c200_sess_id=? LIMIT 1";
-        $this->_WofoDNC->execSql($SQL, [$this->_uuid2binCached($sessId)]);
+        $res=$this->_WofoDNC->execSql($SQL, [$this->_uuid2binCached($sessId)]);
         
         $data = $this->_WofoDNC->getData();
         return isset($data[0]["sid"]);

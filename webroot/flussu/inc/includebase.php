@@ -54,6 +54,8 @@ $su=end(explode("/", $_SERVER["SCRIPT_URL"]));
 switch($su){
     case "login.php":   
     case "forgot-password.php":
+    case "change-password.php":
+    case "reset-password.php":
     case "register.php":
         break;
     default:

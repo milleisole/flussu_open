@@ -21,8 +21,8 @@
 
 require_once 'inc/includebase.php';
 
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception as PHPMailerException;
+use \PHPMailer\PHPMailer\PHPMailer;
+use \PHPMailer\PHPMailer\Exception as PHPMailerException;
 
 // Imposta gli header per le risposte JSON
 header('Content-Type: application/json; charset=UTF-8');
@@ -154,7 +154,7 @@ function sendResetEmail($email, $token) {
         }
 
         // Create PHPMailer instance
-        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
 
         // SMTP configuration
         $mail->isSMTP();
@@ -165,9 +165,9 @@ function sendResetEmail($email, $token) {
         $mail->Port = $smtpPort;
         
         if ($smtpEncrypt == "STARTTLS") {
-            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         } elseif ($smtpEncrypt == "SMTPS" || $smtpEncrypt == "SSL") {
-            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
         }
 
         // Email content
@@ -250,53 +250,53 @@ try {
     switch ($action) {
         case 'request':
             // Step 1: Richiesta reset password via email
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                throw new Exception('Method not allowed', 405);
-            }
+            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+                $emailOrUsername = Flussu\General::getGetOrPost("emailOrUsername");
+                //$input = json_decode(file_get_contents('php://input'), true);
+                //$email = trim($input['email'] ?? '');
 
-            $emailOrUsername = Flussu\General::getGetOrPost("emailOrUsername");
-            //$input = json_decode(file_get_contents('php://input'), true);
-            //$email = trim($input['email'] ?? '');
+                if (empty($emailOrUsername)) {
+                    throw new Exception('Email or username is required', 400);
+                }
 
-            if (empty($emailOrUsername)) {
-                throw new Exception('Email or username is required', 400);
-            }
+                // Verifica se l'email esiste
+                $user = new Flussu\Persons\User();
+                $userExists = $user->load($emailOrUsername);
 
-            // Verifica se l'email esiste
-            $user = new Flussu\Persons\User();
-            $userExists = $user->load($emailOrUsername);
+                if (!$userExists) {
+                    // Per sicurezza, non rivelare se l'email esiste o meno
+                    echo json_encode([
+                        'success' => true,
+                        'message' => 'If the email exists, a password reset link has been sent.'
+                    ]);
+                    exit();
+                }
 
-            if (!$userExists) {
-                // Per sicurezza, non rivelare se l'email esiste o meno
-                echo json_encode([
+                // Genera e salva il token
+                $token = generateResetToken();
+                $userEmail = $user->getEmail();
+                $userId = $user->getUserID();
+                saveResetToken($userEmail, $token, $userId);
+
+                // Invia email
+                $emailResult = sendResetEmail($userEmail, $token);
+
+                $response = [
                     'success' => true,
-                    'message' => 'If the email exists, a password reset link has been sent.'
-                ]);
-                exit();
+                    'message' => 'Password reset link has been sent to your email.'
+                ];
+
+                // Include debug info only if email sending failed or in debug mode
+                if (!$emailResult['sent'] || (defined('DEBUG_MODE') && DEBUG_MODE)) {
+                    $response['debug'] = $emailResult;
+                }
+
+                echo json_encode($response);
+                break;
+            } else {
+                // se non è POST è un utente che vuole il form
+                break;
             }
-
-            // Genera e salva il token
-            $token = generateResetToken();
-            $userEmail = $user->getEmail();
-            $userId = $user->getUserID();
-            saveResetToken($userEmail, $token, $userId);
-
-            // Invia email
-            $emailResult = sendResetEmail($userEmail, $token);
-
-            $response = [
-                'success' => true,
-                'message' => 'Password reset link has been sent to your email.'
-            ];
-
-            // Include debug info only if email sending failed or in debug mode
-            if (!$emailResult['sent'] || (defined('DEBUG_MODE') && DEBUG_MODE)) {
-                $response['debug'] = $emailResult;
-            }
-
-            echo json_encode($response);
-            break;
-
         case 'verify':
             // Step 2: Verifica il token (può essere usato per mostrare form di reset)
             $token = $_GET['token'] ?? '';
