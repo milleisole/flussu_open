@@ -1,279 +1,345 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * --------------------------------------------------------------------*
- *
- *      Reset Password - Imposta nuova password con token
- *
- * --------------------------------------------------------------------
- * VERSION REL.:     5.0.20251117
- * UPDATES DATE:     17.11.2025
+ * Reset Password Form - Pure PHP Backend Implementation
+ * VERSION REL.: 4.5.20251118
  * --------------------------------------------------------------------*/
 
-require_once 'inc/includebase.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
 
-// Ottieni token da URL
-$token = isset($_GET['token']) ? htmlspecialchars($_GET['token']) : '';
+use Flussu\Persons\PasswordRecoveryHelper;
+use Flussu\General;
+
+require_once 'inc/includebase.php';
+$error = '';
+$success = '';
+$tokenValid = false;
+$passwordReset = false;
+$token = $_GET['token'] ?? $_POST['token'] ?? '';
+
+// Validate token on page load
+if (!empty($token)) {
+    $validation = PasswordRecoveryHelper::validateToken($token);
+    $tokenValid = $validation['valid'];
+
+    if (!$tokenValid) {
+        $error = $validation['message'];
+    }
+}
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValid) {
+    $newPassword = $_POST['new_password'] ?? '';
+    $confirmPassword = $_POST['confirm_password'] ?? '';
+
+    if (empty($newPassword) || empty($confirmPassword)) {
+        $error = 'Compila tutti i campi.';
+    } elseif ($newPassword !== $confirmPassword) {
+        $error = 'Le password non coincidono.';
+    } elseif (strlen($newPassword) < 8) {
+        $error = 'La password deve contenere almeno 8 caratteri.';
+    } else {
+        // Validate password strength
+        $hasLetter = preg_match('/[a-zA-Z]/', $newPassword);
+        $hasNumber = preg_match('/[0-9]/', $newPassword);
+
+        if (!$hasLetter || !$hasNumber) {
+            $error = 'La password deve contenere almeno una lettera e un numero.';
+        } else {
+            // Reset password
+            $result = PasswordRecoveryHelper::resetPassword($token, $newPassword);
+
+            if ($result['success']) {
+                $success = $result['message'];
+                $passwordReset = true;
+            } else {
+                $error = $result['message'];
+                $tokenValid = false; // Token might have been used or expired
+            }
+        }
+    }
+}
+
+// No token provided
+if (empty($token)) {
+    $error = 'Link di recupero non valido. Richiedi un nuovo link.';
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flussu - Reset Password</title>
-    <link rel="stylesheet" href="css/flussu-admin.css">
+    <title>Reimposta Password - Flussu Server</title>
     <style>
-        .password-requirements {
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 15px;
-            margin: 15px 0;
-            font-size: 13px;
-        }
-        .password-requirements ul {
-            margin: 10px 0 0 20px;
+        * {
+            margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
-        .password-requirements li {
-            margin: 5px 0;
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 450px;
+            padding: 40px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+
+        .logo p {
             color: #666;
+            font-size: 14px;
         }
-        .password-requirements li.valid {
-            color: #28a745;
+
+        .form-group {
+            margin-bottom: 20px;
         }
-        .password-requirements li.invalid {
-            color: #dc3545;
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="password"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .error {
+            background-color: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c33;
+            font-size: 14px;
+        }
+
+        .success {
+            background-color: #efe;
+            color: #2d6a2d;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3c3;
+            font-size: 14px;
+        }
+
+        .info-box {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            color: #1565c0;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .warning-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .success-icon {
+            text-align: center;
+            font-size: 48px;
+            color: #4CAF50;
+            margin-bottom: 15px;
+        }
+
+        .password-requirements {
+            font-size: 13px;
+            color: #666;
+            margin-top: 5px;
+            padding-left: 10px;
+        }
+
+        .password-requirements ul {
+            margin-top: 5px;
+            padding-left: 20px;
+        }
+
+        .password-requirements li {
+            margin: 3px 0;
+        }
+
+        .links {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .links a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+
+        .links a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .divider {
+            margin: 15px 0;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-box">
-            <div class="login-logo">
-                <svg width="120" height="40" viewBox="0 0 120 40">
-                    <text x="10" y="30" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#188d4d">FLUSSU</text>
-                </svg>
+    <div class="container">
+        <div class="logo">
+            <h1>Flussu</h1>
+            <p>Reimposta Password</p>
+        </div>
+
+        <?php if ($error): ?>
+            <div class="error"><?php echo htmlspecialchars($error); ?></div>
+        <?php endif; ?>
+
+        <?php if ($passwordReset): ?>
+            <div class="success-icon">✓</div>
+            <div class="success">
+                <?php echo htmlspecialchars($success); ?>
             </div>
 
-            <h1 class="login-title">Reset Password</h1>
-            <p class="text-muted" style="margin-bottom: 30px; text-align: center;">
-                Inserisci la tua nuova password.
-            </p>
-
-            <div id="tokenVerificationMessage" class="alert alert-info" style="margin-bottom: 20px;">
-                Verifica del token in corso...
+            <div class="info-box">
+                La tua password è stata reimpostata con successo. Ora puoi effettuare il login con la nuova password.
             </div>
 
-            <form id="resetPasswordForm" style="display: none;">
-                <input type="hidden" id="token" value="<?php echo $token; ?>">
+            <a href="login.php" class="btn">Vai al Login</a>
+
+        <?php elseif ($tokenValid): ?>
+            <div class="warning-box">
+                <strong>Attenzione:</strong> Questo link è valido per 1 ora e può essere utilizzato una sola volta.
+            </div>
+
+            <form method="POST" action="">
+                <input type="hidden" name="token" value="<?php echo htmlspecialchars($token); ?>">
 
                 <div class="form-group">
-                    <label for="newPassword" class="form-label">Nuova Password</label>
+                    <label for="new_password">Nuova Password</label>
                     <input
                         type="password"
-                        id="newPassword"
-                        class="form-control"
-                        placeholder="Inserisci nuova password"
+                        id="new_password"
+                        name="new_password"
                         required
+                        autofocus
                         autocomplete="new-password"
-                    />
+                        minlength="8"
+                    >
+                    <div class="password-requirements">
+                        La password deve:
+                        <ul>
+                            <li>Contenere almeno 8 caratteri</li>
+                            <li>Includere almeno una lettera</li>
+                            <li>Includere almeno un numero</li>
+                        </ul>
+                    </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="confirmPassword" class="form-label">Conferma Password</label>
+                    <label for="confirm_password">Conferma Password</label>
                     <input
                         type="password"
-                        id="confirmPassword"
-                        class="form-control"
-                        placeholder="Conferma nuova password"
+                        id="confirm_password"
+                        name="confirm_password"
                         required
                         autocomplete="new-password"
-                    />
+                        minlength="8"
+                    >
                 </div>
 
-                <div class="password-requirements">
-                    <strong>La password deve contenere:</strong>
-                    <ul id="passwordRequirements">
-                        <li id="req-length">Almeno 8 caratteri</li>
-                        <li id="req-uppercase">Almeno una lettera maiuscola</li>
-                        <li id="req-lowercase">Almeno una lettera minuscola</li>
-                        <li id="req-number">Almeno un numero</li>
-                    </ul>
-                </div>
-
-                <div id="message" class="alert" style="display: none;"></div>
-
-                <button type="submit" class="btn btn-primary" style="width: 100%;">
-                    Imposta Nuova Password
-                </button>
+                <button type="submit" class="btn">Reimposta Password</button>
             </form>
 
-            <div class="text-center mt-3">
-                <a href="login.php" style="color: #188d4d; text-decoration: none;">
-                    &larr; Torna al Login
-                </a>
+        <?php else: ?>
+            <div class="warning-box">
+                <strong>Link non valido o scaduto</strong><br>
+                Il link di recupero password che hai utilizzato non è valido o è scaduto.
             </div>
 
-            <div class="text-center mt-3">
-                <p class="text-muted" style="font-size: 12px;">
-                    Flussu User Management System v<?php echo $v.".".$m; ?><br>
-                    &copy; <?php echo date("Y"); ?> Mille Isole SRL
-                </p>
+            <div class="links">
+                <a href="forgot-password.php">Richiedi un nuovo link</a>
+                <br><br>
+                <a href="login.php">← Torna al Login</a>
             </div>
+        <?php endif; ?>
+
+        <div class="divider">───────</div>
+
+        <div style="text-align: center; font-size: 12px; color: #999;">
+            &copy; <?php echo date('Y'); ?> Flussu Server - Mille Isole SRL
         </div>
     </div>
-
-    <script src="js/flussu-password-api.js"></script>
-    <script>
-        const passwordAPI = new FlussuPasswordAPI();
-        const passwordUI = new FlussuPasswordUI();
-
-        const token = document.getElementById('token').value;
-        const tokenVerificationDiv = document.getElementById('tokenVerificationMessage');
-        const resetForm = document.getElementById('resetPasswordForm');
-        const messageDiv = document.getElementById('message');
-        const newPasswordInput = document.getElementById('newPassword');
-
-        // Verifica token al caricamento della pagina
-        (async () => {
-            if (!token) {
-                passwordUI.showError(tokenVerificationDiv,
-                    'Token mancante. Utilizza il link ricevuto via email.');
-                return;
-            }
-
-            try {
-                const result = await passwordAPI.verifyResetToken(token);
-
-                if (result.result === "OK" && result.valid) {
-                    // Token valido, mostra form
-                    tokenVerificationDiv.style.display = 'none';
-                    resetForm.style.display = 'block';
-                } else {
-                    // Token non valido o scaduto
-                    passwordUI.showError(tokenVerificationDiv,
-                        'Il link per il reset della password non è valido o è scaduto. ' +
-                        'Richiedi un nuovo reset password.');
-
-                    // Mostra link per nuova richiesta
-                    setTimeout(() => {
-                        window.location.href = 'forgot-password.php';
-                    }, 5000);
-                }
-            } catch (error) {
-                console.error('Token verification error:', error);
-                passwordUI.showError(tokenVerificationDiv,
-                    'Errore durante la verifica del token. Riprova più tardi.');
-            }
-        })();
-
-        // Validazione password in tempo reale
-        newPasswordInput.addEventListener('input', () => {
-            const password = newPasswordInput.value;
-
-            // Lunghezza
-            const lengthReq = document.getElementById('req-length');
-            if (password.length >= 8) {
-                lengthReq.className = 'valid';
-            } else {
-                lengthReq.className = 'invalid';
-            }
-
-            // Maiuscola
-            const uppercaseReq = document.getElementById('req-uppercase');
-            if (/[A-Z]/.test(password)) {
-                uppercaseReq.className = 'valid';
-            } else {
-                uppercaseReq.className = 'invalid';
-            }
-
-            // Minuscola
-            const lowercaseReq = document.getElementById('req-lowercase');
-            if (/[a-z]/.test(password)) {
-                lowercaseReq.className = 'valid';
-            } else {
-                lowercaseReq.className = 'invalid';
-            }
-
-            // Numero
-            const numberReq = document.getElementById('req-number');
-            if (/[0-9]/.test(password)) {
-                numberReq.className = 'valid';
-            } else {
-                numberReq.className = 'invalid';
-            }
-        });
-
-        // Gestione form reset password
-        resetForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const newPassword = newPasswordInput.value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-
-            // Nascondi messaggi precedenti
-            passwordUI.hideMessage(messageDiv);
-
-            // Validazione password
-            const validation = passwordUI.validatePassword(newPassword);
-            if (!validation.valid) {
-                passwordUI.showError(messageDiv, validation.message);
-                return;
-            }
-
-            // Verifica corrispondenza password
-            if (newPassword !== confirmPassword) {
-                passwordUI.showError(messageDiv, 'Le password non corrispondono');
-                return;
-            }
-
-            try {
-                // Disabilita pulsante durante l'elaborazione
-                passwordUI.disableButton(submitBtn, 'Reset in corso...');
-
-                const result = await passwordAPI.resetPassword(token, newPassword);
-
-                if (result.result === "OK") {
-                    // Mostra messaggio di successo
-                    passwordUI.showSuccess(
-                        messageDiv,
-                        'Password reimpostata con successo! Reindirizzamento al login...'
-                    );
-
-                    // Reindirizza al login dopo 2 secondi
-                    setTimeout(() => {
-                        window.location.href = 'login.php';
-                    }, 2000);
-                } else {
-                    passwordUI.showError(
-                        messageDiv,
-                        result.message || 'Errore durante il reset della password'
-                    );
-                    passwordUI.enableButton(submitBtn);
-                }
-            } catch (error) {
-                console.error('Reset password error:', error);
-                passwordUI.showError(
-                    messageDiv,
-                    'Si è verificato un errore. Riprova più tardi.'
-                );
-                passwordUI.enableButton(submitBtn);
-            }
-        });
-    </script>
 </body>
 </html>

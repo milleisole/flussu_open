@@ -59,83 +59,64 @@ class PasswordRecoveryHelper
      * @param string $userIdentifier Username or email
      * @return array ['success' => bool, 'message' => string, 'token' => string|null]
      */
-    public static function requestPasswordRecovery($userIdentifier) {
+    public static function requestPasswordRecovery($user) {
         try {
             // Load user by username or email
-            $user = new User();
-            $loaded = $user->load($userIdentifier);
+            //$user = new User();
+            //$loaded = $user->load($userIdentifier);
 
-            if (!$loaded && General::isEmailAddress($userIdentifier)) {
+            if (!is_null($user) && !empty($user->getEmail())) {
                 // Try loading by email
-                $emailCheck = $user->emailExist($userIdentifier);
-                if ($emailCheck[0]) {
-                    $loaded = $user->load($emailCheck[2]); // Load by username
+
+                // Generate token
+                $rawToken = self::generateToken();
+                $hashedToken = self::hashToken($rawToken);
+
+                // Clean up old/expired tokens for this user
+                $recoveryBean = new PasswordRecoveryBean(General::$DEBUG);
+                $recoveryBean->cleanupExpiredTokens($user->getId());
+
+                // Create recovery record
+                $recoveryBean->setc81_user_id($user->getId());
+                $recoveryBean->setc81_token($hashedToken);
+                $recoveryBean->setc81_expires(date('Y-m-d H:i:s', strtotime('+1 hour')));
+                $recoveryBean->setc81_ip_address($_SERVER['REMOTE_ADDR'] ?? '');
+                $recoveryBean->setc81_user_agent($_SERVER['HTTP_USER_AGENT'] ?? '');
+
+                if (!$recoveryBean->insert()) {
+                    General::log("Failed to insert password recovery token for user " . $user->getId());
+                    return [
+                        'success' => false,
+                        'message' => 'Errore nella generazione del token di recupero.',
+                        'token' => null
+                    ];
                 }
-            }
 
-            if (!$loaded || $user->getId() <= 0) {
-                // Don't reveal if user exists or not for security
-                General::log("Password recovery attempted for non-existent user: " . $userIdentifier);
+                // Send email
+                $emailSent = self::sendRecoveryEmail($user, $rawToken);
+
+                if (!$emailSent['success']) {
+                    General::log("Failed to send recovery email to user " . $user->getId());
+                    return [
+                        'success' => false,
+                        'message' => 'Errore nell\'invio dell\'email di recupero.',
+                        'token' => null
+                    ];
+                }
+
+                General::log("Password recovery token generated for user " . $user->getId());
                 return [
-                    'success' => true, // Return true to prevent user enumeration
-                    'message' => 'Se l\'utente esiste, riceverà un\'email con le istruzioni per il recupero password.',
-                    'token' => null
+                    'success' => true,
+                    'message' => 'Email di recupero inviata con successo.',
+                    'token' => $rawToken // Return for testing purposes only
                 ];
-            }
-
-            // Check if user has email
-            if (empty($user->getEmail())) {
-                General::log("Password recovery failed: user " . $user->getId() . " has no email");
-                return [
-                    'success' => false,
-                    'message' => 'Impossibile inviare email di recupero: nessun indirizzo email associato.',
-                    'token' => null
-                ];
-            }
-
-            // Generate token
-            $rawToken = self::generateToken();
-            $hashedToken = self::hashToken($rawToken);
-
-            // Clean up old/expired tokens for this user
-            $recoveryBean = new PasswordRecoveryBean(General::$DEBUG);
-            $recoveryBean->cleanupExpiredTokens($user->getId());
-
-            // Create recovery record
-            $recoveryBean->setc81_user_id($user->getId());
-            $recoveryBean->setc81_token($hashedToken);
-            $recoveryBean->setc81_expires(date('Y-m-d H:i:s', strtotime('+1 hour')));
-            $recoveryBean->setc81_ip_address($_SERVER['REMOTE_ADDR'] ?? '');
-            $recoveryBean->setc81_user_agent($_SERVER['HTTP_USER_AGENT'] ?? '');
-
-            if (!$recoveryBean->insert()) {
-                General::log("Failed to insert password recovery token for user " . $user->getId());
+            } else {
                 return [
                     'success' => false,
-                    'message' => 'Errore nella generazione del token di recupero.',
+                    'message' => 'Utente o email non esistenti.',
                     'token' => null
                 ];
             }
-
-            // Send email
-            $emailSent = self::sendRecoveryEmail($user, $rawToken);
-
-            if (!$emailSent['success']) {
-                General::log("Failed to send recovery email to user " . $user->getId());
-                return [
-                    'success' => false,
-                    'message' => 'Errore nell\'invio dell\'email di recupero.',
-                    'token' => null
-                ];
-            }
-
-            General::log("Password recovery token generated for user " . $user->getId());
-
-            return [
-                'success' => true,
-                'message' => 'Email di recupero inviata con successo.',
-                'token' => $rawToken // Return for testing purposes only
-            ];
 
         } catch (\Exception $e) {
             General::log("Password recovery exception: " . $e->getMessage());
@@ -298,7 +279,7 @@ class PasswordRecoveryHelper
 
             // Build recovery URL
             $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'];
-            $recoveryUrl = $baseUrl . "/auth/reset-password.php?token=" . urlencode($token);
+            $recoveryUrl = $baseUrl . "/flussu/reset-password.php?token=" . urlencode($token);
 
             // Content
             $mail->isHTML(true);
@@ -327,7 +308,7 @@ class PasswordRecoveryHelper
             <p>Abbiamo ricevuto una richiesta per reimpostare la password del tuo account.</p>
             <p>Se hai richiesto tu il recupero della password, clicca sul pulsante qui sotto:</p>
             <p style='text-align: center;'>
-                <a href='" . htmlspecialchars($recoveryUrl) . "' class='button'>Reimposta Password</a>
+                <a style='text-decoration:none;color:#fff' href='" . htmlspecialchars($recoveryUrl) . "' class='button'><strong>Reimposta Password</strong></a>
             </p>
             <p>In alternativa, copia e incolla questo link nel tuo browser:</p>
             <p style='word-break: break-all; background-color: #fff; padding: 10px; border: 1px solid #ddd;'>

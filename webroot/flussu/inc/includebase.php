@@ -39,9 +39,11 @@ $v=$FVP[0];
 $m=$FVP[1];
 $r=$FVP[2];
 
-if ($_SESSION===null) {
+if (!isset($_SESSION)) {
     session_start();
 }
+
+// QUI NON C'E' L'UTENTE ALLA RIPARTENZA
 $user=new \Flussu\Persons\User();
 if (isset($_SESSION["user"])) {
     $user=$_SESSION["user"];
@@ -52,8 +54,10 @@ if (isset($_SESSION["user"])) {
 
 $su=end(explode("/", $_SERVER["SCRIPT_URL"]));
 switch($su){
+    case "dashboard.php":   
     case "login.php":   
     case "forgot-password.php":
+    case "reset-password.php":
     case "register.php":
         break;
     default:

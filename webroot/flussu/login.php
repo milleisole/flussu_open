@@ -24,156 +24,281 @@
  * --------------------------------------------------------------------*/
 
 require_once 'inc/includebase.php';
+use Flussu\Persons\User;
+use Flussu\General;
+
+$error = '';
+$success = '';
+$showExpiredPasswordForm = false;
+$userId = '';
+
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
+    header('Location: /flussu/dashboard.php', true, 303);
+    die();
+}
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? 'login';
+
+    if ($action === 'login') {
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        if (empty($username) || empty($password)) {
+            $error = 'Inserisci username/email e password.';
+        } else {
+            $user = new User();
+
+            if ($user->authenticate($username, $password)) {
+                // Check if password is expired
+                if ($user->mustChangePassword()) {
+                    $showExpiredPasswordForm = true;
+                    $userId = $username;
+                    $error = 'La tua password è scaduta. Devi cambiarla prima di continuare.';
+                } else {
+                    // Login successful
+                    $_SESSION['user'] = $user;
+                    $_SESSION['logged_in'] = true;
+
+                    General::log("User " . $user->getId() . " logged in successfully");
+
+                    // Redirect to dashboard or home
+                    header('Location: /flussu/dashboard.php', true, 303);
+                    die();
+                }
+            } else {
+                $error = 'Credenziali non valide.';
+                General::log("Failed login attempt for: " . $username);
+            }
+        }
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flussu - Login</title>
-    <link rel="stylesheet" href="css/flussu-admin.css">
+    <title>Login - Flussu Server</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+
+        .logo p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="email"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        input[type="email"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .error {
+            background-color: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c33;
+            font-size: 14px;
+        }
+
+        .success {
+            background-color: #efe;
+            color: #3c3;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3c3;
+            font-size: 14px;
+        }
+
+        .links {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .links a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+
+        .links a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .divider {
+            margin: 15px 0;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .info-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
     <div class="login-container">
-        <div class="login-box">
-            <div class="login-logo">
-                <svg width="120" height="40" viewBox="0 0 120 40">
-                    <text x="10" y="30" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#188d4d">FLUSSU</text>
-                </svg>
+        <div class="logo">
+            <h1>Flussu</h1>
+            <p>Server Login</p>
+        </div>
+
+        <?php if ($error): ?>
+            <div class="error"><?php echo htmlspecialchars($error); ?></div>
+        <?php endif; ?>
+
+        <?php if ($success): ?>
+            <div class="success"><?php echo htmlspecialchars($success); ?></div>
+        <?php endif; ?>
+
+        <?php if ($showExpiredPasswordForm): ?>
+            <div class="info-box">
+                La tua password è scaduta. Per motivi di sicurezza, devi cambiarla.
             </div>
+            <form method="GET" action="change-expired-password.php">
+                <input type="hidden" name="username" value="<?php echo htmlspecialchars($userId); ?>">
+                <button type="submit" class="btn">Cambia Password</button>
+            </form>
+        <?php else: ?>
+            <form method="POST" action="">
+                <input type="hidden" name="action" value="login">
 
-            <h1 class="login-title">Accedi al sistema</h1>
-
-            <form id="loginForm">
                 <div class="form-group">
-                    <label for="username" class="form-label">Username o Email</label>
+                    <label for="username">Username o Email</label>
                     <input
                         type="text"
                         id="username"
-                        class="form-control"
-                        placeholder="Inserisci username o email"
+                        name="username"
                         required
+                        autofocus
                         autocomplete="username"
-                    />
+                        value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>"
+                    >
                 </div>
 
                 <div class="form-group">
-                    <label for="password" class="form-label">Password</label>
+                    <label for="password">Password</label>
                     <input
                         type="password"
                         id="password"
-                        class="form-control"
-                        placeholder="Inserisci password"
+                        name="password"
                         required
                         autocomplete="current-password"
-                    />
+                    >
                 </div>
 
-                <div id="loginError" class="alert alert-danger" style="display: none;"></div>
-
-                <button type="submit" class="btn btn-primary" style="width: 100%;">
-                    Accedi
-                </button>
-
-                <div class="text-center mt-3">
-                    <a href="forgot-password.php" style="color: #188d4d; text-decoration: none;">
-                        Password dimenticata?
-                    </a>
-                </div>
+                <button type="submit" class="btn">Accedi</button>
             </form>
 
-            <div class="text-center mt-3">
-                <p class="text-muted" style="font-size: 14px; margin-bottom: 10px;">
-                    Non hai un account? <a href="register.php" style="color: #188d4d; text-decoration: none; font-weight: 600;">Registrati</a>
-                </p>
+            <div class="links">
+                <a href="forgot-password.php">Password dimenticata?</a>
             </div>
+        <?php endif; ?>
 
-            <div class="text-center mt-3">
-                <p class="text-muted" style="font-size: 12px;">
-                    Flussu User Management System v<?php echo $v.".".$m; ?><br>
-                    &copy; <?php echo date("Y"); ?> Mille Isole SRL
-                </p>
-            </div>
+        <div class="divider">───────</div>
+
+        <div style="text-align: center; font-size: 12px; color: #999;">
+            <p class="text-muted" style="font-size: 12px;">
+                Flussu User Management System v<?php echo $v.".".$m; ?><br>
+                &copy; <?php echo date("Y"); ?> Mille Isole SRL
+            </p>
         </div>
     </div>
-
-    <script src="js/flussu-api.js"></script>
-    <script src="js/flussu-password-api.js"></script>
-    <script>
-        const api = new FlussuAPI();
-        const passwordAPI = new FlussuPasswordAPI();
-
-        // Verifica se già autenticato
-        if (api.isAuthenticated()) {
-            window.location.href = 'dashboard.html';
-        }
-
-        // Gestione form login
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const errorDiv = document.getElementById('loginError');
-
-            // Nascondi errori precedenti
-            errorDiv.style.display = 'none';
-
-            // Validazione base
-            if (!username || !password) {
-                errorDiv.textContent = 'Inserisci username e password';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            try {
-                // Disabilita pulsante durante il login
-                const submitBtn = e.target.querySelector('button[type="submit"]');
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Accesso in corso...';
-
-                const result = await api.login(username, password);
-
-                if (result.success) {
-                    // Verifica se l'utente deve cambiare password
-                    try {
-                        const passwordStatus = await passwordAPI.checkPasswordStatus(username);
-
-                        if (passwordStatus.result === "OK" && passwordStatus.mustChangePassword) {
-                            // Redirect a change-password.php
-                            window.location.href = `change-password.php?username=${encodeURIComponent(username)}`;
-                            return;
-                        }
-                    } catch (pwdError) {
-                        console.warn('Could not check password status:', pwdError);
-                        // In caso di errore nel controllo password, procedi comunque con il login
-                    }
-
-                    // Redirect alla dashboard
-                    window.location.href = 'dashboard.html';
-                } else {
-                    errorDiv.textContent = result.message || 'Credenziali non valide';
-                    errorDiv.style.display = 'block';
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Accedi';
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                errorDiv.textContent = 'Errore durante il login. Riprova.';
-                errorDiv.style.display = 'block';
-
-                const submitBtn = e.target.querySelector('button[type="submit"]');
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Accedi';
-            }
-        });
-
-        // Enter per submit
-        document.getElementById('password').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
-            }
-        });
-    </script>
 </body>
 </html>
+

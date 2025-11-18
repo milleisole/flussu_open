@@ -136,13 +136,13 @@ class PasswordRecovery extends Dbh
         $sql = "SELECT * FROM t81_pwd_recovery
                 WHERE c81_token=?
                 AND c81_used=0
-                AND c81_expires > NOW()
+                AND c81_expires > ?
                 ORDER BY c81_created DESC
                 LIMIT 1";
 
         $stmt = $this->connect()->prepare($sql);
 
-        if (!$stmt->execute(array($hashedToken))) {
+        if (!$stmt->execute(array($hashedToken, date("Y-m-d H:i:s")))) {
             if ($this->isDebug) echo "[SELECT PasswordRecovery.bean EXECUTE ERROR:".implode($stmt->errorInfo())."]<br>";
             $this->_opLog .= date("H:i:s")." EXECUTE ERROR:".implode($stmt->errorInfo()).";\r\n";
             return false;

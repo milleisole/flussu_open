@@ -24,7 +24,9 @@
  * --------------------------------------------------------------------*/
 
 require_once 'inc/includebase.php';
-
+// TODO: Recuperare i workflow dell'utente
+// TODO: inoltre recuperare i dati dell'utente e creare il link della testata
+// TODO: separare corpo, header e footer in file diversi
 ?>
 <!DOCTYPE html>
 <html lang="it">

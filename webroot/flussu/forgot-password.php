@@ -21,16 +21,15 @@
  * VERSION REL.:     5.0.20251117
  * UPDATES DATE:     17.11.2025
  * --------------------------------------------------------------------*/
-
+use Flussu\Persons\PasswordRecoveryHelper;
 require_once 'inc/includebase.php';
 $user=null;
 $changeref=Flussu\General::getGetOrPost("emailOrUsername");
 if (!empty($changeref)){
     $usrMng=new Flussu\Users\UserManager();
     $user=$usrMng->getUserByUsernameOrEmail($changeref);
-    if ($user->is_active){
-        // to do: 
-        // execute what needed to generate id and send email with reset link
+    if ($user->getId()>0){
+        $result = PasswordRecoveryHelper::requestPasswordRecovery($user);
     } 
     header('Location: /flussu/mailsent.html', true, 302);
     die();

@@ -208,25 +208,36 @@ class User {
     }
 
     public function load($userid){
-      // LOAD FROM DATABASE
-      $this->clear();
-        try{
-            $this->_userData=$this->_uHandler->getUserByUsernameOrEmail($userid);
-            //echo "UBEAN UID=".$this->_UBean->getc80_id()." ";
-            if ($this->_userData["c80_id"]>0){
-                $this->mId     = (int)$this->_userData["c80_id"];
-                $this->mUName  = $this->_userData["c80_username"];
-                $this->mEmail  = $this->_userData["c80_email"];
-                $this->mDBPass = $this->_userData["c80_password"];
-                $this->mName   = $this->_userData["c80_name"];
-                $this->mSurname= $this->_userData["c80_surname"];
-                $this->mPsChgDt= $this->_userData["c80_pwd_chng"];
-                return ($this->mId>0);
+        // LOAD FROM DATABASE
+        $this->clear();
+        if (is_numeric($userid)){
+            $userid=(int)$userid;
+            try{
+                $this->_userData=$this->_uHandler->getUserById($userid);
+            } catch(\Exception $e){
+                //echo "ERROR:".$e->getMessage();
+                General::addRowLog("[Load User] exception".$e->getMessage());
+                //$this->clear();
             }
-        } catch(\Exception $e){
-            //echo "ERROR:".$e->getMessage();
-            General::addRowLog("[Load User] exception".$e->getMessage());
-            //$this->clear();
+        } else {
+            try{
+                $this->_userData=$this->_uHandler->getUserByUsernameOrEmail($userid);
+                //echo "UBEAN UID=".$this->_UBean->getc80_id()." ";
+            } catch(\Exception $e){
+                //echo "ERROR:".$e->getMessage();
+                General::addRowLog("[Load User] exception".$e->getMessage());
+                //$this->clear();
+            }
+        }
+        if (isset($this->_userData["c80_id"]) && $this->_userData["c80_id"]>0){
+            $this->mId     = (int)$this->_userData["c80_id"];
+            $this->mUName  = $this->_userData["c80_username"];
+            $this->mEmail  = $this->_userData["c80_email"];
+            $this->mDBPass = $this->_userData["c80_password"];
+            $this->mName   = $this->_userData["c80_name"];
+            $this->mSurname= $this->_userData["c80_surname"];
+            $this->mPsChgDt= $this->_userData["c80_pwd_chng"];
+            return ($this->mId>0);
         }
         //echo " - [Load User ".$userid."] NOT loaded ID=".$userid;
         General::addRowLog("[Load User ".$userid."] NOT loaded ID=".$userid);
@@ -321,19 +332,16 @@ class User {
     public function setPassword($password,$temporary=false){
         General::addLog("[Set User pwd]:");
         if ($this->mId>0){
-            $this->mPass=$this->_genPwd($this->mId, $this->mUName, $password);
-            if ($this->mPass!=""){
-                //PUT ON DATABASE
-                if ($this->mId != $this->_UBean->getc80_id())
-                    $this->_UBean->select($this->mId);
-                $this->_UBean->setc80_password($this->mPass);
+            $this->mDBPass=$this->_genPwd($this->mId, $this->mUName, $password);
+            if ($this->mDBPass!=""){
+                $data=[];
+                $data['c80_password']=$this->mDBPass;
                 if ($temporary)
                     $sca=date("Y/m/d H:i:s",strtotime("-1 week"));
                 else
                     $sca=date("Y/m/d H:i:s",strtotime("+1 year"));
-                //$scadDate=date("Y/m/d H:i:s",$sca);
-                $this->_UBean->setc80_pwd_chng( $sca );
-                $done= $this->_UBean->updatePassword();
+                $data['c80_pwd_chng']=$sca;
+                $done=$this->_uHandler->updateUser($this->mId, $data);
                 if ($done) General::addRowLog(" done");
                 if (!$done) General::addRowLog(" NOT REG ON DB!");
                 return $done;
