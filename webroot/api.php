@@ -153,6 +153,11 @@ if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"]
     */
     // Se la call non viene da servizi riconosciuti, allor passala a flussu!
 
+    if ($apiPage=="flussu"){
+        // user login handling
+        header('Location: /flussu/index.php', true, 301);
+        die();
+    }
     if (!checkUnattendedWebHookCall($req,$apiPage)){
         General::log("Extcall Flussu Controller: ".$apiPage." - ".$_SERVER["REQUEST_URI"]." from ".($_SERVER["REMOTE_ADDR"]??"(no address)")." - ".($_SERVER["HTTP_ORIGIN"]??"(no origin)")." - ".($_SERVER['HTTP_USER_AGENT'])??"(no user agent)");
 
@@ -171,7 +176,7 @@ if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"]
             header("Content-Disposition: attachment; filename=800A.zip");
             header("Content-Length: 1");
             header("Content-Transfer-Encoding: binary");
-            die("HELP HELP! WE WAS HACKED!!! Trust me, this bro is a very good hacker!");
+            die("HELP HELP! WE WAS HACKED!!! ... Trust me, this bro is a very good hacker!");
         }
         switch (strtolower(trim($apiPage))){
             case ".env":

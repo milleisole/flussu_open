@@ -31,9 +31,9 @@ if (!empty($changeref)){
     if ($user->is_active){
         // to do: 
         // execute what needed to generate id and send email with reset link
-    } else {
-        $user=null;
-    }
+    } 
+    header('Location: /flussu/mailsent.html', true, 302);
+    die();
 }
 ?>
 <!DOCTYPE html>

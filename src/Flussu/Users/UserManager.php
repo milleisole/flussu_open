@@ -56,11 +56,7 @@ class UserManager
      */
     public function getUserByUsernameOrEmail($identifier): object|bool
     {
-        $data = $this->handler->getUserByUsernameOrEmail($identifier);
-        if ($data!==false && isset($data['c80_id']) && ($data['c80_id']>0 && $data['is_active']!==0)) {
-            return $this->getUserById($data['c80_id']);
-        }
-        return false;
+        return $this->getUserById($identifier);
     }
 
     /**
