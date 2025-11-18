@@ -1,7 +1,7 @@
 {
   "flussu":{
-    "version":"4.5",
-    "release":"20250802"
+    "version":"5.0",
+    "release":"20251103"
   },
   "services": {
     "google":{
@@ -66,6 +66,11 @@
         "auth_key":"6768-insert-your-api-key-8768",
         "model":"claude-3-5-sonnet-20241022",
         "chat-model":"claude-3-5-sonnet-20241022"
+      },
+      "qwen":{
+        "auth_key":"6768-insert-your-api-key-8768",
+        "model":"qwen-plus",
+        "chat-model":"qwen-plus"
       }
     }
   },

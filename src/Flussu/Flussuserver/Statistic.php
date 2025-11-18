@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v.5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,11 +34,12 @@
  * USE ALDUS BEAN:   Databroker.bean
  * -------------------------------------------------------*
  * CREATED DATE:     22.02.2021 - Aldus
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     5.0.0.20251103
+ * UPDATES DATE:     11.03:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * -------------------------------------------------------*/
+
 namespace Flussu\Flussuserver;
 use Flussu\Languages;
 use Flussu\Flussuserver\NC\HandlerNC;

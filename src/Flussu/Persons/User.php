@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * --------------------------------------------------------------------
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     5.0.20251117
+ * UPDATES DATE:     17.11:2025 
  * --------------------------------------------------------------------
  * TBD - INCOMPLETE
  * --------------------------------------------------------------------*/
- namespace Flussu\Persons;
+namespace Flussu\Persons;
 use Flussu\Beans;
 use Flussu;
 use Flussu\General;
+use Flussu\Flussuserver\NC\HandlerUserNC;
 class User {
     protected $mId=0;
     protected $mActive=0;
@@ -32,13 +33,17 @@ class User {
     protected $mSurname="";
     private   $mDBPass="";
     private   $mPsChgDt;
-    private   $_UBean;
+    //private   $_UBean;
+    private   $_uHandler;
+    private   $_userData;
 
     public function __construct (){
         General::addRowLog("[Costr User]");
-        $this->_UBean=new \Flussu\Beans\User(General::$DEBUG);
+        //$this->_UBean=new \Flussu\Beans\User(General::$DEBUG);
         $this->mPsChgDt= date('Y-m-d', strtotime("-1 week", date('now')));
         $this->clear();
+        $this->_uHandler=new HandlerUserNC();
+        $this->_userData=null;
     }
 
     public function getId()          {return $this->mId;}
@@ -48,13 +53,14 @@ class User {
     public function getSurname()     {return $this->mSurname;}
     public function getChangePassDt(){return $this->mPsChgDt;}
 
+    /*
     public function hasARule(){
         $UsrRul=new UsrRule(General::$DEBUG);
         $UsrRul->selectUser($this->mId);
         return $UsrRul->getc15_ruleid()>0;
-    }
+    }*/
     public function hasPassword(){
-        return $this->_UBean->getc80_password()!="";
+        return $this->_userData["c80_password"]!="";
     }
     public function mustChangePassword(){
         if ($this->mId>0){
@@ -71,41 +77,115 @@ class User {
         $this->mName  = "";
         $this->mDBPass = "";
         $this->mSurname   = "";
-        $this->_UBean->clear();
     }
 
-    // TBD
-    // TBD
-    // TBD
-    public function isActive(){return true;}
-    public function checkRuleLelev($neededRuleLevel){if ($this->mId>0) return true; else return false;}
-    // TBD
-    // TBD
-    // TBD
+    /**
+     * Check if user is active (not deleted)
+     * @return bool True if user is active, false otherwise
+     */
+    public function isActive(){
+        if ($this->mId>0){
+            // User is active if not deleted (deleted date is default '1899-12-31 23:59:59')
+            $deletedDate = $this->_userData["c80_deleted"];
+            return ($deletedDate == '1899-12-31 23:59:59' || strtotime($deletedDate) < strtotime('1900-01-01'));
+        }
+        return false;
+    }
 
+    /**
+     * Check if user has required rule level
+     * @param int $neededRuleLevel The minimum rule level required
+     * @return bool True if user has required level, false otherwise
+     */
+    public function checkRuleLelev($neededRuleLevel){
+        if ($this->mId>0){
+            $userRole = $this->_UBean->getc80_role();
+            return ($userRole >= $neededRuleLevel);
+        }
+        return false;
+    }
+
+    /**
+     * Generate a temporary API call key valid for specified minutes
+     * @param int $minutesValid Number of minutes the key should be valid
+     * @return string|false The generated API key or false on failure
+     */
     public function getApiCallKey($minutesValid){
-        
+        General::addRowLog("[Gen API Key]");
+        if ($this->mId <= 0 || !$this->isActive()){
+            General::addRowLog("[Gen API Key] User not loaded or inactive");
+            return false;
+        }
 
-
+        // Use HandlerUserNC for API key generation
+        return $this->_uHandler->generateApiKey($this->mId, $minutesValid);
     }
-    public function authFromApiCallKey($theKey){
-        
 
-        
+    /**
+     * Authenticate user from temporary API call key
+     * @param string $theKey The API key to authenticate
+     * @return bool True if authentication successful, false otherwise
+     */
+    public function authFromApiCallKey($theKey){
+        General::addRowLog("[Auth from API Key]");
+        $this->clear();
+
+        if (empty($theKey)){
+            General::addRowLog("[Auth from API Key] Empty key");
+            return false;
+        }
+
+        // Use HandlerUserNC for API key validation
+        $keyData = $this->_uHandler->validateApiKey($theKey);
+
+        if ($keyData === false){
+            return false;
+        }
+
+        // Mark key as used
+        if (!$this->_uHandler->markApiKeyAsUsed($keyData['id'])){
+            General::addRowLog("[Auth from API Key] Failed to mark key as used");
+            return false;
+        }
+
+        // Load the user
+        $userId = (int)$keyData['user_id'];
+        if ($this->load($userId)){
+            if ($this->isActive()){
+                General::addRowLog("[Auth from API Key] Success - User ID: {$userId}");
+                return true;
+            } else {
+                General::addRowLog("[Auth from API Key] User inactive");
+                $this->clear();
+            }
+        } else {
+            General::addRowLog("[Auth from API Key] Failed to load user");
+        }
+
+        return false;
+    }
+
+    /**
+     * Clean up expired API keys from database (static utility method)
+     * @return int Number of deleted keys
+     */
+    static function cleanExpiredApiKeys(){
+        General::addRowLog("[Clean Expired API Keys]");
+
+        // Use HandlerUserNC for cleaning expired API keys
+        $handler = new HandlerUserNC();
+        return $handler->cleanExpiredApiKeys();
     }
 
     public function registerNew(string $userid, string $password, string $email, string $name="", string $surname=""){
         // CREATE NEW USER ON DATABASE USING USERID
-
-        $this->_UBean->setc80_username($userid);
-        $this->_UBean->setc80_email($email);
-        $this->_UBean->setc80_name($name);
-        $this->_UBean->setc80_surname($surname);
-        $effectiveDate = date('Y-m-d', strtotime("-1 week", date('now')));
-        $this->_UBean->setc80_pwd_chng($effectiveDate);
-
-        $this->_UBean->insert();
-//        $this->setNewEmailCheck();
+        $data=[];
+        $data['username']=$email;
+        $data['email']=$email;
+        $data['password']=$password;
+        $data['name']=$name;
+        $data['surname']=$surname;
+        $id=$this->_uHandler->createUser($data);
 
         General::addRowLog("[Register NEW User=".$userid."] -> ".$this->_UBean->getLog());
         // GET $mId
@@ -122,39 +202,42 @@ class User {
 
     public function emailExist($emailAddress){
         if (trim($emailAddress)!=""){
-            $row=$this->_UBean->selectDataUsingEmail($emailAddress);
-            if (is_array($row))
-                return array(true,$row["UID"],$row["LOGIN_ID"]);
+            return $this->_uHandler->emailExists($emailAddress);
         }
-        return array(false,0,"","1899/12/31 23:59:59");
+        return false;
     }
 
     public function load($userid){
-      // LOAD FROM DATABASE
-      $this->clear();
-        try{
-            if (is_numeric($userid))
-                $this->_UBean->select($userid);
-            else
-                $this->_UBean->load($userid);
-
-
-            //echo "UBEAN UID=".$this->_UBean->getc80_id()." ";
-
-            if ($this->_UBean->getc80_id()>0){
-                $this->mId     = (int)$this->_UBean->getc80_id();
-                $this->mUName  = $this->_UBean->getc80_username();
-                $this->mEmail  = $this->_UBean->getc80_email();
-                $this->mDBPass = $this->_UBean->getc80_password();
-                $this->mName   = $this->_UBean->getc80_name();
-                $this->mSurname= $this->_UBean->getc80_surname();
-                $this->mPsChgDt= $this->_UBean->getc80_pwd_chng();
-                return ($this->mId>0);
+        // LOAD FROM DATABASE
+        $this->clear();
+        if (is_numeric($userid)){
+            $userid=(int)$userid;
+            try{
+                $this->_userData=$this->_uHandler->getUserById($userid);
+            } catch(\Exception $e){
+                //echo "ERROR:".$e->getMessage();
+                General::addRowLog("[Load User] exception".$e->getMessage());
+                //$this->clear();
             }
-        } catch(\Exception $e){
-            //echo "ERROR:".$e->getMessage();
-            General::addRowLog("[Load User] exception".$e->getMessage());
-            //$this->clear();
+        } else {
+            try{
+                $this->_userData=$this->_uHandler->getUserByUsernameOrEmail($userid);
+                //echo "UBEAN UID=".$this->_UBean->getc80_id()." ";
+            } catch(\Exception $e){
+                //echo "ERROR:".$e->getMessage();
+                General::addRowLog("[Load User] exception".$e->getMessage());
+                //$this->clear();
+            }
+        }
+        if (isset($this->_userData["c80_id"]) && $this->_userData["c80_id"]>0){
+            $this->mId     = (int)$this->_userData["c80_id"];
+            $this->mUName  = $this->_userData["c80_username"];
+            $this->mEmail  = $this->_userData["c80_email"];
+            $this->mDBPass = $this->_userData["c80_password"];
+            $this->mName   = $this->_userData["c80_name"];
+            $this->mSurname= $this->_userData["c80_surname"];
+            $this->mPsChgDt= $this->_userData["c80_pwd_chng"];
+            return ($this->mId>0);
         }
         //echo " - [Load User ".$userid."] NOT loaded ID=".$userid;
         General::addRowLog("[Load User ".$userid."] NOT loaded ID=".$userid);
@@ -249,19 +332,16 @@ class User {
     public function setPassword($password,$temporary=false){
         General::addLog("[Set User pwd]:");
         if ($this->mId>0){
-            $this->mPass=$this->_genPwd($this->mId, $this->mUName, $password);
-            if ($this->mPass!=""){
-                //PUT ON DATABASE
-                if ($this->mId != $this->_UBean->getc80_id())
-                    $this->_UBean->select($this->mId);
-                $this->_UBean->setc80_password($this->mPass);
+            $this->mDBPass=$this->_genPwd($this->mId, $this->mUName, $password);
+            if ($this->mDBPass!=""){
+                $data=[];
+                $data['c80_password']=$this->mDBPass;
                 if ($temporary)
                     $sca=date("Y/m/d H:i:s",strtotime("-1 week"));
                 else
                     $sca=date("Y/m/d H:i:s",strtotime("+1 year"));
-                //$scadDate=date("Y/m/d H:i:s",$sca);
-                $this->_UBean->setc80_pwd_chng( $sca );
-                $done= $this->_UBean->updatePassword();
+                $data['c80_pwd_chng']=$sca;
+                $done=$this->_uHandler->updateUser($this->mId, $data);
                 if ($done) General::addRowLog(" done");
                 if (!$done) General::addRowLog(" NOT REG ON DB!");
                 return $done;
@@ -382,6 +462,83 @@ class User {
             return $theBean->getc80_id()>0;
         }
         return false;
+    }
+
+    /**
+     * Login user and store in session
+     * Uses AuthManager to handle session storage
+     *
+     * @param string $userId Username or email
+     * @param string $password User password
+     * @return bool True if login successful, false otherwise
+     */
+    public static function login(string $userId, string $password): bool
+    {
+        return AuthManager::login($userId, $password);
+    }
+
+    /**
+     * Login user with token and store in session
+     * Uses AuthManager to handle session storage
+     *
+     * @param string $userId User ID
+     * @param string $token Authentication token
+     * @return bool True if login successful, false otherwise
+     */
+    public static function loginWithToken(string $userId, string $token): bool
+    {
+        return AuthManager::loginWithToken($userId, $token);
+    }
+
+    /**
+     * Logout current user from session
+     *
+     * @return void
+     */
+    public static function logout(): void
+    {
+        AuthManager::logout();
+    }
+
+    /**
+     * Check if user is currently authenticated
+     *
+     * @return bool True if user is authenticated, false otherwise
+     */
+    public static function isUserAuthenticated(): bool
+    {
+        return AuthManager::isAuthenticated();
+    }
+
+    /**
+     * Get current authenticated user from session
+     *
+     * @return User|null User object if authenticated, null otherwise
+     */
+    public static function getCurrentUser(): ?User
+    {
+        return AuthManager::getUser();
+    }
+
+    /**
+     * Get current authenticated user ID
+     *
+     * @return int User ID if authenticated, 0 otherwise
+     */
+    public static function getCurrentUserId(): int
+    {
+        return AuthManager::getUserId();
+    }
+
+    /**
+     * Require authentication or die with error
+     *
+     * @param string $errorMessage Custom error message
+     * @return void Dies if not authenticated
+     */
+    public static function requireAuthentication(string $errorMessage = "Authentication required"): void
+    {
+        AuthManager::requireAuth($errorMessage);
     }
 
     public function __destruct(){

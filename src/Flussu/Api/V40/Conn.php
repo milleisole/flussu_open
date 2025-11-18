@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Flussu API Interface
  * CREATED DATE:     25.01.2021 - Aldus - Flussu v2.0
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     5.0.20251117
+ * UPDATES DATE:     17.11:2025 
  * -------------------------------------------------------*/
 /**
  * Conn.php
@@ -39,18 +39,19 @@
  *      returns the execution result.
  * 
  * @package App\Flussu\Api\V40
- * @version 4.1.20250205
+ * @version 5.0.20251117
  * @license http://www.apache.org/licenses/LICENSE-2.0 Apache License 2.0
  */
 
  namespace Flussu\Api\V40;
 
-use Flussu\Flussuserver\Request;
+//use Flussu\Flussuserver\Request;
 
 use Flussu\General;
 use Flussu\Persons\User;
 use Flussu\Flussuserver\Command;
 use Flussu\Flussuserver\NC\HandlerNC;
+use Flussu\Api\V40\PasswordManager;
 
 class Conn {
     /**
@@ -77,7 +78,7 @@ class Conn {
      * 
      * @throws \Exception If there are issues with command execution or if the required parameters are not provided.
      */
-    public function exec(Request $Req, User $theUser){
+    public function exec(/*Request $Req,*/ User $theUser){
         $mustBeLogged=false;
         $authLevel=0;
         
@@ -250,6 +251,61 @@ class Conn {
                     User::changeUserPassword($theData->userId,$theData->basePass);
                     $res= array("result"=>"OK");
                     break;
+
+                // ============ PASSWORD MANAGEMENT COMMANDS ============
+                case "reqPwdReset":
+                case "reqpwdreset":
+                    // Request password reset - generates token and returns it
+                    // Data: {emailOrUsername: "user@example.com" or "username"}
+                    $pwdMgr = new PasswordManager();
+                    $db = new HandlerNC();
+                    $res = $pwdMgr->requestPasswordReset($db, $theData->emailOrUsername);
+                    break;
+
+                case "verifyResetToken":
+                case "verifyresettoken":
+                    // Verify if a reset token is valid
+                    // Data: {token: "uuid-token"}
+                    $pwdMgr = new PasswordManager();
+                    $db = new HandlerNC();
+                    $res = $pwdMgr->verifyResetToken($db, $theData->token);
+                    break;
+
+                case "resetPwd":
+                case "resetpwd":
+                    // Reset password using token
+                    // Data: {token: "uuid-token", newPassword: "newpass123"}
+                    $pwdMgr = new PasswordManager();
+                    $db = new HandlerNC();
+                    $res = $pwdMgr->resetPasswordWithToken($db, $theData->token, $theData->newPassword);
+                    break;
+
+                case "forcePwdChg":
+                case "forcepwdchg":
+                    // Force password change when user must change password (expired/temporary)
+                    // Data: {userId: "username", currentPassword: "oldpass", newPassword: "newpass123"}
+                    $pwdMgr = new PasswordManager();
+                    $res = $pwdMgr->forcePasswordChange($theData->userId, $theData->currentPassword, $theData->newPassword);
+                    break;
+
+                case "chkPwdStatus":
+                case "chkpwdstatus":
+                    // Check if user must change password
+                    // Data: {userId: "username"}
+                    $pwdMgr = new PasswordManager();
+                    $res = $pwdMgr->checkPasswordStatus($theData->userId);
+                    break;
+
+                case "cleanupTokens":
+                case "cleanuptokens":
+                    // Cleanup expired reset tokens (maintenance command)
+                    // Data: {} (no data required)
+                    $pwdMgr = new PasswordManager();
+                    $db = new HandlerNC();
+                    $res = $pwdMgr->cleanupExpiredTokens($db);
+                    break;
+                // =====================================================
+
                 default:
                     $res= array("result"=>"ERROR: unknown command [$theCmd]");
             }

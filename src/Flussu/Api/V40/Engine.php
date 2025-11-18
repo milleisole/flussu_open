@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,9 @@
  * CLASS PATH:    Flussu\Api\V40\FlussuHandler
  * -------------------------------------------------------*
  * CREATED:  25.01.2021 - Aldus - Flussu v2.0
- * VERSION REL.:     4.5.20250802
- * UPDATES DATE:     02.08:2025 
+ * VERSION REL.:     5.0.20251117
+ * UPDATES DATE:     17.11:2025 
  * -------------------------------------------------------
- * Now supports the language change
- * Language BUG solved: 2025-08-02
  * -------------------------------------------------------*/
 /**
  * The Engine class is responsible for handling the core execution flow of the Flussu API within the Flussu server.
@@ -42,13 +40,13 @@
  * components work together seamlessly to provide a reliable and efficient API service.
  * 
  * @package App\Flussu\Api\V40
- * @version 4.1.20250205
+ * @version 5.0.20251117
  * @license http://www.apache.org/licenses/LICENSE-2.0 Apache License 2.0
  */
 
 namespace Flussu\Api\V40;
 
-use Flussu\Flussuserver\Request;
+//use Flussu\Flussuserver\Request;
 
 use Flussu\General;
 use Flussu\Flussuserver\Worker;
@@ -159,7 +157,7 @@ use OpenApi\Annotations as OA;
 
 class Engine {
 
-    public function exec(Request $Req, $file_rawdata=null){
+    public function exec(/*Request $Req,*/ $file_rawdata=null){
         $wSess=null;
         $terms=null;
         $widd=null;

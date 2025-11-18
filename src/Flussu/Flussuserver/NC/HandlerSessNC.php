@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v.5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,12 +31,11 @@
  * FOR ALDUS BEAN:   Databroker.bean
  * -------------------------------------------------------*
  * CREATED DATE:     (04.11.2020) 30.11:2023 - Aldus
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     5.0.0.20251103
+ * UPDATES DATE:     11.03:2025 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * -------------------------------------------------------*/
-
 
 /**
  * The Handler classes are responsible for managing database operations.
@@ -63,7 +62,6 @@ class HandlerSessNC extends HandlerBaseNC {
         $p_res1=$this->execSql($SQL,array($uu2Bin,'allValues'));
         return $p_res && $p_res1;
     }
-
     public function addNotify ($dataType,$dataName,$dataValue,$channel,$wid,$sessid,$bidid){
         // Aggiungere una notifica allo stack su database
         $parms=[
@@ -81,7 +79,6 @@ class HandlerSessNC extends HandlerBaseNC {
         $res= $this->execSql("insert into t203_notifications (c203_sess_id,c203_n_type,c203_n_name,c203_n_value) values (?,?,?,?)",$parms);
         return $res;        
     }   
-
     public function getNotify($sessId){
         $notyf=[];
         if (!empty($sessId)){
@@ -103,7 +100,6 @@ class HandlerSessNC extends HandlerBaseNC {
         }                           
         return $notyf;
     }
-
     public function setDurationHours($hours,$sessid){
         // Se $hours==0 azzera la durata.
         if (!empty($hours) && is_numeric($hours) && $hours>=0){
@@ -112,8 +108,6 @@ class HandlerSessNC extends HandlerBaseNC {
         }
         return false;
     }
-
-
     public function getSessionsList($whereClause){
         $SQL="
             SELECT 
@@ -145,9 +139,7 @@ class HandlerSessNC extends HandlerBaseNC {
         }
         return $res;
     }
-
-
-    public function closeSession($theMemSeStat,$arVars,$stat,$history,$workLogs,$subWid,$usessid){
+    public function closeSession($theMemSeStat,$arVars,$dirtyVars,$stat,$history,$workLogs,$subWid,$usessid){
         $transExec= array();
         $dtarr=[];
         if (isset($theMemSeStat->workflowId)){
@@ -167,7 +159,6 @@ class HandlerSessNC extends HandlerBaseNC {
                 ",c200_blk_end=:blk_end,c200_time_end=:time_end,c200_user=:user,c200_state_error=:state_error".
                 ",c200_state_usererr=:state_usererr,c200_state_exterr=:state_exterr,c200_subs=:subs ".
                 "WHERE c200_sess_id=:sid";
-            
             try{
                 array_push($transExec,["SQL"=>$SQL,"PRM"=>$dtarr]);
             } catch (\Throwable $e){
@@ -175,7 +166,31 @@ class HandlerSessNC extends HandlerBaseNC {
             }
         }
         if (isset($theMemSeStat)){
-            $SQL="UPDATE t205_work_var set c205_elm_val=:val where c205_sess_id=:sid and c205_elm_id='allValues'";
+            if (!empty($dirtyVars)) {
+                $SQL = "INSERT INTO t205_work_var 
+                        (c205_sess_id, c205_elm_id, c205_elm_val, 
+                        c205_modified, c205_data_size)
+                        VALUES (?, ?, ?, NOW(), ?)
+                        ON DUPLICATE KEY UPDATE
+                        c205_elm_val = VALUES(c205_elm_val),
+                        c205_modified = NOW(),
+                        c205_data_size = VALUES(c205_data_size)";
+                
+                foreach ($dirtyVars as $varName => $varData) {
+                    $serialized = json_encode($varData);
+                    $size = strlen($serialized);
+                    
+                    $this->execSql($SQL, [
+                        $usessid,
+                        $varName,
+                        $serialized,
+                        $size
+                    ]);
+                }
+            }
+            // LEGACY: Full snapshot (backward compatibility - rimuovi dopo test)
+            $SQL="UPDATE t205_work_var set c205_elm_val=:val 
+                where c205_sess_id=:sid and c205_elm_id='allValues'";
             $this->execMultSql(
                 $SQL,
                 array(["sid"=>$usessid,"val"=>json_encode($arVars)])
@@ -200,7 +215,6 @@ class HandlerSessNC extends HandlerBaseNC {
 
         $this->transExecs($transExec);
     }
-
     function updateWorklog($workLogs,$transExec){
         $insert_values = array();
         $question_marks=[];

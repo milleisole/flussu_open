@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
  * limitations under the License.
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Flussu API Controller
- * CREATE DATE:     04.08.2022 - Aldus - Flussu v2.2
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * CREATE DATE:      04.08.2022 - Aldus - Flussu v2.2
+ * VERSION REL.:     5.0.20251117
+ * UPDATES DATE:     17.11:2025 
  * -------------------------------------------------------*/
 namespace Flussu\Controllers;
 use Flussu\General;
@@ -26,16 +26,15 @@ use Flussu\Api\V40\Stat;
 use Flussu\Api\V40\Sess;
 use Flussu\Api\V40\Conn;
 use Flussu\Api\V40\Engine;
-use Flussu\Flussuserver\Request;
+//use Flussu\Flussuserver\Request;
 use Flussu\Flussuserver\NC\HandlerNC;
-
+use Flussu\Controllers\UserManagementController;
 use Log;
-
 use function PHPSTORM_META\map;
 
 class FlussuController 
 {
-    public function apiCall(Request $request, $apiPage){
+    public function apiCall(/*Request $request,*/ $apiPage){
         header('Access-Control-Allow-Origin: *'); 
         header('Access-Control-Allow-Methods: *');
         header('Access-Control-Allow-Headers: *');
@@ -54,7 +53,7 @@ class FlussuController
 
         switch ($apiPage){
             case "vatid":
-                $rq=$request["vatid"];
+                $rq=General::getGetOrPost("vatid");
                 $pic=new PartitaIvaController();
                 $res=$pic->PICheck(substr($rq,0,2),substr($rq,2));
                 var_dump($res);
@@ -63,7 +62,7 @@ class FlussuController
             case "flussuconn.php":
                 header('Content-Type: application/json; charset=UTF-8');
                 $st=new Conn();
-                $st->exec($request,$theFlussuUser);
+                $st->exec(/*$request,*/ $theFlussuUser);
                 //return $res;
 
                 break;
@@ -72,7 +71,7 @@ class FlussuController
                 header('Content-Type: application/json; charset=UTF-8');
                 $st=new Engine();
                 $rawdata = file_get_contents('php://input');
-                $res=$st->exec($request,$rawdata);
+                $res=$st->exec(/*$request,*/ $rawdata);
                 $RET=json_encode($res, JSON_HEX_QUOT || JSON_HEX_APOS ); 
                 //return $res; 
                 //$reees=response()->make($res, 200);
@@ -83,12 +82,18 @@ class FlussuController
                 header('Content-Type: application/json; charset=UTF-8');
                 $st=new Stat();
                 $rawdata = file_get_contents('php://input');
-                $st->extCall($request,$rawdata);
+                $st->extCall(/*$request,*/ $rawdata);
                 //$RET=json_encode($res); 
                 //return $res; 
                 //$reees=response()->make($res, 200);
                 //return $reees; 
                 //die($RET);
+                break;
+            case "user-management":
+            case "user-management.php":
+                header('Content-Type: application/json; charset=UTF-8');
+                $um=new UserManagementController();
+                $um->handleRequest(/*$request*/);
                 break;
             case "zap":
                 header('Content-Type: text/event-stream');
@@ -96,7 +101,7 @@ class FlussuController
 
                 die("DUNNO???");
             default:
-                $cwid=$request["CWID"];
+                $cwid=General::getGetOrPost("CWID");
                 $authKey="";
                 if (!empty($cwid)){
                     $parts=explode("|",$cwid);
@@ -108,7 +113,7 @@ class FlussuController
                         $authKey=substr($parts[0],1);
                     }
                 } else 
-                    $authKey=$request["auk"];
+                    $authKey=General::getGetOrPost("auk");;
 
                 $uid=General::getUserFromDateTimedApiKey($authKey);
 
@@ -122,11 +127,11 @@ class FlussuController
                 //echo "User ID=".$theFlussuUser->getId();
 
 
-                $C=$request["C"];
+                $C=General::getGetOrPost("C");
                 if (!empty($C)){
                     $rawdata = file_get_contents('php://input');
                     $fl=new Flow();
-                    $fl->exec($request,$theFlussuUser,$rawdata);
+                    $fl->exec(/*$request,*/ $theFlussuUser,$rawdata);
                 } else {
                     if ($theFlussuUser->getId()>0){
                         switch ($apiPage){
@@ -134,24 +139,24 @@ class FlussuController
                                 //echo "FLOW";
                                 $rawdata = file_get_contents('php://input');
                                 $fl=new Flow();
-                                $fl->exec($request,$theFlussuUser,$rawdata);
+                                $fl->exec(/*$request,*/ $theFlussuUser,$rawdata);
                                 break;
                             case "sess":
                                 //echo "SESS";
                                 $st=new Sess();
-                                $st->exec($request,$theFlussuUser,0);
+                                $st->exec(/*$request,*/ $theFlussuUser,0);
                                 break;
                             case "stat":
                                 //echo "FLOW";
                                 $st=new Stat();
-                                $st->exec($request,$theFlussuUser,0);
+                                $st->exec(/*$request,*/ $theFlussuUser,0);
                                 break;
                             case "stat0":
                             case "stat1":
                             case "stat2":
                                 $pNum=substr($apiPage,-1);
-                                $st=new stat();
-                                $st->exec($request,$theFlussuUser,$pNum);
+                                $st=new Stat();
+                                $st->exec(/*$request,*/ $theFlussuUser,$pNum);
                                 break;
                         }
                     }
