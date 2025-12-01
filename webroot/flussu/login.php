@@ -234,8 +234,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <div class="login-container">
         <div class="logo">
-            <h1>Flussu</h1>
-            <p>Server Login</p>
+            <h1>Flussu <?php echo $v.".".$m; ?></h1>
+            <p>Admin Login</p>
         </div>
 
         <?php if ($error): ?>
@@ -259,7 +259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="hidden" name="action" value="login">
 
                 <div class="form-group">
-                    <label for="username">Username o Email</label>
+                    <label for="username">Username/Email</label>
                     <input
                         type="text"
                         id="username"
@@ -282,7 +282,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     >
                 </div>
 
-                <button type="submit" class="btn">Accedi</button>
+                <button type="submit" class="btn">Login</button>
             </form>
 
             <div class="links">
@@ -293,10 +293,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="divider">───────</div>
 
         <div style="text-align: center; font-size: 12px; color: #999;">
-            <p class="text-muted" style="font-size: 12px;">
-                Flussu User Management System v<?php echo $v.".".$m; ?><br>
-                &copy; <?php echo date("Y"); ?> Mille Isole SRL
+            <?php
+                $V=$v.".".$m.".".$r;
+                $hostname = gethostname();
+                $srv=$_ENV["server"];
+            ?>
+            <p>
+                Flussu <?php echo $V; ?> - DB: <?php echo $dbv; ?>
+                <br><?php echo $srv; ?> on <?php echo $hostname; ?>
             </p>
+            <p>&copy; <?php echo date("Y"); ?> Mille Isole SRL</p>
         </div>
     </div>
 </body>

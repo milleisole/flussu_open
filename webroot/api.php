@@ -33,7 +33,7 @@ use Flussu\General;
 use Flussu\Config;
 
 // VERSION
-$FlussuVersion="0.0.unknown!";
+//$FlussuVersion="0.0.unknown!";
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
@@ -115,7 +115,7 @@ if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"]
     $fc=new VersionController();
     $dbv="v".$fc->getDbVersion();
     $srv=$_ENV["server"];
-    die(json_encode(["host"=>$hostname,"server"=>$srv,"Flussu Open"=>$FlussuVersion,"v"=>$v,"m"=>$m,"r"=>$r,"db"=>$dbv,"pv"=>phpversion()]));
+    die(json_encode(["host"=>$hostname,"server"=>$srv,"Flussu Open"=>$v.".".$m,"v"=>$v,"m"=>$m,"r"=>$r,"db"=>$dbv,"pv"=>phpversion()]));
 } else if ($_SERVER["REQUEST_URI"]=="/notify"){
     /* 
         PHP Session is blocking asyncrhonous calls if you use the same session_id, so the

@@ -5,6 +5,7 @@ define('PROJECT_ROOT', dirname(__DIR__, 2)."/../");
 require_once PROJECT_ROOT . 'vendor/autoload.php';
 
 use Flussu\Config;
+use Flussu\Controllers\VersionController;
 
 // VERSION
 $FlussuVersion="0.0.unknown!";
@@ -53,6 +54,8 @@ if ($user_id>0) {
     $auk=\Flussu\General::getDateTimedApiKeyFromUser($user_id,60);
     $_SESSION["auk"] = $auk;
 } 
+$fc=new VersionController();
+$dbv="v".$fc->getDbVersion();
 
 function isUserLoggedIn() {
     global $user;
