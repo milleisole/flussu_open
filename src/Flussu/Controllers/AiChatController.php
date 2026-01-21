@@ -129,15 +129,17 @@ TXT;
      * @param string $role
      * @param int $maxTokens
      * @param float $temperature
-     * @return :
-     *      string: textual reply
-     *      array: command for the client
-     * 
+     * @return array:
+     *      [0] string: status ("Ok", "Error", etc.)
+     *      [1] string|array: textual reply or command for the client
+     *      [2] array|null: token usage ["input" => X, "output" => Y] or null
+     *
      */
     function chat($sessId, $sendText, $webPreview=false, $role="user", $maxTokens=150, $temperature=0.7) {
         $result="(no result)";
-        
-        $preChat=General::ObjRestore("AiCht".$sessId,true); 
+        $tokenUsage = null;
+
+        $preChat=General::ObjRestore("AiCht".$sessId,true);
 
         if (is_null($preChat) || empty($preChat))
             $preChat=[];
@@ -146,10 +148,15 @@ TXT;
             if (!$this->_aiClient->canBrowseWeb()){
                 $sendText=$this->sostituisciURLconHTML($sendText);
             }
-            if (!$webPreview) 
-                $result=$this->_aiClient->Chat($preChat,$sendText, $role); 
+            if (!$webPreview)
+                $result=$this->_aiClient->Chat($preChat,$sendText, $role);
             else
-                $result=$this->_aiClient->Chat_WebPreview($sendText, $sessId,$maxTokens,$temperature); 
+                $result=$this->_aiClient->Chat_WebPreview($sendText, $sessId,$maxTokens,$temperature);
+
+            // Extract token usage from result (third element if available)
+            if (is_array($result) && isset($result[2])) {
+                $tokenUsage = $result[2];
+            }
 
             $limitReached=$this->_checkLimitReached($result);
 
@@ -188,15 +195,15 @@ TXT;
                         'role' => 'assistant',
                         'content' => $pReslt,
                     ];
-                    General::ObjPersist("AiCht".$sessId,$History); 
+                    General::ObjPersist("AiCht".$sessId,$History);
                     if (!$res[0])
                         $ret="{MD}".$pReslt."{/MD}";
                 }
                 $status="Ok";
             }
-            return [$status,$ret];
+            return [$status, $ret, $tokenUsage];
         } catch (\Throwable $e) {
-            return ["Error: ",$e->getMessage()];
+            return ["Error: ", $e->getMessage(), null];
         }
     }
 

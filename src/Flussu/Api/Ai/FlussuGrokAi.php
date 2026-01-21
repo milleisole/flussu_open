@@ -75,7 +75,7 @@ class FlussuGrokAi implements IAiProvider
             'max_tokens' => 2000
         ];
         try {
-            $response = $this->client->post('chat/completions', [ 
+            $response = $this->client->post('chat/completions', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->_grok_ai_key,
                     'Content-Type'  => 'application/json',
@@ -87,16 +87,24 @@ class FlussuGrokAi implements IAiProvider
             $data=$response->getBody();
 
             if ($response->getStatusCode() !== 200)
-                return [$arrayText,"Error: HTTP status code " . $response->getStatusCode() . ". Details: " . $data];
+                return [$arrayText, "Error: HTTP status code " . $response->getStatusCode() . ". Details: " . $data, null];
 
             $data = json_decode($data, true);
-            if (isset($data['choices'][0]['message']['content'])) 
-                return [$arrayText,$data['choices'][0]['message']['content']];
-            else 
-                return [$arrayText,"Error: no Grok response. Details: " . print_r($data, true)];
+            // Extract token usage if available
+            $tokenUsage = null;
+            if (isset($data['usage'])) {
+                $tokenUsage = [
+                    'input' => $data['usage']['prompt_tokens'] ?? 0,
+                    'output' => $data['usage']['completion_tokens'] ?? 0
+                ];
+            }
+            if (isset($data['choices'][0]['message']['content']))
+                return [$arrayText, $data['choices'][0]['message']['content'], $tokenUsage];
+            else
+                return [$arrayText, "Error: no Grok response. Details: " . print_r($data, true), null];
 
         } catch (Exception $e) {
-            "Error: no response. Details: " . $e->getMessage();
+            return [$arrayText, "Error: no response. Details: " . $e->getMessage(), null];
         }
     }
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){

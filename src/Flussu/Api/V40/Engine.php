@@ -453,6 +453,13 @@ class Engine {
                 "bid"=>$frmBid,
                 "elms"=>$frmElms
             ];
+            // V4.5.2 - Include INFO in response if present in session, then clear it
+            $infoValue = $wSess->getVarValue('$INFO');
+            if (!empty($infoValue)) {
+                $res["info"] = $infoValue;
+                // Clear INFO from session after sending
+                $wSess->assignVars('$INFO', '');
+            }
         }
         return $res;
     }

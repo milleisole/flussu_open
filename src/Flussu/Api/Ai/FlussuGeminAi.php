@@ -84,6 +84,7 @@ class FlussuGeminAi implements IAiProvider
             );
         }, $oldMsgArray);
 
+        $tokenUsage = null;
         try {
             // Inizializza la chat con la cronologia
             $chat = $this->_gemini->generativeModel($this->_gemini_chat_model)->startChat($history);
@@ -92,12 +93,21 @@ class FlussuGeminAi implements IAiProvider
             // Invia il nuovo messaggio
             $response = $chat->sendMessage($sendText);
             $responseText=$response->text();
+            // Extract token usage if available
+            if (method_exists($response, 'usageMetadata') && $response->usageMetadata()) {
+                $usage = $response->usageMetadata();
+                $tokenUsage = [
+                    'input' => $usage->promptTokenCount ?? 0,
+                    'output' => $usage->candidatesTokenCount ?? 0
+                ];
+            }
         } catch (\Throwable $e) {
             $responseText="Error: no response. Details: " . $e->getMessage();
         }
         return [
             $oldMsgArray,
-            $responseText
+            $responseText,
+            $tokenUsage
         ];
 
     }

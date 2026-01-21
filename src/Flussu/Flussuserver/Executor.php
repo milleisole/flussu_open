@@ -320,8 +320,17 @@ class Executor{
                             $Sess->statusError(true);
                             //$reslt[1]="[ERROR]";
                             //break;
-                        } 
+                        }
                         $Sess->assignVars($innerParams[2],$reslt[1]);
+                        // V4.5.2 - Track LLM token consumption in INFO session variable
+                        if (isset($reslt[2]) && is_array($reslt[2])) {
+                            $tokenInfo = [
+                                'CTI' => $reslt[2]['input'] ?? 0,
+                                'CTO' => $reslt[2]['output'] ?? 0
+                            ];
+                            $Sess->assignVars('$INFO', json_encode($tokenInfo));
+                            $Sess->recLog("AI tokens - IN: ".$tokenInfo['CTI']." OUT: ".$tokenInfo['CTO']);
+                        }
                         break;
                 /*
                     case "openAi":

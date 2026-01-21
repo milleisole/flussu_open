@@ -114,7 +114,15 @@ class FlussuOpenAi implements IAiProvider
         } catch (\Throwable $e) {
             return "Error: no response. Details: " . $e->getMessage();
         }
-        return [$arrayText,$result->choices[0]->message->content]; 
+        // Extract token usage if available
+        $tokenUsage = null;
+        if (isset($result->usage)) {
+            $tokenUsage = [
+                'input' => $result->usage->promptTokens ?? 0,
+                'output' => $result->usage->completionTokens ?? 0
+            ];
+        }
+        return [$arrayText, $result->choices[0]->message->content, $tokenUsage];
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){

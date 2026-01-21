@@ -105,21 +105,22 @@ class FlussuHuggingFaceAi implements IAiProvider
             // Estrai ultimo messaggio utente
             $lastMessage = end($sendArray);
             $textToProcess = $lastMessage['content'];
-            
+
             // Determina il tipo di task in base al modello
             $taskType = $this->_getTaskType($this->_hf_model);
-            
+
             // Esegui richiesta API
             $response = $this->_callHuggingFaceAPI($textToProcess, $taskType);
-            
+
             // Formatta risposta
             $responseText = $this->_formatResponse($response, $taskType);
-            
-            return [$sendArray, $responseText];
-            
+
+            // HuggingFace Inference API doesn't return token usage
+            return [$sendArray, $responseText, null];
+
         } catch (\Throwable $e) {
             //Log::error("Hugging Face API Error: " . $e->getMessage());
-            return [$sendArray, "Error: " . $e->getMessage()];
+            return [$sendArray, "Error: " . $e->getMessage(), null];
         }
     }
 

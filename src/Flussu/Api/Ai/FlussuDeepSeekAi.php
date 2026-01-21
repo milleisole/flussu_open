@@ -81,7 +81,15 @@ class FlussuDeepSeekAi implements IAiProvider
             return "Error: no response. Details: " . $e->getMessage();
         }
         $res=json_decode($result, true);
-        return [$arrayText,($res["choices"][0]["message"]["content"] ?? "Error: no DeepSeek response. Details: " . $result)];
+        // Extract token usage if available
+        $tokenUsage = null;
+        if (isset($res["usage"])) {
+            $tokenUsage = [
+                'input' => $res["usage"]["prompt_tokens"] ?? 0,
+                'output' => $res["usage"]["completion_tokens"] ?? 0
+            ];
+        }
+        return [$arrayText, ($res["choices"][0]["message"]["content"] ?? "Error: no DeepSeek response. Details: " . $result), $tokenUsage];
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
