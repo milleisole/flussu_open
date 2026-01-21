@@ -592,8 +592,8 @@ class Executor {
         }
         $Sess->assignVars($params[2], $reslt[1]);
         
-        $tin=$Sess->$reslt['token_in'] ?? 0;
-        $tou=$Sess->$reslt['token_out'] ?? 0;
+        $tin=$reslt['token_in'] ?? 0;
+        $tou=$reslt['token_out'] ?? 0;
         $ttin=($Sess->getVarValue["$"."_ai_total_token_in"] ?? 0)+$tin;
         $ttou=($Sess->getVarValue["$"."_ai_total_token_out"] ?? 0)+$tou;
 
