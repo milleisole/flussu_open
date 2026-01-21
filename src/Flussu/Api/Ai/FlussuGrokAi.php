@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@
  * 
  * CLASS-NAME:       Flussu Grok interface - v1.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.5.1 20250820 
- * UPDATE DATE:      20.08:2025 - Aldus
+ * VERSION REL.:     5.0 20251113 
+ * UPDATE DATE:      13.11:2025 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\General;
@@ -74,6 +74,11 @@ class FlussuGrokAi implements IAiProvider
             'messages' => $arrayText,
             'max_tokens' => 2000
         ];
+        
+        $tokenIn = 0;
+        $tokenOut = 0;
+        $responseText = "";
+        
         try {
             $response = $this->client->post('chat/completions', [ 
                 'headers' => [
@@ -86,18 +91,35 @@ class FlussuGrokAi implements IAiProvider
             ]);
             $data=$response->getBody();
 
-            if ($response->getStatusCode() !== 200)
-                return [$arrayText,"Error: HTTP status code " . $response->getStatusCode() . ". Details: " . $data];
-
-            $data = json_decode($data, true);
-            if (isset($data['choices'][0]['message']['content'])) 
-                return [$arrayText,$data['choices'][0]['message']['content']];
-            else 
-                return [$arrayText,"Error: no Grok response. Details: " . print_r($data, true)];
-
+            if ($response->getStatusCode() !== 200) {
+                $responseText = "Error: HTTP status code " . $response->getStatusCode() . ". Details: " . $data;
+            } else {
+                $data = json_decode($data, true);
+                if (isset($data['choices'][0]['message']['content'])) {
+                    $responseText = $data['choices'][0]['message']['content'];
+                    
+                    // Extract token usage from Grok response (OpenAI-compatible format)
+                    if (isset($data['usage'])) {
+                        $tokenIn = $data['usage']['prompt_tokens'] ?? 0;
+                        $tokenOut = $data['usage']['completion_tokens'] ?? 0;
+                    }
+                } else {
+                    $responseText = "Error: no Grok response. Details: " . print_r($data, true);
+                }
+            }
         } catch (Exception $e) {
-            "Error: no response. Details: " . $e->getMessage();
+            $responseText = "Error: no response. Details: " . $e->getMessage();
         }
+        
+        // Return standardized structure with retrocompatibility
+        return [
+            0 => $arrayText,               // retrocompatibility: conversation history
+            1 => $responseText,            // retrocompatibility: response text
+            'conversation' => $arrayText,
+            'response' => $responseText,
+            'token_in' => $tokenIn,
+            'token_out' => $tokenOut
+        ];
     }
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
         /*
@@ -113,4 +135,4 @@ class FlussuGrokAi implements IAiProvider
  |  \__| |__/  |
  |     \|/     |
  |  @INXIMKR   |
- |------------*/ 
+ |------------*/

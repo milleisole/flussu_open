@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.1 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
  *      to handle all the requests to this server. 
  * 
  * --------------------------------------------------------------------
- * VERSION REL.:     4.5.20250929
- * UPDATES DATE:     29.09.2025
+ * VERSION REL.:     5.0.20251117
+ * UPDATES DATE:     17.09.2025
  * --------------------------------------------------------------------*/
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -33,11 +33,7 @@ use Flussu\General;
 use Flussu\Config;
 
 // VERSION
-$FlussuVersion="4.5.20250929";
-$FVP=explode(".",$FlussuVersion);
-$v=$FVP[0];
-$m=$FVP[1];
-$r=$FVP[2];
+//$FlussuVersion="0.0.unknown!";
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
@@ -56,6 +52,22 @@ if (!function_exists('config')) {
         return Config::init()->get($key,$default);
     }
 }
+if (!function_exists('flussuVersion')) {
+    /**
+     * Ritorna la versione corrente di Flussu Open Server
+     *
+     * @return string
+     */
+    function flussuVersion()
+    {
+        return config("flussu.version").".".config("flussu.release");
+    }
+}
+
+$FVP=explode(".",flussuVersion());
+$v=$FVP[0];
+$m=$FVP[1];
+$r=$FVP[2];
 
 if (isset($argv) && is_array($argv)){
     echo ("Flussu Server v".$_ENV['major'].".".$_ENV['minor'].".".$_ENV['release']."\n");
@@ -103,7 +115,7 @@ if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"]
     $fc=new VersionController();
     $dbv="v".$fc->getDbVersion();
     $srv=$_ENV["server"];
-    die(json_encode(["host"=>$hostname,"server"=>$srv,"Flussu Open"=>$FlussuVersion,"v"=>$v,"m"=>$m,"r"=>$r,"db"=>$dbv,"pv"=>phpversion()]));
+    die(json_encode(["host"=>$hostname,"server"=>$srv,"Flussu Open"=>$v.".".$m,"v"=>$v,"m"=>$m,"r"=>$r,"db"=>$dbv,"pv"=>phpversion()]));
 } else if ($_SERVER["REQUEST_URI"]=="/notify"){
     /* 
         PHP Session is blocking asyncrhonous calls if you use the same session_id, so the
@@ -141,6 +153,11 @@ if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"]
     */
     // Se la call non viene da servizi riconosciuti, allor passala a flussu!
 
+    if ($apiPage=="flussu"){
+        // user login handling
+        header('Location: /flussu/index.php', true, 301);
+        die();
+    }
     if (!checkUnattendedWebHookCall($req,$apiPage)){
         General::log("Extcall Flussu Controller: ".$apiPage." - ".$_SERVER["REQUEST_URI"]." from ".($_SERVER["REMOTE_ADDR"]??"(no address)")." - ".($_SERVER["HTTP_ORIGIN"]??"(no origin)")." - ".($_SERVER['HTTP_USER_AGENT'])??"(no user agent)");
 
@@ -159,7 +176,7 @@ if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"]
             header("Content-Disposition: attachment; filename=800A.zip");
             header("Content-Length: 1");
             header("Content-Transfer-Encoding: binary");
-            die("HELP HELP! WE WAS HACKED!!! Trust me, this bro is a very good hacker!");
+            die("HELP HELP! WE WAS HACKED!!! ... Trust me, this bro is a very good hacker!");
         }
         switch (strtolower(trim($apiPage))){
             case ".env":
@@ -176,7 +193,7 @@ if (strpos($_SERVER["REQUEST_URI"],"license") || strpos($_SERVER["QUERY_STRING"]
                 break;
         }
         $fc=new FlussuController();
-        $fc->apiCall($req,$apiPage);
+        $fc->apiCall($apiPage);
     }
 }
 

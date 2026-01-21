@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,13 @@
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Abstract Webhook Provider Base Class
  * CREATE DATE:      15.11:2025
- * VERSION REL.:     4.5.20251115
+ * VERSION REL.:     5.0.20251115
  * UPDATES DATE:     15.11:2025
  * -------------------------------------------------------*/
 namespace Flussu\Controllers;
 
 use Flussu\Contracts\IWebhookProvider;
-use Flussu\Flussuserver\Request;
+//use Flussu\Flussuserver\Request;
 use Flussu\Flussuserver\NC\HandlerNC;
 use Flussu\Flussuserver\Session;
 use Flussu\Flussuserver\Worker;
@@ -232,7 +232,7 @@ abstract class AbsWebhookProvider implements IWebhookProvider
      * @param Request $request The request object
      * @return array [workflowId, originalWid]
      */
-    protected function extractWorkflowId(Request $request): array
+    protected function extractWorkflowId(/*Request $request*/): array
     {
         $SentWID = isset($_SERVER["HTTP_WID"]) ? $_SERVER["HTTP_WID"] : "";
         $rawdata = file_get_contents('php://input');

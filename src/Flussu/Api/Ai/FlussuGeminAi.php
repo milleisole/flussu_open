@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@
  * 
  * CLASS-NAME:       Flussu Gemini interface - v1.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.5.1 20250820 
- * UPDATE DATE:      20.08:2025 - Aldus
+ * VERSION REL.:     5.0 20251113 
+ * UPDATE DATE:      13.11:2025 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\Contracts\IAiProvider;
@@ -84,6 +84,9 @@ class FlussuGeminAi implements IAiProvider
             );
         }, $oldMsgArray);
 
+        $tokenIn = 0;
+        $tokenOut = 0;
+        
         try {
             // Inizializza la chat con la cronologia
             $chat = $this->_gemini->generativeModel($this->_gemini_chat_model)->startChat($history);
@@ -92,12 +95,25 @@ class FlussuGeminAi implements IAiProvider
             // Invia il nuovo messaggio
             $response = $chat->sendMessage($sendText);
             $responseText=$response->text();
+            
+            // Extract token usage from Gemini response (usageMetadata)
+            $usageMetadata = $response->usageMetadata ?? null;
+            if ($usageMetadata) {
+                $tokenIn = $usageMetadata->promptTokenCount ?? 0;
+                $tokenOut = $usageMetadata->candidatesTokenCount ?? 0;
+            }
         } catch (\Throwable $e) {
             $responseText="Error: no response. Details: " . $e->getMessage();
         }
+        
+        // Return standardized structure with retrocompatibility
         return [
-            $oldMsgArray,
-            $responseText
+            0 => $oldMsgArray,             // retrocompatibility: conversation history
+            1 => $responseText,            // retrocompatibility: response text
+            'conversation' => $oldMsgArray,
+            'response' => $responseText,
+            'token_in' => $tokenIn,
+            'token_out' => $tokenOut
         ];
 
     }
@@ -116,4 +132,4 @@ class FlussuGeminAi implements IAiProvider
  |  \__| |__/  |
  |     \|/     |
  |  @INXIMKR   |
- |------------*/  
+ |------------*/

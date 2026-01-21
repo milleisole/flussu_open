@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
  * --------------------------------------------------------------------*
  * CLASS-NAME:    FlussuSrv API Interface
  * CREATED DATE:  25.Feb.2021 - Aldus - Flussu v2.0
- * VERSION REL.:     4.2.20250625
- * UPDATES DATE:     25.02:2025 
+ * VERSION REL.:     5.0.20251117
+ * UPDATES DATE:     17.11:2025 
  * -------------------------------------------------------*/
 
  /**
@@ -39,13 +39,13 @@
  * components work together seamlessly to provide a reliable and efficient API service.
  * 
  * @package App\Flussu\Api\V40
- * @version 4.0.0
+ * @version 5.0.20251117
  * @license http://www.apache.org/licenses/LICENSE-2.0 Apache License 2.0
  */
 
 namespace Flussu\Api\V40;
 
-use Flussu\Flussuserver\Request;
+//use Flussu\Flussuserver\Request;
 use Flussu\General;
 use Flussu\Persons\User;
 use Flussu\Flussuserver\Command;
@@ -53,7 +53,7 @@ use Flussu\Flussuserver\Handler;
 use Flussu\Flussuserver\NC\HandlerNC;
 use Flussu\Controllers\AppController;
 class Flow {
-    public function exec(Request $Req, User $theUser, $file_rawdata=null){
+    public function exec(/*Request $Req,*/ User $theUser, $file_rawdata=null){
         
         header('Access-Control-Allow-Origin: *'); 
         header('Access-Control-Allow-Methods: *');

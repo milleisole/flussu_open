@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v.5.0 - Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,12 +30,10 @@
  * FOR ALDUS BEAN:   Databroker.bean
  * -------------------------------------------------------*
  * CREATED DATE:     (04.11.2020) 25.01:2021 - Aldus
- * VERSION REL.:     4.5.20250802
- * UPDATES DATE:     02.08:2025
+ * VERSION REL.:     5.0.0.20251103
+ * UPDATES DATE:     11.03:2025 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
- * Added error handling for exec scripts
- * Now supports the label language translation
  * -------------------------------------------------------*/
 
 /**
