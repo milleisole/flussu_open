@@ -85,6 +85,7 @@ class FlussuDeepSeekAi implements IAiProvider
         $tokenUsage = null;
         if (isset($res["usage"])) {
             $tokenUsage = [
+                'model' => $this->_deepseek_model,
                 'input' => $res["usage"]["prompt_tokens"] ?? 0,
                 'output' => $res["usage"]["completion_tokens"] ?? 0
             ];

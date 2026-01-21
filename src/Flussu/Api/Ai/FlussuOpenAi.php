@@ -118,6 +118,7 @@ class FlussuOpenAi implements IAiProvider
         $tokenUsage = null;
         if (isset($result->usage)) {
             $tokenUsage = [
+                'model' => $this->_open_ai_chat_model,
                 'input' => $result->usage->promptTokens ?? 0,
                 'output' => $result->usage->completionTokens ?? 0
             ];

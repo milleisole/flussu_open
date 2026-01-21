@@ -87,6 +87,7 @@ class FlussuClaudeAi implements IAiProvider
         if (method_exists($response, 'getUsage')) {
             $usage = $response->getUsage();
             $tokenUsage = [
+                'model' => $this->_claude_chat_model,
                 'input' => $usage['input_tokens'] ?? 0,
                 'output' => $usage['output_tokens'] ?? 0
             ];

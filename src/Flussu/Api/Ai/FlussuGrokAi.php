@@ -94,6 +94,7 @@ class FlussuGrokAi implements IAiProvider
             $tokenUsage = null;
             if (isset($data['usage'])) {
                 $tokenUsage = [
+                    'model' => $this->_grok_ai_model,
                     'input' => $data['usage']['prompt_tokens'] ?? 0,
                     'output' => $data['usage']['completion_tokens'] ?? 0
                 ];

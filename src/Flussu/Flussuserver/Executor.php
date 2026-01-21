@@ -325,11 +325,12 @@ class Executor{
                         // V4.5.2 - Track LLM token consumption in INFO session variable
                         if (isset($reslt[2]) && is_array($reslt[2])) {
                             $tokenInfo = [
+                                'MDL' => $reslt[2]['model'] ?? 'unknown',
                                 'CTI' => $reslt[2]['input'] ?? 0,
                                 'CTO' => $reslt[2]['output'] ?? 0
                             ];
                             $Sess->assignVars('$INFO', json_encode($tokenInfo));
-                            $Sess->recLog("AI tokens - IN: ".$tokenInfo['CTI']." OUT: ".$tokenInfo['CTO']);
+                            $Sess->recLog("AI tokens - MDL:" . $tokenInfo['MDL'] . " - IN: ".$tokenInfo['CTI']." - OUT: ".$tokenInfo['CTO']);
                         }
                         break;
                 /*

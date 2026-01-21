@@ -97,6 +97,7 @@ class FlussuGeminAi implements IAiProvider
             if (method_exists($response, 'usageMetadata') && $response->usageMetadata()) {
                 $usage = $response->usageMetadata();
                 $tokenUsage = [
+                    'model' => $this->_gemini_chat_model,
                     'input' => $usage->promptTokenCount ?? 0,
                     'output' => $usage->candidatesTokenCount ?? 0
                 ];
