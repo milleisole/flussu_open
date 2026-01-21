@@ -82,7 +82,16 @@ class FlussuClaudeAi implements IAiProvider
             //Log::error("Claude API Error: " . $e->getMessage());
             return "Error: no response. Details: " . $e->getMessage();
         }
-        $resChat=[$sendArray,$response->getContent()[0]['text']];
+        // Extract token usage if available
+        $tokenUsage = null;
+        if (method_exists($response, 'getUsage')) {
+            $usage = $response->getUsage();
+            $tokenUsage = [
+                'input' => $usage['input_tokens'] ?? 0,
+                'output' => $usage['output_tokens'] ?? 0
+            ];
+        }
+        $resChat=[$sendArray, $response->getContent()[0]['text'], $tokenUsage];
         return $resChat;
     }
 
