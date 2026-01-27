@@ -66,6 +66,25 @@
         "auth_key":"6768-insert-your-api-key-8768",
         "model":"claude-3-5-sonnet-20241022",
         "chat-model":"claude-3-5-sonnet-20241022"
+      },
+      "huggingface":{
+        "auth_token":"hf_insert-your-api-token-here",
+        "model":"Helsinki-NLP/opus-mt-it-en"
+      },
+      "zeroone_ai":{
+        "auth_key":"6768-insert-your-api-key-8768",
+        "model":"yi-lightning",
+        "chat-model":"yi-lightning"
+      },
+      "kimi":{
+        "auth_key":"6768-insert-your-api-key-8768",
+        "model":"moonshot-v1-8k",
+        "chat-model":"moonshot-v1-8k"
+      },
+      "qwen":{
+        "auth_key":"6768-insert-your-api-key-8768",
+        "model":"qwen-turbo",
+        "chat-model":"qwen-turbo"
       }
     }
   },
