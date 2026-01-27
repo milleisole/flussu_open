@@ -41,18 +41,7 @@ use Flussu\Api\Ai\FlussuZeroOneAi;
 use Flussu\Api\Ai\FlussuKimiAi;
 use Flussu\Api\Ai\FlussuQwenAi;
 use Log;
-enum Platform: int {
-    case INIT = -1;
-    case CHATGPT = 0;
-    case GROK = 1;
-    case GEMINI = 2;
-    case DEEPSEEK = 3;
-    case CLAUDE = 4;
-    case HUGGINGFACE = 5;
-    case ZEROONE = 6;
-    case KIMI = 7;
-    case QWEN = 8;
-}
+
 class AiChatController 
 {
     private $_linkify=0;
