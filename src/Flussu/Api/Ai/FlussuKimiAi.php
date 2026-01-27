@@ -29,7 +29,6 @@ use Flussu\Contracts\IAiProvider;
 class FlussuKimiAi implements IAiProvider
 {
     private $_aiErrorState=false;
-    private $_kimi_ai;
     private $_kimi_ai_key="";
     private $_kimi_ai_model="";
     private $_kimi_chat_model="";
@@ -40,25 +39,33 @@ class FlussuKimiAi implements IAiProvider
     }
 
     public function __construct($model="", $chat_model=""){
-        if (!isset($this->_kimi_ai)){
-            $this->_kimi_ai_key = config("services.ai_provider.kimi.auth_key");
-            if ($model)
-                $this->_kimi_ai_model = $model;
-            else {
-                if (!empty(config("services.ai_provider.kimi.model")))
-                    $this->_kimi_ai_model=config("services.ai_provider.kimi.model");
-            }
-            if ($chat_model)
-                $this->_kimi_chat_model = $chat_model;
-            else {
-                if (!empty(config("services.ai_provider.kimi.chat-model")))
-                    $this->_kimi_chat_model=config("services.ai_provider.kimi.chat-model");
-            }
-            $this->client = new Client([
-                'base_uri' => 'https://api.moonshot.cn/v1/',
-                'timeout'  => 10.0,
-            ]);
+        $this->_kimi_ai_key = config("services.ai_provider.kimi.auth_key");
+
+        // Validate API key is present and not a placeholder
+        if (empty($this->_kimi_ai_key)) {
+            throw new Exception("Kimi (Moonshot) API key not configured. Please set 'services.ai_provider.kimi.auth_key' in config/.services.json");
         }
+        if (strpos($this->_kimi_ai_key, 'insert-your-api-key') !== false ||
+            strpos($this->_kimi_ai_key, '6768-insert') !== false) {
+            throw new Exception("Kimi (Moonshot) API key is still set to placeholder value. Please configure your actual API key in config/.services.json");
+        }
+
+        if ($model)
+            $this->_kimi_ai_model = $model;
+        else {
+            if (!empty(config("services.ai_provider.kimi.model")))
+                $this->_kimi_ai_model=config("services.ai_provider.kimi.model");
+        }
+        if ($chat_model)
+            $this->_kimi_chat_model = $chat_model;
+        else {
+            if (!empty(config("services.ai_provider.kimi.chat-model")))
+                $this->_kimi_chat_model=config("services.ai_provider.kimi.chat-model");
+        }
+        $this->client = new Client([
+            'base_uri' => 'https://api.moonshot.cn/v1/',
+            'timeout'  => 10.0,
+        ]);
     }
 
     function chat($preChat,$sendText,$role="user"){

@@ -29,7 +29,6 @@ use Flussu\Contracts\IAiProvider;
 class FlussuQwenAi implements IAiProvider
 {
     private $_aiErrorState=false;
-    private $_qwen_ai;
     private $_qwen_ai_key="";
     private $_qwen_ai_model="";
     private $_qwen_chat_model="";
@@ -40,25 +39,33 @@ class FlussuQwenAi implements IAiProvider
     }
 
     public function __construct($model="", $chat_model=""){
-        if (!isset($this->_qwen_ai)){
-            $this->_qwen_ai_key = config("services.ai_provider.qwen.auth_key");
-            if ($model)
-                $this->_qwen_ai_model = $model;
-            else {
-                if (!empty(config("services.ai_provider.qwen.model")))
-                    $this->_qwen_ai_model=config("services.ai_provider.qwen.model");
-            }
-            if ($chat_model)
-                $this->_qwen_chat_model = $chat_model;
-            else {
-                if (!empty(config("services.ai_provider.qwen.chat-model")))
-                    $this->_qwen_chat_model=config("services.ai_provider.qwen.chat-model");
-            }
-            $this->client = new Client([
-                'base_uri' => 'https://dashscope.aliyuncs.com/compatible-mode/v1/',
-                'timeout'  => 10.0,
-            ]);
+        $this->_qwen_ai_key = config("services.ai_provider.qwen.auth_key");
+
+        // Validate API key is present and not a placeholder
+        if (empty($this->_qwen_ai_key)) {
+            throw new Exception("Qwen (Alibaba) API key not configured. Please set 'services.ai_provider.qwen.auth_key' in config/.services.json");
         }
+        if (strpos($this->_qwen_ai_key, 'insert-your-api-key') !== false ||
+            strpos($this->_qwen_ai_key, '6768-insert') !== false) {
+            throw new Exception("Qwen (Alibaba) API key is still set to placeholder value. Please configure your actual API key in config/.services.json");
+        }
+
+        if ($model)
+            $this->_qwen_ai_model = $model;
+        else {
+            if (!empty(config("services.ai_provider.qwen.model")))
+                $this->_qwen_ai_model=config("services.ai_provider.qwen.model");
+        }
+        if ($chat_model)
+            $this->_qwen_chat_model = $chat_model;
+        else {
+            if (!empty(config("services.ai_provider.qwen.chat-model")))
+                $this->_qwen_chat_model=config("services.ai_provider.qwen.chat-model");
+        }
+        $this->client = new Client([
+            'base_uri' => 'https://dashscope.aliyuncs.com/compatible-mode/v1/',
+            'timeout'  => 10.0,
+        ]);
     }
 
     function chat($preChat,$sendText,$role="user"){
