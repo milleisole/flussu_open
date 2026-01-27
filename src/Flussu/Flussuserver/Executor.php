@@ -297,23 +297,9 @@ class Executor{
                         $Sess->statusCallExt(true);
                         $Sess->recLog("AI provider: ".$innerParams[0]);
                         $Sess->recLog("call AI: ".$innerParams[1]);
-                        switch  ($innerParams[0]){
-                            case 1:
-                                $ctrl=new AiChatController(Platform::GROK);
-                                break;
-                            case 2:
-                                $ctrl=new AiChatController(Platform::GEMINI);
-                                break;
-                            case 3:
-                                $ctrl=new AiChatController(Platform::DEEPSEEK);
-                                break;
-                            case 4:
-                                $ctrl=new AiChatController(Platform::CLAUDE);
-                                break;
-                            default:
-                                $ctrl=new AiChatController(Platform::CHATGPT);
-                                break;
-                        }
+                        // Use Platform enum directly from numeric value, fallback to CHATGPT if invalid
+                        $platform = Platform::tryFrom((int)$innerParams[0]) ?? Platform::CHATGPT;
+                        $ctrl = new AiChatController($platform);
                         $reslt=$ctrl->chat($Sess->getId(), $innerParams[1]);
                         if ($reslt[0]!="Ok"){
                             $Sess->recLog("AI response: ".json_encode($reslt[1]));
