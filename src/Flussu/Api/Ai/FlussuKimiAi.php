@@ -78,8 +78,8 @@ class FlussuKimiAi implements IAiProvider
     private function _chatContinue($arrayText){
         $payload = [
             'model' => $this->_kimi_ai_model,
-            'messages' => $arrayText,
-            'max_tokens' => 2000
+            'messages' => $arrayText
+            //,'max_tokens' => 2000
         ];
         try {
             $response = $this->client->post('chat/completions', [
