@@ -55,7 +55,7 @@ class FlussuKimiAi implements IAiProvider
                     $this->_kimi_chat_model=config("services.ai_provider.kimi.chat-model");
             }
             $this->client = new Client([
-                'base_uri' => 'https://api.moonshot.cn/v1/',
+                'base_uri' => 'https://api.moonshot.ai/v1/',
                 'timeout'  => 10.0,
             ]);
         }
