@@ -57,11 +57,8 @@ class FlussuQwenAi implements IAiProvider
                 if (!empty(config("services.ai_provider.qwen.chat-model")))
                     $this->_qwen_chat_model=config("services.ai_provider.qwen.chat-model");
             }
-            $baseUri = config("services.ai_provider.qwen.endpoint");
-            if (empty($baseUri))
-                $baseUri = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/';
             $this->client = new Client([
-                'base_uri' => $baseUri,
+                'base_uri' => 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/',
                 'timeout'  => 10.0,
             ]);
         }

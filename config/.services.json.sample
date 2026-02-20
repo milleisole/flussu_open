@@ -83,7 +83,6 @@
       },
       "qwen":{
         "auth_key":"sk-insert-your-dashscope-api-key",
-        "endpoint":"https://dashscope-intl.aliyuncs.com/compatible-mode/v1/",
         "model":"qwen-turbo",
         "chat-model":"qwen-turbo"
       }
