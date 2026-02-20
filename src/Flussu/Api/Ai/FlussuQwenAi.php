@@ -42,6 +42,9 @@ class FlussuQwenAi implements IAiProvider
     public function __construct($model="", $chat_model=""){
         if (!isset($this->_qwen_ai)){
             $this->_qwen_ai_key = config("services.ai_provider.qwen.auth_key");
+            if (empty($this->_qwen_ai_key)) {
+                throw new Exception("Qwen API key not configured. Set 'auth_key' in config services.ai_provider.qwen");
+            }
             if ($model)
                 $this->_qwen_ai_model = $model;
             else {
@@ -54,8 +57,11 @@ class FlussuQwenAi implements IAiProvider
                 if (!empty(config("services.ai_provider.qwen.chat-model")))
                     $this->_qwen_chat_model=config("services.ai_provider.qwen.chat-model");
             }
+            $baseUri = config("services.ai_provider.qwen.endpoint");
+            if (empty($baseUri))
+                $baseUri = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/';
             $this->client = new Client([
-                'base_uri' => 'https://dashscope.aliyuncs.com/compatible-mode/v1/',
+                'base_uri' => $baseUri,
                 'timeout'  => 10.0,
             ]);
         }
