@@ -42,9 +42,6 @@ class FlussuQwenAi implements IAiProvider
     public function __construct($model="", $chat_model=""){
         if (!isset($this->_qwen_ai)){
             $this->_qwen_ai_key = config("services.ai_provider.qwen.auth_key");
-            if (empty($this->_qwen_ai_key)) {
-                throw new Exception("Qwen API key not configured. Set 'auth_key' in config services.ai_provider.qwen");
-            }
             if ($model)
                 $this->_qwen_ai_model = $model;
             else {
