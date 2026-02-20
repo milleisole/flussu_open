@@ -43,6 +43,8 @@ class FlussuClaudeAi implements IAiProvider
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_claude3)){
             $this->_claude_key = config("services.ai_provider.ant_claude.auth_key");
+            if (empty($this->_claude_key))
+                throw new Exception("Claude API key not configured. Set 'auth_key' in config services.ai_provider.ant_claude");
             if ($model)
                 $this->_claude_model = $model;
             else {

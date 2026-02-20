@@ -82,7 +82,7 @@
         "chat-model":"moonshot-v1-8k"
       },
       "qwen":{
-        "auth_key":"6768-insert-your-api-key-8768",
+        "auth_key":"sk-insert-your-dashscope-api-key",
         "model":"qwen-turbo",
         "chat-model":"qwen-turbo"
       }

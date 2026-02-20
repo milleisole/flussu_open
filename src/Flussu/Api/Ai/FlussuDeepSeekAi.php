@@ -43,6 +43,8 @@ class FlussuDeepSeekAi implements IAiProvider
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_deepseek)){
             $this->_deepseek_key = config("services.ai_provider.deepseek.auth_key");
+            if (empty($this->_deepseek_key))
+                throw new Exception("DeepSeek API key not configured. Set 'auth_key' in config services.ai_provider.deepseek");
             if ($model)
                 $this->_deepseek_model = $model;
             else {

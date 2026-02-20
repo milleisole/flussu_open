@@ -42,6 +42,8 @@ class FlussuGrokAi implements IAiProvider
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_grok_ai)){
             $this->_grok_ai_key = config("services.ai_provider.xai_grok.auth_key");
+            if (empty($this->_grok_ai_key))
+                throw new Exception("Grok API key not configured. Set 'auth_key' in config services.ai_provider.xai_grok");
             if ($model)
                 $this->_grok_ai_model = $model;
             else {
