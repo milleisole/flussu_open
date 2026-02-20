@@ -84,12 +84,13 @@ class FlussuOpenAi implements IAiProvider
     }
 
     function chat($preChat,$sendText,$role="user"){
-        foreach ($preChat as $message) {
+        foreach ($preChat as &$message) {
             if (isset($message["message"]) && !isset($message["content"])) {
                 $message["content"] = $message["message"];
-                unset($message["content"]); 
+                unset($message["message"]);
             }
         }
+        unset($message);
         $preChat[]= [
             'role' => $role,
             'content' => $sendText,
