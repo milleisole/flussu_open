@@ -42,6 +42,8 @@ class FlussuZeroOneAi implements IAiProvider
     public function __construct($model="", $chat_model=""){
         if (!isset($this->_zeroone_ai)){
             $this->_zeroone_ai_key = config("services.ai_provider.zeroone_ai.auth_key");
+            if (empty($this->_zeroone_ai_key))
+                throw new Exception("01.AI API key not configured. Set 'auth_key' in config services.ai_provider.zeroone_ai");
             if ($model)
                 $this->_zeroone_ai_model = $model;
             else {

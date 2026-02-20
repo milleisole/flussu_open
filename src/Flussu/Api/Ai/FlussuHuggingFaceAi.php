@@ -64,7 +64,9 @@ class FlussuHuggingFaceAi implements IAiProvider
     public function __construct($model = ""){
         // Leggi token da config
         $this->_hf_token = config("services.ai_provider.huggingface.auth_token");
-        
+        if (empty($this->_hf_token))
+            throw new Exception("HuggingFace token not configured. Set 'auth_token' in config services.ai_provider.huggingface");
+
         // Modello di default per traduzione IT→EN
         if ($model)
             $this->_hf_model = $model;

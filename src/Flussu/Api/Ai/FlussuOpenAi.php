@@ -45,6 +45,8 @@ class FlussuOpenAi implements IAiProvider
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_open_ai)){
             $this->_open_ai_key = config("services.ai_provider.open_ai.auth_key");
+            if (empty($this->_open_ai_key))
+                throw new Exception("OpenAI API key not configured. Set 'auth_key' in config services.ai_provider.open_ai");
             if ($model)
                 $this->_open_ai_model = $model;
             else {

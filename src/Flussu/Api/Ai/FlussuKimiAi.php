@@ -42,6 +42,8 @@ class FlussuKimiAi implements IAiProvider
     public function __construct($model="", $chat_model=""){
         if (!isset($this->_kimi_ai)){
             $this->_kimi_ai_key = config("services.ai_provider.kimi.auth_key");
+            if (empty($this->_kimi_ai_key))
+                throw new Exception("Kimi API key not configured. Set 'auth_key' in config services.ai_provider.kimi");
             if ($model)
                 $this->_kimi_ai_model = $model;
             else {

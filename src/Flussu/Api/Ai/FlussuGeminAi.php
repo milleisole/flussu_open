@@ -46,6 +46,8 @@ class FlussuGeminAi implements IAiProvider
    public function __construct($model="",$chat_model=""){
         if (!isset($this->_gemini)){
             $this->_gemini_key = config("services.ai_provider.ggl_gemini.auth_key");
+            if (empty($this->_gemini_key))
+                throw new Exception("Gemini API key not configured. Set 'auth_key' in config services.ai_provider.ggl_gemini");
             if ($model)
                 $this->_gemini_model = $model;
             else {
