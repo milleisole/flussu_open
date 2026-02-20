@@ -62,12 +62,13 @@ class FlussuQwenAi implements IAiProvider
     }
 
     function chat($preChat,$sendText,$role="user"){
-        foreach ($preChat as $message) {
+        foreach ($preChat as &$message) {
             if (isset($message["message"]) && !isset($message["content"])) {
                 $message["content"] = $message["message"];
-                unset($message["content"]);
+                unset($message["message"]);
             }
         }
+        unset($message);
         $preChat[]= [
             'role' => $role,
             'content' => $sendText,
@@ -77,7 +78,7 @@ class FlussuQwenAi implements IAiProvider
 
     private function _chatContinue($arrayText){
         $payload = [
-            'model' => $this->_qwen_ai_model,
+            'model' => $this->_qwen_chat_model,
             'messages' => $arrayText,
             'max_tokens' => 2000
         ];
@@ -101,7 +102,7 @@ class FlussuQwenAi implements IAiProvider
             $tokenUsage = null;
             if (isset($data['usage'])) {
                 $tokenUsage = [
-                    'model' => $this->_qwen_ai_model,
+                    'model' => $this->_qwen_chat_model,
                     'input' => $data['usage']['prompt_tokens'] ?? 0,
                     'output' => $data['usage']['completion_tokens'] ?? 0
                 ];

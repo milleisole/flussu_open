@@ -62,12 +62,13 @@ class FlussuClaudeAi implements IAiProvider
     }
 
     function chat($preChat,$sendText,$role="user"){
-        foreach ($preChat as $message) {
+        foreach ($preChat as &$message) {
             if (isset($message["message"]) && !isset($message["content"])) {
                 $message["content"] = $message["message"];
-                unset($message["content"]); 
+                unset($message["message"]);
             }
         }
+        unset($message);
         $preChat[]= [
             'role' => $role,
             'content' => $sendText,
@@ -77,7 +78,10 @@ class FlussuClaudeAi implements IAiProvider
 
     private function _chatContinue($sendArray){
         try{
-            $response = $this->_claude3->chat($sendArray);
+            $response = $this->_claude3->chat([
+                'model' => $this->_claude_chat_model,
+                'messages' => $sendArray
+            ]);
         } catch (\Throwable $e) {
             //Log::error("Claude API Error: " . $e->getMessage());
             return "Error: no response. Details: " . $e->getMessage();

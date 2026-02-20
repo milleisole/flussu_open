@@ -33,12 +33,13 @@ class FlussuGrokAi implements IAiProvider
     private $_grok_ai;
     private $_grok_ai_key="";
     private $_grok_ai_model="";
+    private $_grok_chat_model="";
     private $client;
 
     public function canBrowseWeb(){
         return false;
     }
-    public function __construct($model=""){
+    public function __construct($model="",$chat_model=""){
         if (!isset($this->_grok_ai)){
             $this->_grok_ai_key = config("services.ai_provider.xai_grok.auth_key");
             if ($model)
@@ -47,20 +48,29 @@ class FlussuGrokAi implements IAiProvider
                 if (!empty(config("services.ai_provider.xai_grok.model")))
                     $this->_grok_ai_model=config("services.ai_provider.xai_grok.model");
             }
+            if ($chat_model)
+                $this->_grok_chat_model = $chat_model;
+            else {
+                if (!empty(config("services.ai_provider.xai_grok.chat-model")))
+                    $this->_grok_chat_model=config("services.ai_provider.xai_grok.chat-model");
+                else
+                    $this->_grok_chat_model = $this->_grok_ai_model;
+            }
             $this->client = new Client([
-                'base_uri' => 'https://api.x.ai/v1/', 
+                'base_uri' => 'https://api.x.ai/v1/',
                 'timeout'  => 10.0,
             ]);
 
         }
     }
     function chat($preChat,$sendText,$role="user"){
-        foreach ($preChat as $message) {
+        foreach ($preChat as &$message) {
             if (isset($message["message"]) && !isset($message["content"])) {
                 $message["content"] = $message["message"];
-                unset($message["content"]); 
+                unset($message["message"]);
             }
         }
+        unset($message);
         $preChat[]= [
             'role' => $role,
             'content' => $sendText,
@@ -70,7 +80,7 @@ class FlussuGrokAi implements IAiProvider
 
     private function _chatContinue($arrayText){
         $payload = [
-            'model' => $this->_grok_ai_model,
+            'model' => $this->_grok_chat_model,
             'messages' => $arrayText,
             'max_tokens' => 2000
         ];
@@ -94,7 +104,7 @@ class FlussuGrokAi implements IAiProvider
             $tokenUsage = null;
             if (isset($data['usage'])) {
                 $tokenUsage = [
-                    'model' => $this->_grok_ai_model,
+                    'model' => $this->_grok_chat_model,
                     'input' => $data['usage']['prompt_tokens'] ?? 0,
                     'output' => $data['usage']['completion_tokens'] ?? 0
                 ];

@@ -60,12 +60,13 @@ class FlussuDeepSeekAi implements IAiProvider
     }
 
     function chat($preChat,$sendText,$role="user"){
-        foreach ($preChat as $message) {
+        foreach ($preChat as &$message) {
             if (isset($message["message"]) && !isset($message["content"])) {
                 $message["content"] = $message["message"];
-                unset($message["content"]); 
+                unset($message["message"]);
             }
         }
+        unset($message);
         $preChat[]= [
             'role' => $role,
             'content' => $sendText,
@@ -75,7 +76,7 @@ class FlussuDeepSeekAi implements IAiProvider
 
     private function _chatContinue($arrayText){
         try{
-            $result = $this->_deepseek->query(json_encode(["messages"=>$arrayText]))->run();
+            $result = $this->_deepseek->query(json_encode(["messages"=>$arrayText]))->withModel($this->_deepseek_chat_model)->run();
         } catch (\Throwable $e) {
             //Log::error("Claude API Error: " . $e->getMessage());
             return "Error: no response. Details: " . $e->getMessage();
@@ -85,7 +86,7 @@ class FlussuDeepSeekAi implements IAiProvider
         $tokenUsage = null;
         if (isset($res["usage"])) {
             $tokenUsage = [
-                'model' => $this->_deepseek_model,
+                'model' => $this->_deepseek_chat_model,
                 'input' => $res["usage"]["prompt_tokens"] ?? 0,
                 'output' => $res["usage"]["completion_tokens"] ?? 0
             ];
