@@ -16,10 +16,11 @@
  * --------------------------------------------------------------------*
  * TBD- UNFINISHED
  * 
- * CLASS-NAME:       Flussu Claude 3 interface - v1.0
+ * CLASS-NAME:       Flussu Claude 3 interface - v2.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.5.1 20250820 
- * UPDATE DATE:      20.08:2025 - Aldus
+ * VERSION REL.:     4.5.2 20260222
+ * UPDATE DATE:      22.02:2026 - Aldus
+ * Added: Vision support (Claude 3.5 Sonnet)
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\Contracts\IAiProvider;
@@ -100,6 +101,60 @@ class FlussuClaudeAi implements IAiProvider
         }
         $resChat=[$sendArray, $response->getContent()[0]['text'], $tokenUsage];
         return $resChat;
+    }
+
+    // v4.5.2 - AI Media Exchange: Vision
+    public function canAnalyzeMedia(): bool {
+        return true; // Claude 3.5 Sonnet supports vision
+    }
+
+    public function analyzeMedia($preChat, $mediaPath, $prompt, $role="user"): array {
+        foreach ($preChat as &$message) {
+            if (isset($message["message"]) && !isset($message["content"])) {
+                $message["content"] = $message["message"];
+                unset($message["message"]);
+            }
+        }
+        unset($message);
+
+        if (!file_exists($mediaPath))
+            return [[], "Error: file not found at " . $mediaPath, null];
+
+        $mimeType = mime_content_type($mediaPath);
+        $fileData = file_get_contents($mediaPath);
+        if ($fileData === false)
+            return [[], "Error: cannot read file " . $mediaPath, null];
+
+        $base64Data = base64_encode($fileData);
+
+        // Claude API multimodal format
+        $contentParts = [
+            [
+                'type' => 'image',
+                'source' => [
+                    'type' => 'base64',
+                    'media_type' => $mimeType,
+                    'data' => $base64Data
+                ]
+            ],
+            ['type' => 'text', 'text' => $prompt]
+        ];
+
+        $preChat[] = [
+            'role' => $role,
+            'content' => $contentParts,
+        ];
+
+        return $this->_chatContinue($preChat);
+    }
+
+    // v4.5.2 - Claude does not support image generation
+    public function canGenerateImages(): bool {
+        return false;
+    }
+
+    public function generateImage($prompt, $size="1024x1024", $quality="standard"): array {
+        return ["error" => "Image generation not supported by Claude"];
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){

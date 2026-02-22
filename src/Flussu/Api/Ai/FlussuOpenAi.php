@@ -16,10 +16,11 @@
  * --------------------------------------------------------------------*
  * TBD- UNFINISHED
  * 
- * CLASS-NAME:       Flussu OpenAi interface - v1.0
+ * CLASS-NAME:       Flussu OpenAi interface - v2.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.5.1 20250820 
- * UPDATE DATE:      20.08:2025 - Aldus
+ * VERSION REL.:     4.5.2 20260222
+ * UPDATE DATE:      22.02:2026 - Aldus
+ * Added: Vision (GPT-4o) and Image Generation (DALL-E 3)
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\General;
@@ -127,6 +128,73 @@ class FlussuOpenAi implements IAiProvider
             ];
         }
         return [$arrayText, $result->choices[0]->message->content, $tokenUsage];
+    }
+
+    // v4.5.2 - AI Media Exchange: Vision
+    public function canAnalyzeMedia(): bool {
+        return true; // GPT-4o supports vision
+    }
+
+    public function analyzeMedia($preChat, $mediaPath, $prompt, $role="user"): array {
+        foreach ($preChat as &$message) {
+            if (isset($message["message"]) && !isset($message["content"])) {
+                $message["content"] = $message["message"];
+                unset($message["message"]);
+            }
+        }
+        unset($message);
+
+        if (!file_exists($mediaPath))
+            return [[], "Error: file not found at " . $mediaPath, null];
+
+        $mimeType = mime_content_type($mediaPath);
+        $fileData = file_get_contents($mediaPath);
+        if ($fileData === false)
+            return [[], "Error: cannot read file " . $mediaPath, null];
+
+        $base64Data = base64_encode($fileData);
+        $dataUri = "data:" . $mimeType . ";base64," . $base64Data;
+
+        $contentParts = [
+            ['type' => 'text', 'text' => $prompt],
+            ['type' => 'image_url', 'image_url' => ['url' => $dataUri]]
+        ];
+
+        $preChat[] = [
+            'role' => $role,
+            'content' => $contentParts,
+        ];
+
+        return $this->_chatContinue($preChat);
+    }
+
+    // v4.5.2 - AI Media Exchange: Image Generation (DALL-E 3)
+    public function canGenerateImages(): bool {
+        return true;
+    }
+
+    public function generateImage($prompt, $size="1024x1024", $quality="standard"): array {
+        try {
+            $result = $this->_open_ai->images()->create([
+                'model' => 'dall-e-3',
+                'prompt' => $prompt,
+                'n' => 1,
+                'size' => $size,
+                'quality' => $quality,
+                'response_format' => 'b64_json'
+            ]);
+        } catch (\Throwable $e) {
+            return ["error" => "Error: image generation failed. " . $e->getMessage()];
+        }
+
+        $imageData = $result->data[0]->b64Json ?? null;
+        if (empty($imageData))
+            return ["error" => "Error: no image data returned"];
+
+        return [
+            "b64_data" => $imageData,
+            "revised_prompt" => $result->data[0]->revisedPrompt ?? $prompt
+        ];
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
