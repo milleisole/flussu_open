@@ -40,6 +40,7 @@ use Flussu\Api\Ai\FlussuHuggingFaceAi;
 use Flussu\Api\Ai\FlussuZeroOneAi;
 use Flussu\Api\Ai\FlussuKimiAi;
 use Flussu\Api\Ai\FlussuQwenAi;
+use Flussu\Api\Ai\FlussuStabilityAi;
 use Log;
 
 class AiChatController 
@@ -82,6 +83,10 @@ class AiChatController
                 break;
             case Platform::QWEN:
                 $this->_aiClient= new FlussuQwenAi($model, $chat_model);
+                $this->_linkify=0;
+                break;
+            case Platform::STABILITY:
+                $this->_aiClient= new FlussuStabilityAi($model);
                 $this->_linkify=0;
                 break;
         }

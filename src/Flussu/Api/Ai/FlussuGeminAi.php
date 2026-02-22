@@ -16,10 +16,11 @@
  * --------------------------------------------------------------------*
  * TBD- UNFINISHED
  * 
- * CLASS-NAME:       Flussu Gemini interface - v1.0
+ * CLASS-NAME:       Flussu Gemini interface - v2.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.5.1 20250820 
- * UPDATE DATE:      20.08:2025 - Aldus
+ * VERSION REL.:     4.5.2 20260222
+ * UPDATE DATE:      22.02:2026 - Aldus
+ * Added: Vision support (Gemini 2.0 Flash)
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\Contracts\IAiProvider;
@@ -27,6 +28,8 @@ use Flussu\General;
 use Gemini\Enums\ModelVariation;
 use Gemini\GeminiHelper;
 use Gemini\Data\Content;
+use Gemini\Data\Blob;
+use Gemini\Enums\MimeType;
 use Gemini\Enums\Role;
 use Gemini;
 use Log;
@@ -114,6 +117,62 @@ class FlussuGeminAi implements IAiProvider
             $tokenUsage
         ];
 
+    }
+
+    // v4.5.2 - AI Media Exchange: Vision
+    public function canAnalyzeMedia(): bool {
+        return true; // Gemini 2.0 Flash supports vision
+    }
+
+    public function analyzeMedia($preChat, $mediaPath, $prompt, $role="user"): array {
+        if (!file_exists($mediaPath))
+            return [[], "Error: file not found at " . $mediaPath, null];
+
+        $mimeType = mime_content_type($mediaPath);
+        $fileData = file_get_contents($mediaPath);
+        if ($fileData === false)
+            return [[], "Error: cannot read file " . $mediaPath, null];
+
+        $base64Data = base64_encode($fileData);
+        $tokenUsage = null;
+
+        try {
+            $response = $this->_gemini->generativeModel($this->_gemini_chat_model)
+                ->generateContent([
+                    $prompt,
+                    new Blob(
+                        mimeType: $mimeType,
+                        data: $base64Data
+                    )
+                ]);
+
+            $responseText = $response->text();
+
+            if (method_exists($response, 'usageMetadata') && $response->usageMetadata()) {
+                $usage = $response->usageMetadata();
+                $tokenUsage = [
+                    'model' => $this->_gemini_chat_model,
+                    'input' => $usage->promptTokenCount ?? 0,
+                    'output' => $usage->candidatesTokenCount ?? 0
+                ];
+            }
+        } catch (\Throwable $e) {
+            $responseText = "Error: no response. Details: " . $e->getMessage();
+        }
+
+        $history = $preChat;
+        $history[] = ['role' => $role, 'content' => '[media: ' . basename($mediaPath) . '] ' . $prompt];
+
+        return [$history, $responseText, $tokenUsage];
+    }
+
+    // v4.5.2 - Gemini does not currently support image generation via this SDK
+    public function canGenerateImages(): bool {
+        return false;
+    }
+
+    public function generateImage($prompt, $size="1024x1024", $quality="standard"): array {
+        return ["error" => "Image generation not supported by Gemini in this version"];
     }
 
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){

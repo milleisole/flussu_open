@@ -119,6 +119,16 @@ class FlussuZeroOneAi implements IAiProvider
         }
     }
 
+    // v4.5.2 - AI Media Exchange: not supported by 01.AI
+    public function canAnalyzeMedia(): bool { return false; }
+    public function analyzeMedia($preChat, $mediaPath, $prompt, $role="user"): array {
+        return [[], "Error: media analysis not supported by 01.AI", null];
+    }
+    public function canGenerateImages(): bool { return false; }
+    public function generateImage($prompt, $size="1024x1024", $quality="standard"): array {
+        return ["error" => "Image generation not supported by 01.AI"];
+    }
+
     function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
         return [];
     }

@@ -66,6 +66,7 @@ use Flussu\General;
 use Flussu\Flussuserver\NC\HandlerNC;
 use Flussu\Controllers\Platform;
 use Flussu\Controllers\AiChatController;
+use Flussu\Controllers\AiMediaController;
 class Executor{
     private $_xcelm=array();
     private $_en=0;
@@ -318,6 +319,48 @@ class Executor{
                             $Sess->assignVars('$INFO', json_encode($tokenInfo));
                             $Sess->recLog("AI tokens - MDL:" . $tokenInfo['MDL'] . " - IN: ".$tokenInfo['CTI']." - OUT: ".$tokenInfo['CTO']);
                         }
+                        break;
+                    case "analyzeMedia":
+                        // V4.5.2 - Analyze media (vision/OCR) with AI
+                        $Sess->statusCallExt(true);
+                        $Sess->recLog("AI media analysis - provider: ".$innerParams[0]);
+                        $Sess->recLog("AI media file: ".$innerParams[1]);
+                        $Sess->recLog("AI media prompt: ".$innerParams[2]);
+                        $platform = Platform::tryFrom((int)$innerParams[0]) ?? Platform::CHATGPT;
+                        $mediaCtrl = new AiMediaController($platform);
+                        $reslt = $mediaCtrl->analyzeMedia($Sess->getId(), $innerParams[1], $innerParams[2]);
+                        if ($reslt[0] != "Ok") {
+                            $Sess->recLog("AI media analysis error: " . json_encode($reslt[1]));
+                            $Sess->statusError(true);
+                        }
+                        $Sess->assignVars($innerParams[3], $reslt[1]);
+                        if (isset($reslt[2]) && is_array($reslt[2])) {
+                            $tokenInfo = [
+                                'MDL' => $reslt[2]['model'] ?? 'unknown',
+                                'CTI' => $reslt[2]['input'] ?? 0,
+                                'CTO' => $reslt[2]['output'] ?? 0
+                            ];
+                            $Sess->assignVars('$INFO', json_encode($tokenInfo));
+                            $Sess->recLog("AI media tokens - MDL:" . $tokenInfo['MDL'] . " - IN: ".$tokenInfo['CTI']." - OUT: ".$tokenInfo['CTO']);
+                        }
+                        $Sess->statusCallExt(false);
+                        break;
+                    case "generateImage":
+                        // V4.5.2 - Generate image with AI (DALL-E 3)
+                        $Sess->statusCallExt(true);
+                        $Sess->recLog("AI image generation - provider: ".$innerParams[0]);
+                        $Sess->recLog("AI image prompt: ".$innerParams[1]);
+                        $platform = Platform::tryFrom((int)$innerParams[0]) ?? Platform::CHATGPT;
+                        $mediaCtrl = new AiMediaController($platform);
+                        $imgSize = $innerParams[3] ?? "1024x1024";
+                        $imgQuality = $innerParams[4] ?? "standard";
+                        $reslt = $mediaCtrl->generateImage($Sess->getId(), $innerParams[1], $imgSize, $imgQuality);
+                        if ($reslt[0] != "Ok") {
+                            $Sess->recLog("AI image generation error: " . json_encode($reslt[1]));
+                            $Sess->statusError(true);
+                        }
+                        $Sess->assignVars($innerParams[2], $reslt[1]);
+                        $Sess->statusCallExt(false);
                         break;
                 /*
                     case "openAi":
