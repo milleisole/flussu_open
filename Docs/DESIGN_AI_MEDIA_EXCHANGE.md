@@ -57,9 +57,24 @@ interface IAiProvider
 | OpenAI   | GPT-4o    | DALL-E 3       | images.generate() |
 | Claude   | claude-3-5-sonnet | No (futuro) | content[type=image] |
 | Gemini   | gemini-2.0-flash | Imagen (futuro) | inlineData |
+| **Stability AI** | **No** | **SD3.5 Large** | **v2beta/stable-image/generate/sd3** |
 | Grok     | No        | No             | - |
 | DeepSeek | No        | No             | - |
 | Others   | No        | No             | - |
+
+### 3.2.1 Stability AI (Stable Diffusion)
+
+Provider dedicato alla generazione immagini via API Stability AI (`api.stability.ai`).
+
+**Modelli disponibili**: sd3.5-large, sd3.5-large-turbo, sd3.5-medium, sd3-large, sd3-large-turbo, sd3-medium
+
+**Platform enum**: `STABILITY = 9`
+
+**Particolarità**:
+- Solo image generation (no chat, no vision)
+- Usa `aspect_ratio` invece di dimensioni pixel (mapping automatico: "1024x1024" → "1:1")
+- Supporta `style_preset` via parametro quality
+- API multipart/form-data (non JSON)
 
 ### 3.3 Nuovo Controller: `AiMediaController`
 
@@ -158,7 +173,30 @@ $response = $gemini->generativeModel($model)->generateContent([
 ]);
 ```
 
-### 4.5 PDF Handling
+### 4.5 Stability AI (Stable Diffusion)
+
+API multipart/form-data:
+```php
+// POST https://api.stability.ai/v2beta/stable-image/generate/sd3
+$multipart = [
+    ['name' => 'prompt', 'contents' => $prompt],
+    ['name' => 'model', 'contents' => 'sd3.5-large'],
+    ['name' => 'output_format', 'contents' => 'png'],
+    ['name' => 'aspect_ratio', 'contents' => '1:1'],  // 1:1, 16:9, 9:16, 3:2, 2:3, 5:4, 4:5
+];
+// Accept: application/json → risposta con {"image": "base64...", "seed": 12345}
+```
+
+**Mapping dimensioni → aspect_ratio**:
+| Dimensioni pixel | Aspect Ratio |
+|-----------------|--------------|
+| 1024x1024       | 1:1          |
+| 1792x1024       | 16:9         |
+| 1024x1792       | 9:16         |
+| 1536x1024       | 3:2          |
+| 1024x1536       | 2:3          |
+
+### 4.6 PDF Handling
 
 Per i PDF, il flusso è:
 1. Verifica se il provider supporta PDF nativamente (Gemini sì, Claude sì)
@@ -275,9 +313,13 @@ Executor::execute() case "generateImage"
 | `Api/Ai/FlussuZeroOneAi.php` | Stub | return false/[] |
 | `Api/Ai/FlussuKimiAi.php` | Stub | return false/[] |
 | `Api/Ai/FlussuQwenAi.php` | Stub | return false/[] |
+| `Api/Ai/FlussuStabilityAi.php` | **NUOVO** | Stable Diffusion image generation |
 | `Controllers/AiMediaController.php` | **NUOVO** | Orchestratore media AI |
+| `Controllers/AiChatController.php` | Estensione | +case STABILITY |
+| `Controllers/Platform.php` | Estensione | +STABILITY = 9 |
 | `Flussuserver/Environment.php` | Estensione | +2 funzioni workflow |
 | `Flussuserver/Executor.php` | Estensione | +2 case nel switch |
+| `config/.services.json.sample` | Estensione | +stability_ai config |
 
 ---
 
@@ -288,4 +330,14 @@ Executor::execute() case "generateImage"
 - **Documenti**: pdf (con conversione pagine se necessario)
 
 ### Per Generazione (Scenario B)
-- **Output**: png (default DALL-E 3)
+- **Output**: png (default DALL-E 3 e Stable Diffusion)
+- **Provider**: OpenAI (DALL-E 3, provider=0), Stability AI (SD3.5, provider=9)
+
+### Esempio Generazione con Stable Diffusion
+```php
+// Genera con Stable Diffusion (provider 9 = STABILITY)
+$F->generateImageWithAi("A watercolor painting of a Sardinian sunset", '$url_immagine', 9, "1024x1024", "standard");
+
+// Con aspect ratio landscape
+$F->generateImageWithAi("Professional logo design", '$logo_url', 9, "16:9", "standard");
+```
