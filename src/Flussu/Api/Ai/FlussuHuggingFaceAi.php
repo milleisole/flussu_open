@@ -275,6 +275,16 @@ class FlussuHuggingFaceAi implements IAiProvider
     /**
      * Chat con preview web (non supportato per Hugging Face)
      */
+    // v4.5.2 - AI Media Exchange: not supported by HuggingFace
+    public function canAnalyzeMedia(): bool { return false; }
+    public function analyzeMedia($preChat, $mediaPath, $prompt, $role="user"): array {
+        return [[], "Error: media analysis not supported by HuggingFace", null];
+    }
+    public function canGenerateImages(): bool { return false; }
+    public function generateImage($prompt, $size="1024x1024", $quality="standard"): array {
+        return ["error" => "Image generation not supported by HuggingFace"];
+    }
+
     public function chat_WebPreview($sendText, $session = "123-231-321", $max_output_tokens = 150, $temperature = 0.7){
         // Hugging Face non supporta web preview nativo
         // Ritorna array vuoto come da interfaccia

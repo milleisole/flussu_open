@@ -215,6 +215,10 @@ class Environment {
     public function initAiAgent         ($initChatText)  {$this->_addToResArray("initAiAgent", array($initChatText));}
     public function sendToAi            ($sendText, $varResponseName,$provider=0)  {$this->_addToResArray("sendToAi", array($provider,$sendText, $varResponseName));}
 
+    // v4.5.2 AI Media Exchange
+    public function analyzeMediaWithAi  ($filePath, $prompt, $varResponseName, $provider=0)          {$this->_addToResArray("analyzeMedia", array($provider, $filePath, $prompt, $varResponseName));}
+    public function generateImageWithAi ($prompt, $varFileUrlName, $provider=0, $size="1024x1024", $quality="standard") {$this->_addToResArray("generateImage", array($provider, $prompt, $varFileUrlName, $size, $quality));}
+
 /*
     // v2.8 OpenAi Query
     public function queryOpenAi         ($textQuery,$varResponseName)   {$this->_addToResArray("openAi", array($textQuery,$varResponseName));}

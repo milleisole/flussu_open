@@ -27,4 +27,5 @@ enum Platform: int {
     case ZEROONE = 6;
     case KIMI = 7;
     case QWEN = 8;
+    case STABILITY = 9;  // v4.5.2 - Stability AI (Stable Diffusion) - image generation only
 }

@@ -85,6 +85,10 @@
         "auth_key":"sk-insert-your-dashscope-api-key",
         "model":"qwen-turbo",
         "chat-model":"qwen-turbo"
+      },
+      "stability_ai":{
+        "auth_key":"sk-insert-your-stability-ai-key",
+        "model":"sd3.5-large"
       }
     }
   },
