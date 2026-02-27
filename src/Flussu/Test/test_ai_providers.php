@@ -71,7 +71,7 @@ $aiProviders = [
         'platform' => Platform::GEMINI,
         'config_key' => 'services.ai_provider.ggl_gemini.auth_key',
         'model_key' => 'services.ai_provider.ggl_gemini.model',
-        'default_model' => 'gemini-2.0-flash'
+        'default_model' => 'gemini-3-flash-preview'
     ],
     [
         'name' => 'DeepSeek',
@@ -387,7 +387,7 @@ try {
     },
     "ggl_gemini": {
         "auth_key": "your-gemini-key",
-        "model": "gemini-2.0-flash"
+        "model": "gemini-3-flash-preview"
     },
     "deepseek": {
         "auth_key": "your-deepseek-key",
