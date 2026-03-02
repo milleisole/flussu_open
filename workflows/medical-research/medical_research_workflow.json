@@ -1,0 +1,256 @@
+{
+  "workflow": [
+    {
+      "name": "Medical Evidence Research",
+      "description": "Ricerca evidenze mediche su PubMed, ClinicalTrials.gov ed Europe PMC con sintesi clinica via Claude Sonnet. Basato su github.com/Pinperepette/Medical-Research",
+      "lang": "EN",
+      "supp_langs": "EN,IT,ES,FR,DE",
+      "is_active": 1,
+      "userId": 1,
+      "valid_from": "2024-01-01 00:00:00",
+      "valid_until": "2100-01-01 00:00:00",
+      "svc1": "",
+      "svc2": "",
+      "svc3": "",
+      "start_block_id": "b1a00001-med1-4a01-b001-000000000001",
+      "blocks": [
+        {
+          "block_id": "b1a00001-med1-4a01-b001-000000000001",
+          "type": "",
+          "description": "INPUT - Query medica",
+          "is_start": 1,
+          "exec": "",
+          "note": "Blocco iniziale: raccolta query medica e lingua",
+          "error": "",
+          "x_pos": 100,
+          "y_pos": 100,
+          "elements": [
+            {
+              "elem_id": "e1a00001-med1-4a01-e001-000000000001",
+              "var_name": "",
+              "c_type": "0",
+              "d_type": "MESSAGE",
+              "e_order": "0",
+              "exit_num": "",
+              "css": {},
+              "note": "",
+              "langs": {
+                "EN": {
+                  "label": "<h2>Medical Evidence Research</h2><p>Enter your clinical question to search PubMed, ClinicalTrials.gov and Europe PMC. AI will analyze the results and generate a clinical synthesis.</p>",
+                  "uri": ""
+                },
+                "IT": {
+                  "label": "<h2>Ricerca Evidenze Mediche</h2><p>Inserisci la tua domanda clinica per cercare su PubMed, ClinicalTrials.gov ed Europe PMC. L'AI analizzer\u00e0 i risultati e generer\u00e0 una sintesi clinica.</p>",
+                  "uri": ""
+                }
+              }
+            },
+            {
+              "elem_id": "e1a00001-med1-4a01-e002-000000000001",
+              "var_name": "$query",
+              "c_type": "1",
+              "d_type": "INPUT",
+              "e_order": "1",
+              "exit_num": "",
+              "css": {},
+              "note": "",
+              "langs": {
+                "EN": {
+                  "label": "Enter your medical research question...",
+                  "uri": ""
+                },
+                "IT": {
+                  "label": "Inserisci la tua domanda di ricerca medica...",
+                  "uri": ""
+                }
+              }
+            },
+            {
+              "elem_id": "e1a00001-med1-4a01-e003-000000000001",
+              "var_name": "$language",
+              "c_type": "1",
+              "d_type": "INPUT",
+              "e_order": "2",
+              "exit_num": "",
+              "css": {},
+              "note": "Lingua risultati: en, it, es, fr, de",
+              "langs": {
+                "EN": {
+                  "label": "Results language (en/it/es/fr/de)",
+                  "uri": ""
+                },
+                "IT": {
+                  "label": "Lingua dei risultati (en/it/es/fr/de)",
+                  "uri": ""
+                }
+              }
+            },
+            {
+              "elem_id": "e1a00001-med1-4a01-e004-000000000001",
+              "var_name": "$search_btn",
+              "c_type": "2",
+              "d_type": "BUTTON",
+              "e_order": "3",
+              "exit_num": "0",
+              "css": {},
+              "note": "",
+              "langs": {
+                "EN": {
+                  "label": "Search",
+                  "uri": ""
+                },
+                "IT": {
+                  "label": "Cerca",
+                  "uri": ""
+                }
+              }
+            }
+          ],
+          "exits": [
+            {
+              "exit_num": 0,
+              "exit_dir": "b1a00002-med1-4a01-b002-000000000001"
+            }
+          ]
+        },
+        {
+          "block_id": "b1a00002-med1-4a01-b002-000000000001",
+          "type": "",
+          "description": "AI QUERY PLANNING - Claude genera query ottimizzate",
+          "is_start": 0,
+          "exec": "<?php\n$systemPrompt = \"You are a medical literature search expert. Given a medical research question, generate optimized search queries for three databases. You MUST respond ONLY with valid JSON, no other text. Use this exact format:\\n{\\n  \\\"pubmed\\\": [\\\"query1 with MeSH terms\\\", \\\"query2\\\"],\\n  \\\"clinicaltrials\\\": [\\\"short query\\\"],\\n  \\\"europepmc\\\": [\\\"free text query1\\\", \\\"query2\\\"]\\n}\\n\\nRules:\\n1. ALWAYS generate queries in English regardless of input language\\n2. For PubMed: use MeSH terms, combine with OR to broaden, AND to narrow. Generate 2-3 queries.\\n3. For ClinicalTrials.gov: use short simple terms (1-3 words). Generate 1-2 queries.\\n4. For Europe PMC: use free-text, open-access oriented. Generate 2 queries.\\n5. Mix broad queries (2-3 terms) with more specific ones.\";\n\n$F->initAiAgent($systemPrompt);\n$userMsg = \"Generate optimized search queries for the following medical research question:\\n\\n\" . $query;\n$F->sendToAi($userMsg, '$planned_queries', 4);\n$F->setExit(0);\n?>",
+          "note": "Claude Sonnet (provider 4) genera query ottimizzate per PubMed, ClinicalTrials, Europe PMC",
+          "error": "",
+          "x_pos": 100,
+          "y_pos": 300,
+          "elements": [
+            {
+              "elem_id": "e1a00002-med1-4a01-e001-000000000002",
+              "var_name": "",
+              "c_type": "0",
+              "d_type": "MESSAGE",
+              "e_order": "0",
+              "exit_num": "",
+              "css": {},
+              "note": "",
+              "langs": {
+                "EN": {
+                  "label": "Planning optimized search queries with AI...",
+                  "uri": ""
+                },
+                "IT": {
+                  "label": "Pianificazione query di ricerca ottimizzate con AI...",
+                  "uri": ""
+                }
+              }
+            }
+          ],
+          "exits": [
+            {
+              "exit_num": 0,
+              "exit_dir": "b1a00003-med1-4a01-b003-000000000001"
+            }
+          ]
+        },
+        {
+          "block_id": "b1a00003-med1-4a01-b003-000000000001",
+          "type": "",
+          "description": "DATABASE SEARCH + AI ANALYSIS",
+          "is_start": 0,
+          "exec": "<?php\n// Parse AI-generated queries\n$queries = json_decode($planned_queries, true);\nif (!$queries || !is_array($queries)) {\n    $queries = [\"pubmed\" => [$query], \"clinicaltrials\" => [$query], \"europepmc\" => [$query]];\n}\n\n$allArticles = [];\n$seenIds = [];\n\n// --- PUBMED SEARCH ---\nforeach ($queries[\"pubmed\"] ?? [$query] as $q) {\n    $searchUrl = \"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?\"\n        . \"db=pubmed&term=\" . urlencode($q) . \"&retmode=json&retmax=10&sort=relevance\";\n    $searchResult = $F->getResultFromHttpApi($searchUrl, \"GET\");\n    $searchData = json_decode($searchResult, true);\n    $pmids = $searchData[\"esearchresult\"][\"idlist\"] ?? [];\n    if (empty($pmids)) continue;\n\n    $fetchUrl = \"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?\"\n        . \"db=pubmed&id=\" . implode(\",\", $pmids) . \"&retmode=xml\";\n    $xmlResult = $F->getResultFromHttpApi($fetchUrl, \"GET\");\n    if (!empty($xmlResult)) {\n        $xml = @simplexml_load_string($xmlResult);\n        if ($xml) {\n            foreach ($xml->PubmedArticle as $article) {\n                $pmid = (string)($article->MedlineCitation->PMID ?? \"\");\n                if (isset($seenIds[$pmid])) continue;\n                $seenIds[$pmid] = true;\n                $title = (string)($article->MedlineCitation->Article->ArticleTitle ?? \"\");\n                $abstract = \"\";\n                if (isset($article->MedlineCitation->Article->Abstract->AbstractText)) {\n                    foreach ($article->MedlineCitation->Article->Abstract->AbstractText as $text) {\n                        $label = (string)($text['Label'] ?? \"\");\n                        if (!empty($label)) $abstract .= strtoupper($label) . \": \";\n                        $abstract .= (string)$text . \" \";\n                    }\n                }\n                $journal = (string)($article->MedlineCitation->Article->Journal->Title ?? \"\");\n                $year = (string)($article->MedlineCitation->Article->Journal->JournalIssue->PubDate->Year ?? \"\");\n                $authors = [];\n                if (isset($article->MedlineCitation->Article->AuthorList->Author)) {\n                    $cnt = 0;\n                    foreach ($article->MedlineCitation->Article->AuthorList->Author as $auth) {\n                        if ($cnt >= 5) break;\n                        $ln = (string)($auth->LastName ?? \"\");\n                        $ini = (string)($auth->Initials ?? \"\");\n                        if (!empty($ln)) $authors[] = $ln . \" \" . $ini;\n                        $cnt++;\n                    }\n                }\n                $allArticles[] = [\"source\" => \"PubMed\", \"id\" => $pmid, \"title\" => $title,\n                    \"abstract\" => trim($abstract), \"authors\" => implode(\", \", $authors),\n                    \"journal\" => $journal, \"year\" => $year,\n                    \"url\" => \"https://pubmed.ncbi.nlm.nih.gov/\" . $pmid . \"/\"];\n            }\n        }\n    }\n    usleep(500000);\n}\n\n// --- CLINICALTRIALS.GOV SEARCH ---\nforeach ($queries[\"clinicaltrials\"] ?? [$query] as $q) {\n    $ctUrl = \"https://clinicaltrials.gov/api/v2/studies?\"\n        . \"query.term=\" . urlencode($q) . \"&pageSize=10&format=json\";\n    $ctResult = $F->getResultFromHttpApi($ctUrl, \"GET\");\n    $ctData = json_decode($ctResult, true);\n    foreach ($ctData[\"studies\"] ?? [] as $study) {\n        $proto = $study[\"protocolSection\"] ?? [];\n        $ident = $proto[\"identificationModule\"] ?? [];\n        $desc = $proto[\"descriptionModule\"] ?? [];\n        $status = $proto[\"statusModule\"] ?? [];\n        $nctId = $ident[\"nctId\"] ?? \"\";\n        if (isset($seenIds[$nctId])) continue;\n        $seenIds[$nctId] = true;\n        $ctAbstract = $desc[\"briefSummary\"] ?? \"\";\n        $conditions = $proto[\"conditionsModule\"][\"conditions\"] ?? [];\n        if (!empty($conditions)) $ctAbstract .= \" | Conditions: \" . implode(\", \", $conditions);\n        $overallStatus = $status[\"overallStatus\"] ?? \"Unknown\";\n        $allArticles[] = [\"source\" => \"ClinicalTrials.gov\", \"id\" => $nctId,\n            \"title\" => $ident[\"officialTitle\"] ?? $ident[\"briefTitle\"] ?? \"\",\n            \"abstract\" => trim($ctAbstract), \"authors\" => \"\",\n            \"journal\" => \"ClinicalTrials.gov (\" . $overallStatus . \")\",\n            \"year\" => substr($status[\"studyFirstPostDateStruct\"][\"date\"] ?? \"\", 0, 4),\n            \"url\" => \"https://clinicaltrials.gov/study/\" . $nctId];\n    }\n}\n\n// --- EUROPE PMC SEARCH ---\nforeach ($queries[\"europepmc\"] ?? [$query] as $q) {\n    $epmcUrl = \"https://www.ebi.ac.uk/europepmc/webservices/rest/search?\"\n        . \"query=\" . urlencode($q) . \"&resultType=core&pageSize=10&format=json\";\n    $epmcResult = $F->getResultFromHttpApi($epmcUrl, \"GET\");\n    $epmcData = json_decode($epmcResult, true);\n    foreach ($epmcData[\"resultList\"][\"result\"] ?? [] as $result) {\n        $epmcId = $result[\"pmid\"] ?? $result[\"pmcid\"] ?? \"\";\n        if (isset($seenIds[$epmcId])) continue;\n        if (!empty($result[\"pmid\"]) && isset($seenIds[$result[\"pmid\"]])) continue;\n        $seenIds[$epmcId] = true;\n        if (!empty($result[\"pmid\"])) $seenIds[$result[\"pmid\"]] = true;\n        $allArticles[] = [\"source\" => \"Europe PMC\", \"id\" => $epmcId,\n            \"title\" => $result[\"title\"] ?? \"\",\n            \"abstract\" => $result[\"abstractText\"] ?? \"\",\n            \"authors\" => $result[\"authorString\"] ?? \"\",\n            \"journal\" => $result[\"journalTitle\"] ?? \"\",\n            \"year\" => $result[\"pubYear\"] ?? \"\",\n            \"url\" => !empty($result[\"pmid\"]) ? \"https://europepmc.org/article/MED/\" . $result[\"pmid\"] : \"https://europepmc.org/article/PMC/\" . ($result[\"pmcid\"] ?? \"\")];\n    }\n    usleep(500000);\n}\n\n// --- Prepare for AI analysis ---\n$articleCount = count($allArticles);\n$F->addProcessVariable('$article_count', strval($articleCount));\n\n$articleSummary = \"\";\n$cnt = 0;\nforeach ($allArticles as $art) {\n    $cnt++;\n    if ($cnt > 25) break;\n    $articleSummary .= \"---\\nARTICLE $cnt [{$art['source']}]\\n\";\n    $articleSummary .= \"ID: {$art['id']}\\nTitle: {$art['title']}\\n\";\n    $articleSummary .= \"Journal: {$art['journal']} | Year: {$art['year']}\\n\";\n    if (!empty($art['authors'])) $articleSummary .= \"Authors: {$art['authors']}\\n\";\n    $articleSummary .= \"Abstract: \" . substr($art['abstract'], 0, 600) . \"\\n\\n\";\n}\n\n$langMap = [\"it\" => \"Italian\", \"en\" => \"English\", \"es\" => \"Spanish\", \"fr\" => \"French\", \"de\" => \"German\"];\n$langName = $langMap[$language] ?? \"English\";\n\n$analysisSystem = \"You are a medical research analyst. Analyze scientific articles and produce a clinical evidence synthesis.\\n\\nRULES:\\n1. Respond ONLY in $langName\\n2. Output ONLY valid JSON (no markdown fences)\\n3. Evidence levels: 1=Systematic Review/Meta-analysis, 2=RCT, 3=Cohort/Case-control, 4=Case series, 5=Expert opinion\\n\\nJSON format:\\n{\\n  \\\"synthesis\\\": {\\n    \\\"key_findings\\\": \\\"...\\\",\\n    \\\"therapeutic_options\\\": \\\"...\\\",\\n    \\\"clinical_trials\\\": \\\"...\\\",\\n    \\\"evidence_gaps\\\": \\\"...\\\",\\n    \\\"recommendation\\\": \\\"...\\\"\\n  },\\n  \\\"top_articles\\\": [{\\n    \\\"rank\\\": 1, \\\"source\\\": \\\"PubMed\\\", \\\"id\\\": \\\"12345\\\", \\\"title\\\": \\\"...\\\",\\n    \\\"relevance_score\\\": 95, \\\"evidence_level\\\": 2,\\n    \\\"article_type\\\": \\\"trial|review|meta-analysis|case_study|guideline|observational\\\",\\n    \\\"summary\\\": \\\"...\\\"\\n  }],\\n  \\\"suggested_queries\\\": [\\\"query1\\\", \\\"query2\\\", \\\"query3\\\"]\\n}\";\n\n$F->initAiAgent($analysisSystem);\n$analysisPrompt = \"Research question: $query\\nFound $articleCount articles across PubMed, ClinicalTrials.gov, Europe PMC.\\n\\nAnalyze and rank articles, then generate a clinical synthesis.\\n\\n$articleSummary\";\n$F->sendToAi($analysisPrompt, '$analysis_result', 4);\n$F->setExit(0);\n?>",
+          "note": "Interroga PubMed, ClinicalTrials.gov, Europe PMC via API REST, poi invia tutto a Claude per analisi e sintesi",
+          "error": "",
+          "x_pos": 100,
+          "y_pos": 500,
+          "elements": [
+            {
+              "elem_id": "e1a00003-med1-4a01-e001-000000000003",
+              "var_name": "",
+              "c_type": "0",
+              "d_type": "MESSAGE",
+              "e_order": "0",
+              "exit_num": "",
+              "css": {},
+              "note": "",
+              "langs": {
+                "EN": {
+                  "label": "Searching PubMed, ClinicalTrials.gov, Europe PMC and analyzing results...",
+                  "uri": ""
+                },
+                "IT": {
+                  "label": "Ricerca su PubMed, ClinicalTrials.gov, Europe PMC e analisi risultati in corso...",
+                  "uri": ""
+                }
+              }
+            }
+          ],
+          "exits": [
+            {
+              "exit_num": 0,
+              "exit_dir": "b1a00004-med1-4a01-b004-000000000001"
+            }
+          ]
+        },
+        {
+          "block_id": "b1a00004-med1-4a01-b004-000000000001",
+          "type": "",
+          "description": "RESULTS - Sintesi clinica e articoli",
+          "is_start": 0,
+          "exec": "<?php\n$langLabels = [\n    \"it\" => [\"title\" => \"Sintesi delle Evidenze Cliniche\", \"query_label\" => \"Domanda\",\n        \"articles_found\" => \"Articoli trovati\", \"key_findings\" => \"Risultati Principali\",\n        \"therapeutic\" => \"Opzioni Terapeutiche\", \"trials\" => \"Trial Clinici Rilevanti\",\n        \"gaps\" => \"Lacune nelle Evidenze\", \"recommendation\" => \"Raccomandazione Clinica\",\n        \"top_articles\" => \"Articoli Migliori\", \"score\" => \"Punteggio\",\n        \"evidence\" => \"Livello Evidenza\", \"suggested\" => \"Query Suggerite\", \"sources\" => \"Fonti\"],\n    \"en\" => [\"title\" => \"Clinical Evidence Synthesis\", \"query_label\" => \"Question\",\n        \"articles_found\" => \"Articles found\", \"key_findings\" => \"Key Findings\",\n        \"therapeutic\" => \"Therapeutic Options\", \"trials\" => \"Relevant Clinical Trials\",\n        \"gaps\" => \"Evidence Gaps\", \"recommendation\" => \"Clinical Recommendation\",\n        \"top_articles\" => \"Top Ranked Articles\", \"score\" => \"Score\",\n        \"evidence\" => \"Evidence Level\", \"suggested\" => \"Suggested Queries\", \"sources\" => \"Sources\"]\n];\n$labels = $langLabels[$language] ?? $langLabels[\"en\"];\n\n$analysisRaw = trim($analysis_result);\nif (strpos($analysisRaw, \"```\") !== false) {\n    preg_match('/```(?:json)?\\s*([\\s\\S]*?)\\s*```/', $analysisRaw, $matches);\n    if (isset($matches[1])) $analysisRaw = $matches[1];\n}\n$analysis = json_decode($analysisRaw, true);\n\n$html = \"<div style='font-family:Arial,sans-serif;max-width:900px;margin:0 auto;padding:20px;'>\";\n$html .= \"<h2 style='color:#1a5276;border-bottom:3px solid #2980b9;padding-bottom:10px;'>\" . $labels[\"title\"] . \"</h2>\";\n$html .= \"<p style='color:#555;'><b>\" . $labels[\"query_label\"] . \":</b> \" . htmlspecialchars($query) . \" | <b>\" . $labels[\"articles_found\"] . \":</b> \" . $article_count . \"</p>\";\n\nif ($analysis && isset($analysis[\"synthesis\"])) {\n    $synth = $analysis[\"synthesis\"];\n    $sections = [\"key_findings\" => $synth[\"key_findings\"] ?? \"\", \"therapeutic\" => $synth[\"therapeutic_options\"] ?? \"\",\n        \"trials\" => $synth[\"clinical_trials\"] ?? \"\", \"gaps\" => $synth[\"evidence_gaps\"] ?? \"\",\n        \"recommendation\" => $synth[\"recommendation\"] ?? \"\"];\n    foreach ($sections as $key => $content) {\n        if (!empty($content)) {\n            $bg = ($key === \"recommendation\") ? \"#eaf2f8\" : \"#fff\";\n            $bc = ($key === \"recommendation\") ? \"#2980b9\" : \"#ddd\";\n            $html .= \"<div style='background:$bg;border-left:4px solid $bc;padding:15px;margin:15px 0;border-radius:0 5px 5px 0;'>\";\n            $html .= \"<h3 style='color:#2c3e50;margin-top:0;'>\" . $labels[$key] . \"</h3>\";\n            $html .= \"<p style='line-height:1.6;'>\" . nl2br(htmlspecialchars($content)) . \"</p></div>\";\n        }\n    }\n    if (isset($analysis[\"top_articles\"]) && is_array($analysis[\"top_articles\"])) {\n        $html .= \"<h3 style='color:#2c3e50;margin-top:30px;border-bottom:2px solid #eee;padding-bottom:8px;'>\" . $labels[\"top_articles\"] . \"</h3>\";\n        foreach ($analysis[\"top_articles\"] as $art) {\n            $score = intval($art[\"relevance_score\"] ?? 0);\n            $sc = ($score >= 80) ? \"#27ae60\" : (($score >= 60) ? \"#f39c12\" : (($score >= 40) ? \"#e67e22\" : \"#e74c3c\"));\n            $html .= \"<div style='border:1px solid #ddd;padding:12px;margin:8px 0;border-radius:5px;background:#fafafa;'>\";\n            $html .= \"<div style='margin-bottom:8px;'><b>#\" . ($art[\"rank\"] ?? \"\") . \" [\" . ($art[\"source\"] ?? \"\") . \"]</b> \";\n            $html .= \"<span style='background:$sc;color:white;padding:2px 8px;border-radius:10px;font-size:0.85em;'>\" . $labels[\"score\"] . \": $score/100</span> \";\n            $html .= \"<span style='background:#8e44ad;color:white;padding:2px 8px;border-radius:10px;font-size:0.85em;'>\" . $labels[\"evidence\"] . \": \" . ($art[\"evidence_level\"] ?? \"N/A\") . \"</span>\";\n            if (!empty($art[\"article_type\"])) $html .= \" <span style='background:#2c3e50;color:white;padding:2px 8px;border-radius:10px;font-size:0.85em;'>\" . $art[\"article_type\"] . \"</span>\";\n            $html .= \"</div>\";\n            $html .= \"<b style='color:#1a5276;'>\" . htmlspecialchars($art[\"title\"] ?? \"\") . \"</b><br>\";\n            $html .= \"<em style='color:#666;font-size:0.9em;'>\" . htmlspecialchars($art[\"summary\"] ?? \"\") . \"</em></div>\";\n        }\n    }\n    if (isset($analysis[\"suggested_queries\"]) && is_array($analysis[\"suggested_queries\"])) {\n        $html .= \"<div style='background:#f0f3f4;padding:15px;margin-top:20px;border-radius:5px;'>\";\n        $html .= \"<h3 style='color:#2c3e50;margin-top:0;'>\" . $labels[\"suggested\"] . \"</h3><ul>\";\n        foreach ($analysis[\"suggested_queries\"] as $sq) $html .= \"<li style='margin:5px 0;'>\" . htmlspecialchars($sq) . \"</li>\";\n        $html .= \"</ul></div>\";\n    }\n} else {\n    $html .= \"<div style='background:#fef9e7;border-left:4px solid #f39c12;padding:15px;margin:15px 0;'>\";\n    $html .= \"<h3>Analysis Result</h3><div style='white-space:pre-wrap;font-family:monospace;font-size:0.9em;'>\" . htmlspecialchars($analysis_result) . \"</div></div>\";\n}\n$html .= \"<div style='margin-top:30px;padding-top:15px;border-top:2px solid #eee;color:#888;font-size:0.85em;'>\";\n$html .= \"<b>\" . $labels[\"sources\"] . \":</b> PubMed (NCBI), ClinicalTrials.gov, Europe PMC (EBI) | AI: Claude Sonnet</div></div>\";\n\n$F->addProcessVariable('$result_html', $html);\n?>",
+          "note": "Formatta e visualizza la sintesi clinica con articoli classificati",
+          "error": "",
+          "x_pos": 100,
+          "y_pos": 700,
+          "elements": [
+            {
+              "elem_id": "e1a00004-med1-4a01-e001-000000000004",
+              "var_name": "$result_html",
+              "c_type": "0",
+              "d_type": "MESSAGE",
+              "e_order": "0",
+              "exit_num": "",
+              "css": {},
+              "note": "",
+              "langs": {
+                "EN": {
+                  "label": "$result_html",
+                  "uri": ""
+                },
+                "IT": {
+                  "label": "$result_html",
+                  "uri": ""
+                }
+              }
+            },
+            {
+              "elem_id": "e1a00004-med1-4a01-e002-000000000004",
+              "var_name": "$new_search_btn",
+              "c_type": "2",
+              "d_type": "BUTTON",
+              "e_order": "1",
+              "exit_num": "0",
+              "css": {},
+              "note": "",
+              "langs": {
+                "EN": {
+                  "label": "New Search",
+                  "uri": ""
+                },
+                "IT": {
+                  "label": "Nuova Ricerca",
+                  "uri": ""
+                }
+              }
+            }
+          ],
+          "exits": [
+            {
+              "exit_num": 0,
+              "exit_dir": "b1a00001-med1-4a01-b001-000000000001"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
