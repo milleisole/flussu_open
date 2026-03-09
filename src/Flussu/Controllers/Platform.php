@@ -19,10 +19,23 @@ namespace Flussu\Controllers;
 enum Platform: int {
     case INIT = -1;
     case CHATGPT = 0;
+    // --- CHATGPT model variants ---
+    case CHATGPT_O4 = 101;
+    //----------------------------------
     case GROK = 1;
+    // --- GROK model variants ---
+    case GROK_42 = 11;
+    //----------------------------------
     case GEMINI = 2;
+    // --- GEMINI model variants ---
+    case GEMINI_35 = 21;
+    //----------------------------------
     case DEEPSEEK = 3;
     case CLAUDE = 4;
+    // --- CLAUDE model variants ---
+    case CLAUDE_OP46 = 41;
+    case CLAUDE_SO46 = 42;
+    //----------------------------------
     case HUGGINGFACE = 5;
     case ZEROONE = 6;
     case KIMI = 7;

@@ -52,14 +52,34 @@ class AiMediaController
             case Platform::CHATGPT:
                 $this->_aiClient = new FlussuOpenAi($model, $chat_model);
                 break;
+            case Platform::CHATGPT_O4:
+                $m = config("services.ai_provider.open_ai.O4") ?: $model;
+                $this->_aiClient = new FlussuOpenAi($m, $m);
+                break;
             case Platform::GROK:
                 $this->_aiClient = new FlussuGrokAi($model);
+                break;
+            case Platform::GROK_42:
+                $m = config("services.ai_provider.xai_grok.42") ?: $model;
+                $this->_aiClient = new FlussuGrokAi($m);
                 break;
             case Platform::GEMINI:
                 $this->_aiClient = new FlussuGeminAi($model);
                 break;
+            case Platform::GEMINI_35:
+                $m = config("services.ai_provider.ggl_gemini.35") ?: $model;
+                $this->_aiClient = new FlussuGeminAi($m);
+                break;
             case Platform::CLAUDE:
                 $this->_aiClient = new FlussuClaudeAi($model);
+                break;
+            case Platform::CLAUDE_OP46:
+                $m = config("services.ai_provider.ant_claude.OP46") ?: $model;
+                $this->_aiClient = new FlussuClaudeAi($m, $m);
+                break;
+            case Platform::CLAUDE_SO46:
+                $m = config("services.ai_provider.ant_claude.SO46") ?: $model;
+                $this->_aiClient = new FlussuClaudeAi($m, $m);
                 break;
             case Platform::DEEPSEEK:
                 $this->_aiClient = new FlussuDeepSeekAi($model);

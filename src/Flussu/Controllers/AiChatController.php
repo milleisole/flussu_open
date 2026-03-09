@@ -53,16 +53,41 @@ class AiChatController
                 $this->_aiClient= new FlussuOpenAi($model,$chat_model);
                 $this->_linkify=0;
                 break;
+            case Platform::CHATGPT_O4:
+                $m = config("services.ai_provider.open_ai.O4") ?: $model;
+                $this->_aiClient= new FlussuOpenAi($m,$m);
+                $this->_linkify=0;
+                break;
             case Platform::GROK:
                 $this->_aiClient= new FlussuGrokAi($model);
+                $this->_linkify=0;
+                break;
+            case Platform::GROK_42:
+                $m = config("services.ai_provider.xai_grok.42") ?: $model;
+                $this->_aiClient= new FlussuGrokAi($m);
                 $this->_linkify=0;
                 break;
             case Platform::GEMINI:
                 $this->_aiClient= new FlussuGeminAi($model);
                 $this->_linkify=0;
                 break;
+            case Platform::GEMINI_35:
+                $m = config("services.ai_provider.ggl_gemini.35") ?: $model;
+                $this->_aiClient= new FlussuGeminAi($m);
+                $this->_linkify=0;
+                break;
             case Platform::CLAUDE:
                 $this->_aiClient= new FlussuClaudeAi($model);
+                $this->_linkify=1;
+                break;
+            case Platform::CLAUDE_OP46:
+                $m = config("services.ai_provider.ant_claude.OP46") ?: $model;
+                $this->_aiClient= new FlussuClaudeAi($m,$m);
+                $this->_linkify=1;
+                break;
+            case Platform::CLAUDE_SO46:
+                $m = config("services.ai_provider.ant_claude.SO46") ?: $model;
+                $this->_aiClient= new FlussuClaudeAi($m,$m);
                 $this->_linkify=1;
                 break;
             case Platform::DEEPSEEK:
