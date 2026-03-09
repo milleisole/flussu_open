@@ -6,6 +6,7 @@
     "languages": "Lingue",
     "reset": "Ricomincia",
     "privacy": "<a href=\"/flucli/privacy/priv.php?lang=it&tit=Privacy%20Policy\">Clicca qui per la privacy policy</a>",
+    "tos": "<a href=\"/flucli/tos/tos.php?lang=it&tit=Termini%20di%20Servizio\">Termini di servizio</a>",
     "write_message": "Scrivi un messaggio...",
     "user": "Utente",
     "session": "Sessione",

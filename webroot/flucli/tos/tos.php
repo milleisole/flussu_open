@@ -1,4 +1,4 @@
-<?php 
+<?php
     $lng=$_GET["lang"];
     $title=$_GET["tit"];
     $diniego=$_GET["pn"]??"";
@@ -10,13 +10,13 @@
         <meta charset="UTF-8" />
         <link rel="icon" href="/client/assets/img/favicon.png"/>
         <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-        <title data-i18n="app_title">FLUSSU Chat Prvacy Policy</title>
+        <title data-i18n="app_title">FLUSSU - Terms of Service</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <script>
             tailwind.config = { darkMode: 'class' }
-            if (localStorage.getItem("theme") === "dark" || (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)) 
+            if (localStorage.getItem("theme") === "dark" || (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches))
                 document.documentElement.classList.add("dark");
-            else 
+            else
                 document.documentElement.classList.remove("dark");
         </script>
     </head>
@@ -42,15 +42,14 @@
                         </button>
                     </div>
                 </header>
-                <main id="chat-area" 
-                    class="flex-1 overflow-y-auto   /* area scrollabile */
-                            py-4                     /* padding solo verticale */
+                <main id="chat-area"
+                    class="flex-1 overflow-y-auto
+                            py-4
                             flex flex-col gap-2
                             bg-gray-50 dark:bg-black transition-colors duration-300
-                            /* 👇 padding orizzontale responsive */
-                            px-0          /* mobile: 0  */
-                            sm:px-[10%]   /* ≥ 640 px   : 10 % */
-                            lg:px-[20%]   /* ≥ 1024 px  : 20 % */
+                            px-0
+                            sm:px-[10%]
+                            lg:px-[20%]
                     ">
                     <div>
                         <button onclick="history.back()">&lt;- Back</button>
@@ -61,5 +60,3 @@
         </div>
     </body>
 </html>
-
-

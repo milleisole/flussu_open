@@ -387,48 +387,51 @@ async function translateTitleIfNeeded(targetLang) {
   }
 }
 
+const PRIVACY_VERSION = "2.0";
+const TOS_VERSION = "2.0";
+
 const privacyTexts = {
   it: {
-    message: 'Per usare questo sistema<br><strong>deve accettare</strong> la<br><a href="/flucli/privacy/priv.php?lang=it&tit=Privacy%20Policy" class="text-blue-600 underline">privacy policy</a>.',
-    footer: 'Ho letto e:',
+    message: 'Per usare questo sistema<br><strong>deve accettare</strong> la privacy policy e i termini di servizio.',
+    checkbox_label: 'Ho letto e accetto la <a href="/flucli/privacy/priv.php?lang=it&tit=Privacy%20Policy" target="_blank" class="text-blue-600 underline">Privacy Policy</a> e i <a href="/flucli/tos/tos.php?lang=it&tit=Termini%20di%20Servizio" target="_blank" class="text-blue-600 underline">Termini di Servizio</a>',
     accept: 'Accetto',
     decline: 'Non accetto'
   },
   en: {
-    message: 'To use this system you<br><strong>must accept</strong> the<br><a href="/flucli/privacy/priv.php?lang=en&tit=Privacy%20Policy" class="text-blue-600 underline">privacy policy</a>.',
-    footer: 'I have read and:',
+    message: 'To use this system you<br><strong>must accept</strong> the privacy policy and the terms of service.',
+    checkbox_label: 'I have read and accept the <a href="/flucli/privacy/priv.php?lang=en&tit=Privacy%20Policy" target="_blank" class="text-blue-600 underline">Privacy Policy</a> and the <a href="/flucli/tos/tos.php?lang=en&tit=Terms%20of%20Service" target="_blank" class="text-blue-600 underline">Terms of Service</a>',
     accept: 'Accept',
     decline: 'Do not accept'
   },
   fr: {
-    message: 'Pour utiliser ce système,<br><strong>vous devez accepter</strong>la<br><a href="/flucli/privacy/priv.php?lang=fr&tit=Confidentialité" class="text-blue-600 underline">politique de confidentialité</a>.',
-    footer: "J'ai lu et&nbsp;:",
+    message: 'Pour utiliser ce système,<br><strong>vous devez accepter</strong> la politique de confidentialité et les conditions d\'utilisation.',
+    checkbox_label: 'J\'ai lu et j\'accepte la <a href="/flucli/privacy/priv.php?lang=fr&tit=Confidentialit%C3%A9" target="_blank" class="text-blue-600 underline">Politique de Confidentialité</a> et les <a href="/flucli/tos/tos.php?lang=fr&tit=Conditions%20d%27utilisation" target="_blank" class="text-blue-600 underline">Conditions d\'utilisation</a>',
     accept: "J'accepte",
     decline: "Je n'accepte pas"
   },
   es: {
-    message: 'Para usar este sistema,<br><strong>debes aceptar</strong> la<br><a href="/flucli/privacy/priv.php?lang=es&tit=Privacidad" class="text-blue-600 underline">política de privacidad</a>.',
-    footer: 'He leído y:',
+    message: 'Para usar este sistema,<br><strong>debes aceptar</strong> la política de privacidad y los términos de servicio.',
+    checkbox_label: 'He leído y acepto la <a href="/flucli/privacy/priv.php?lang=es&tit=Privacidad" target="_blank" class="text-blue-600 underline">Política de Privacidad</a> y los <a href="/flucli/tos/tos.php?lang=es&tit=T%C3%A9rminos%20de%20Servicio" target="_blank" class="text-blue-600 underline">Términos de Servicio</a>',
     accept: 'Aceptar',
     decline: 'No aceptar'
   },
   de: {
-    message: 'Um dieses System zu nutzen,<br><strong>müssen Sie</strong> die<br><a href="/flucli/privacy/priv.php?lang=de&tit=Datenschutzinformationen" class="text-blue-600 underline">Datenschutzerklärung</a> akzeptieren.',
-    footer: 'Ich habe gelesen und:',
+    message: 'Um dieses System zu nutzen,<br><strong>müssen Sie</strong> die Datenschutzerklärung und die Nutzungsbedingungen akzeptieren.',
+    checkbox_label: 'Ich habe die <a href="/flucli/privacy/priv.php?lang=de&tit=Datenschutzinformationen" target="_blank" class="text-blue-600 underline">Datenschutzerklärung</a> und die <a href="/flucli/tos/tos.php?lang=de&tit=Nutzungsbedingungen" target="_blank" class="text-blue-600 underline">Nutzungsbedingungen</a> gelesen und akzeptiere sie',
     accept: 'Akzeptieren',
     decline: 'Nicht akzeptieren'
   },
   zh: {
-    message: '要使用此系统，<br>您必须在此处接受<br><a href="/flucli/privacy/priv.php?lang=zh&tit=隐私政策" class="text-blue-600 underline">隐私政策</a>。',
-    footer: '我已阅读并：',
+    message: '要使用此系统，<br>您必须接受隐私政策和服务条款。',
+    checkbox_label: '我已阅读并接受<a href="/flucli/privacy/priv.php?lang=zh&tit=%E9%9A%90%E7%A7%81%E6%94%BF%E7%AD%96" target="_blank" class="text-blue-600 underline">隐私政策</a>和<a href="/flucli/tos/tos.php?lang=zh&tit=%E6%9C%8D%E5%8A%A1%E6%9D%A1%E6%AC%BE" target="_blank" class="text-blue-600 underline">服务条款</a>',
     accept: '接受',
     decline: '不接受'
   }
 };
 
 function getCookie(name) {
-  
-  if (name=="privacy_accepted" && iframecookie) return true;
+
+  if ((name=="privacy_accepted" || name=="tos_accepted") && iframecookie) return true;
 
   const cookieArr = document.cookie.split(';');
   for (let i = 0; i < cookieArr.length; i++) {
@@ -462,9 +465,43 @@ function checkPrivacyCookie() {
         return; // Esce dalla funzione senza mostrare il modale
     }
 
-    const accepted = getCookie('privacy_accepted');
-    if (!accepted) {
+    const privacyAccepted = getCookie('privacy_accepted');
+    const tosAccepted = getCookie('tos_accepted');
+    if (!privacyAccepted || !tosAccepted) {
         document.getElementById('privacy-modal').classList.remove('hidden');
+    }
+}
+
+async function sendDocumentAcceptance(acceptedDate) {
+    const apiBase = window.location.origin;
+    const payload = {
+        acceptances: [
+            {
+                document_type: "privacy_policy",
+                document_version: PRIVACY_VERSION,
+                acceptance_method: "checkbox_click"
+            },
+            {
+                document_type: "terms_of_service",
+                document_version: TOS_VERSION,
+                acceptance_method: "checkbox_click"
+            }
+        ]
+    };
+
+    try {
+        const response = await fetch(apiBase + '/api/document-acceptances/bulk', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            console.warn('Document acceptance API returned status:', response.status);
+        }
+    } catch (e) {
+        console.warn('Could not send document acceptance to backend:', e);
     }
 }
 
@@ -472,11 +509,29 @@ function updatePrivacyTexts(lang) {
   const txt = privacyTexts[lang] || privacyTexts['en'];
   const container = document.getElementById('privacy-message');
   container.innerHTML = `
-    <div class="mb-2">${txt.message}</div>
-    <div class="mb-4">${txt.footer}</div>
+    <div class="mb-4">${txt.message}</div>
+    <label class="flex items-start gap-2 text-left cursor-pointer mb-4">
+      <input type="checkbox" id="privacy-tos-checkbox" class="mt-1 w-4 h-4 accent-blue-600 flex-shrink-0">
+      <span class="text-sm">${txt.checkbox_label}</span>
+    </label>
   `;
-  document.getElementById('privacy-accept').textContent = txt.accept;
+  const acceptBtn = document.getElementById('privacy-accept');
+  acceptBtn.textContent = txt.accept;
+  acceptBtn.disabled = true;
+  acceptBtn.classList.add('opacity-50', 'cursor-not-allowed');
   document.getElementById('privacy-decline').textContent = txt.decline;
+
+  // Enable/disable accept button based on checkbox
+  const checkbox = document.getElementById('privacy-tos-checkbox');
+  checkbox.addEventListener('change', () => {
+    if (checkbox.checked) {
+      acceptBtn.disabled = false;
+      acceptBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+      acceptBtn.disabled = true;
+      acceptBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+  });
 }
 
 // --- Al caricamento della pagina ---
@@ -490,9 +545,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     // Bottone “Accetto”
     document.getElementById('privacy-accept').addEventListener('click', () => {
+        const checkbox = document.getElementById('privacy-tos-checkbox');
+        if (!checkbox || !checkbox.checked) return;
+
         const threeMonthsInSec = 90 * 24 * 60 * 60;
-        setCookie('privacy_accepted', new Date().toISOString(), threeMonthsInSec);
+        const acceptedDate = new Date().toISOString();
+        setCookie('privacy_accepted', acceptedDate, threeMonthsInSec);
+        setCookie('tos_accepted', acceptedDate, threeMonthsInSec);
         document.getElementById('privacy-modal').classList.add('hidden');
+
+        // Send acceptance data to backend API
+        sendDocumentAcceptance(acceptedDate);
+
         try{
             window.parent.postMessage('cookieAccepted', '*');
         } catch (e) {
