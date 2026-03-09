@@ -197,22 +197,642 @@ class WebScraperController
     }
     
     /**
-     * Restituisce un JSON con contenuto testuale e links
+     * Restituisce un JSON strutturato top-down con tutto il testo della pagina
+     * organizzato per sezioni semantiche (header, nav, main, footer, ecc.)
+     *
+     * Rimuove completamente JavaScript, CSS e elementi non testuali.
+     * Il risultato riflette la struttura reale della pagina.
      */
     public function getPageContentJson($url = null) {
         if ($url || !$this->html) {
             $this->getPageHtml($url);
         }
-        
+
+        $cleanDom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $cleanDom->loadHTML('<?xml encoding="UTF-8">' . $this->html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+
+        // Rimuovi tutti gli elementi non testuali
+        $this->_stripNonContentElements($cleanDom);
+
+        $body = $cleanDom->getElementsByTagName('body')->item(0);
+        if (!$body) {
+            return json_encode(['url' => $this->url, 'error' => 'No body found'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        }
+
         $result = [
             'url' => $this->url,
             'title' => $this->extractTitle(),
-            'content' => $this->extractContent(),
-            'links' => $this->extractLinks(),
-            'metadata' => $this->extractMetadata()
         ];
-        
+
+        // Mappa delle sezioni semantiche trovate
+        $semanticSections = $this->_identifySemanticSections($body);
+
+        if (!empty($semanticSections)) {
+            $result['body'] = $semanticSections;
+        } else {
+            // Fallback: estrai tutto il body come una sezione unica
+            $result['body'] = ['content' => $this->_extractNodeContent($body)];
+        }
+
+        // Aggiungi metadata essenziali
+        $meta = $this->extractMetadata();
+        if (!empty($meta)) {
+            $result['metadata'] = $meta;
+        }
+
         return json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Rimuove completamente script, style, e tutti gli elementi non-contenuto dal DOM
+     */
+    private function _stripNonContentElements(\DOMDocument $dom) {
+        $xpath = new \DOMXPath($dom);
+
+        // Elementi da rimuovere completamente
+        $selectorsToRemove = [
+            '//script', '//style', '//noscript', '//iframe', '//object', '//embed',
+            '//link[@rel="stylesheet"]', '//link[@rel="preload"]', '//link[@rel="prefetch"]',
+            '//meta', '//svg[not(ancestor::a)]',
+            '//form', '//input', '//select', '//textarea', '//button',
+            '//comment()',
+            // Elementi pubblicitari e overlay comuni
+            '//*[contains(@class,"cookie")]', '//*[contains(@class,"Cookie")]',
+            '//*[contains(@class,"consent")]', '//*[contains(@class,"Consent")]',
+            '//*[contains(@class,"popup")]', '//*[contains(@class,"Popup")]',
+            '//*[contains(@class,"modal")]', '//*[contains(@class,"Modal")]',
+            '//*[contains(@class,"overlay")]',
+            '//*[contains(@class,"advertisement")]', '//*[contains(@class,"ad-container")]',
+            '//*[contains(@class,"ads-")]', '//*[contains(@class,"adsbygoogle")]',
+            '//*[contains(@id,"cookie")]', '//*[contains(@id,"Cookie")]',
+            '//*[contains(@id,"consent")]', '//*[contains(@id,"Consent")]',
+            '//*[contains(@id,"advertisement")]', '//*[contains(@id,"ad-container")]',
+        ];
+
+        foreach ($selectorsToRemove as $selector) {
+            $nodes = $xpath->query($selector);
+            if ($nodes) {
+                // Raccogli prima tutti i nodi, poi rimuovili
+                $toRemove = [];
+                foreach ($nodes as $node) {
+                    $toRemove[] = $node;
+                }
+                foreach ($toRemove as $node) {
+                    if ($node->parentNode) {
+                        $node->parentNode->removeChild($node);
+                    }
+                }
+            }
+        }
+
+        // Rimuovi tutti gli attributi style inline e gli attributi on* (event handlers JS)
+        $allElements = $xpath->query('//*');
+        if ($allElements) {
+            foreach ($allElements as $el) {
+                $el->removeAttribute('style');
+                $el->removeAttribute('onclick');
+                $el->removeAttribute('onload');
+                $el->removeAttribute('onmouseover');
+                $el->removeAttribute('onmouseout');
+                $el->removeAttribute('onfocus');
+                $el->removeAttribute('onblur');
+            }
+        }
+    }
+
+    /**
+     * Identifica le sezioni semantiche della pagina e ne estrae il contenuto
+     * Restituisce un array associativo con le sezioni trovate
+     */
+    private function _identifySemanticSections(\DOMNode $body) {
+        $sections = [];
+        $xpath = new \DOMXPath($body->ownerDocument);
+
+        // Definizione delle sezioni semantiche da cercare, in ordine top-down
+        $sectionMap = [
+            'header'  => ['//header', '//*[@role="banner"]', '//*[contains(@class,"header") and not(ancestor::main) and not(ancestor::article)]', '//*[contains(@id,"header")]'],
+            'nav'     => ['//nav', '//*[@role="navigation"]', '//*[contains(@class,"nav") and not(contains(@class,"navbar-"))]', '//*[contains(@class,"menu") and not(ancestor::footer)]'],
+            'main'    => ['//main', '//*[@role="main"]', '//*[@id="main"]', '//*[@id="content"]', '//*[contains(@class,"main-content")]', '//*[contains(@class,"page-content")]'],
+            'article' => ['//article', '//*[contains(@class,"article")]', '//*[contains(@class,"post-content")]', '//*[contains(@class,"entry-content")]'],
+            'aside'   => ['//aside', '//*[@role="complementary"]', '//*[contains(@class,"sidebar")]', '//*[contains(@class,"side-bar")]'],
+            'footer'  => ['//footer', '//*[@role="contentinfo"]', '//*[contains(@class,"footer")]', '//*[contains(@id,"footer")]'],
+        ];
+
+        // Nodi già processati (per evitare duplicati quando un nodo è figlio di un altro già estratto)
+        $processedNodes = new \SplObjectStorage();
+
+        foreach ($sectionMap as $sectionName => $selectors) {
+            $sectionContent = [];
+
+            foreach ($selectors as $selector) {
+                $nodes = $xpath->query($selector, $body);
+                if (!$nodes) continue;
+
+                foreach ($nodes as $node) {
+                    // Salta nodi già processati o figli di nodi già processati
+                    if ($processedNodes->contains($node) || $this->_isDescendantOfProcessed($node, $processedNodes)) {
+                        continue;
+                    }
+
+                    $content = $this->_extractNodeContent($node);
+                    if (!empty($content)) {
+                        $processedNodes->attach($node);
+                        if (is_array($content) && count($content) === 1 && isset($content[0])) {
+                            $sectionContent[] = $content[0];
+                        } else {
+                            $sectionContent[] = $content;
+                        }
+                    }
+                }
+            }
+
+            if (!empty($sectionContent)) {
+                $sections[$sectionName] = count($sectionContent) === 1 ? $sectionContent[0] : $sectionContent;
+            }
+        }
+
+        // Cerca contenuto non ancora catturato (sezioni generiche, div di primo livello, ecc.)
+        $uncaptured = $this->_extractUncapturedContent($body, $processedNodes);
+        if (!empty($uncaptured)) {
+            if (empty($sections['main'])) {
+                $sections['main'] = $uncaptured;
+            } else {
+                $sections['other_content'] = $uncaptured;
+            }
+        }
+
+        return $sections;
+    }
+
+    /**
+     * Verifica se un nodo è discendente di un nodo già processato
+     */
+    private function _isDescendantOfProcessed(\DOMNode $node, \SplObjectStorage $processed) {
+        $parent = $node->parentNode;
+        while ($parent) {
+            if ($processed->contains($parent)) {
+                return true;
+            }
+            $parent = $parent->parentNode;
+        }
+        return false;
+    }
+
+    /**
+     * Estrae contenuto testuale strutturato da un nodo DOM.
+     * Percorre ricorsivamente i figli e genera un array strutturato.
+     */
+    private function _extractNodeContent(\DOMNode $node) {
+        $result = [];
+        $currentHeading = null;
+        $currentBlock = [];
+
+        foreach ($node->childNodes as $child) {
+            if ($child->nodeType === XML_TEXT_NODE) {
+                $text = $this->_cleanTextContent($child->textContent);
+                if ($text !== '') {
+                    $currentBlock[] = $text;
+                }
+                continue;
+            }
+
+            if ($child->nodeType !== XML_ELEMENT_NODE) {
+                continue;
+            }
+
+            $tagName = strtolower($child->nodeName);
+
+            // Salta elementi nascosti
+            if ($this->_isHiddenElement($child)) {
+                continue;
+            }
+
+            // Gestisci headings - creano nuove sezioni
+            if (preg_match('/^h([1-6])$/', $tagName, $m)) {
+                // Salva il blocco corrente
+                if (!empty($currentBlock)) {
+                    if ($currentHeading) {
+                        $result[] = [$currentHeading => $this->_mergeTextBlocks($currentBlock)];
+                    } else {
+                        $merged = $this->_mergeTextBlocks($currentBlock);
+                        if (is_string($merged)) {
+                            $result[] = $merged;
+                        } else {
+                            $result = array_merge($result, (array)$merged);
+                        }
+                    }
+                    $currentBlock = [];
+                }
+                $headingText = $this->_cleanTextContent($child->textContent);
+                if ($headingText !== '') {
+                    $currentHeading = $headingText;
+                }
+                continue;
+            }
+
+            // Gestisci link
+            if ($tagName === 'a') {
+                $linkText = $this->_cleanTextContent($child->textContent);
+                $href = $child->getAttribute('href');
+                if ($linkText !== '' && $href !== '' && $href !== '#') {
+                    $href = $this->normalizeUrl($href);
+                    $currentBlock[] = "[{$linkText}]({$href})";
+                } elseif ($linkText !== '') {
+                    $currentBlock[] = $linkText;
+                }
+                continue;
+            }
+
+            // Gestisci immagini con alt text
+            if ($tagName === 'img') {
+                $alt = $child->getAttribute('alt');
+                if ($alt !== '') {
+                    $currentBlock[] = "[img: " . $this->_cleanTextContent($alt) . "]";
+                }
+                continue;
+            }
+
+            // Gestisci liste
+            if ($tagName === 'ul' || $tagName === 'ol') {
+                $listItems = $this->_extractListItems($child);
+                if (!empty($listItems)) {
+                    $currentBlock[] = $listItems;
+                }
+                continue;
+            }
+
+            // Gestisci tabelle
+            if ($tagName === 'table') {
+                $tableData = $this->_extractTableData($child);
+                if (!empty($tableData)) {
+                    $currentBlock[] = ['table' => $tableData];
+                }
+                continue;
+            }
+
+            // Gestisci <br> come separatore
+            if ($tagName === 'br') {
+                continue;
+            }
+
+            // Elementi blocco: section, div, p, blockquote, figure, ecc.
+            // Ricorsione per estrarre il contenuto
+            if (in_array($tagName, ['div', 'section', 'p', 'blockquote', 'figure', 'figcaption', 'details', 'summary', 'dl', 'dd', 'dt', 'address', 'pre', 'code'])) {
+                $innerContent = $this->_extractNodeContent($child);
+                if (!empty($innerContent)) {
+                    // Per <p> e blockquote, il contenuto è testo inline
+                    if ($tagName === 'p' || $tagName === 'blockquote') {
+                        $flat = $this->_flattenContent($innerContent);
+                        if ($flat !== '') {
+                            $currentBlock[] = $flat;
+                        }
+                    } else {
+                        // Per div/section, annida il contenuto se è complesso
+                        $sectionLabel = $this->_getSectionLabel($child);
+                        if ($sectionLabel) {
+                            $currentBlock[] = [$sectionLabel => $innerContent];
+                        } else {
+                            // Merge diretto se il contenuto è semplice
+                            if (is_array($innerContent)) {
+                                foreach ($innerContent as $item) {
+                                    $currentBlock[] = $item;
+                                }
+                            } else {
+                                $currentBlock[] = $innerContent;
+                            }
+                        }
+                    }
+                }
+                continue;
+            }
+
+            // Elementi inline (span, strong, em, b, i, small, mark, ecc.)
+            $inlineText = $this->_cleanTextContent($child->textContent);
+            if ($inlineText !== '') {
+                $currentBlock[] = $inlineText;
+            }
+        }
+
+        // Salva l'ultimo blocco
+        if (!empty($currentBlock)) {
+            if ($currentHeading) {
+                $result[] = [$currentHeading => $this->_mergeTextBlocks($currentBlock)];
+            } else {
+                $merged = $this->_mergeTextBlocks($currentBlock);
+                if (is_string($merged)) {
+                    if ($merged !== '') {
+                        $result[] = $merged;
+                    }
+                } elseif (is_array($merged)) {
+                    $result = array_merge($result, $merged);
+                }
+            }
+        }
+
+        // Semplifica: se c'è un solo elemento, restituiscilo direttamente
+        if (count($result) === 1) {
+            return $result[0];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Estrae gli items da una lista UL/OL
+     */
+    private function _extractListItems(\DOMNode $listNode) {
+        $items = [];
+        foreach ($listNode->childNodes as $child) {
+            if ($child->nodeType === XML_ELEMENT_NODE && strtolower($child->nodeName) === 'li') {
+                // Controlla se c'è una sottolista
+                $subList = null;
+                $textParts = [];
+                foreach ($child->childNodes as $liChild) {
+                    if ($liChild->nodeType === XML_ELEMENT_NODE && in_array(strtolower($liChild->nodeName), ['ul', 'ol'])) {
+                        $subList = $this->_extractListItems($liChild);
+                    } elseif ($liChild->nodeType === XML_ELEMENT_NODE && strtolower($liChild->nodeName) === 'a') {
+                        $linkText = $this->_cleanTextContent($liChild->textContent);
+                        $href = $liChild->getAttribute('href');
+                        if ($linkText !== '' && $href !== '' && $href !== '#') {
+                            $href = $this->normalizeUrl($href);
+                            $textParts[] = "[{$linkText}]({$href})";
+                        } elseif ($linkText !== '') {
+                            $textParts[] = $linkText;
+                        }
+                    } else {
+                        $t = $this->_cleanTextContent($liChild->textContent);
+                        if ($t !== '') {
+                            $textParts[] = $t;
+                        }
+                    }
+                }
+                $itemText = implode(' ', $textParts);
+                if ($itemText !== '' || !empty($subList)) {
+                    if (!empty($subList)) {
+                        $items[] = ['text' => $itemText, 'subitems' => $subList];
+                    } else {
+                        $items[] = $itemText;
+                    }
+                }
+            }
+        }
+        return $items;
+    }
+
+    /**
+     * Estrae dati strutturati da una tabella
+     */
+    private function _extractTableData(\DOMNode $tableNode) {
+        $xpath = new \DOMXPath($tableNode->ownerDocument);
+        $data = [];
+
+        // Headers
+        $headers = [];
+        $thNodes = $xpath->query('.//th', $tableNode);
+        if ($thNodes) {
+            foreach ($thNodes as $th) {
+                $t = $this->_cleanTextContent($th->textContent);
+                if ($t !== '') {
+                    $headers[] = $t;
+                }
+            }
+        }
+        if (!empty($headers)) {
+            $data['headers'] = $headers;
+        }
+
+        // Rows
+        $rows = [];
+        $trNodes = $xpath->query('.//tr', $tableNode);
+        if ($trNodes) {
+            foreach ($trNodes as $tr) {
+                $row = [];
+                $tdNodes = $xpath->query('./td', $tr);
+                if ($tdNodes) {
+                    foreach ($tdNodes as $td) {
+                        $row[] = $this->_cleanTextContent($td->textContent);
+                    }
+                }
+                if (!empty($row) && implode('', $row) !== '') {
+                    if (!empty($headers) && count($row) === count($headers)) {
+                        $rows[] = array_combine($headers, $row);
+                    } else {
+                        $rows[] = $row;
+                    }
+                }
+            }
+        }
+        if (!empty($rows)) {
+            $data['rows'] = $rows;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Estrae contenuto non catturato dalle sezioni semantiche
+     */
+    private function _extractUncapturedContent(\DOMNode $body, \SplObjectStorage $processed) {
+        $uncaptured = [];
+
+        foreach ($body->childNodes as $child) {
+            if ($child->nodeType !== XML_ELEMENT_NODE) {
+                $text = $this->_cleanTextContent($child->textContent ?? '');
+                if ($text !== '') {
+                    $uncaptured[] = $text;
+                }
+                continue;
+            }
+
+            if ($processed->contains($child) || $this->_isDescendantOfProcessed($child, $processed)) {
+                continue;
+            }
+
+            // Controlla se questo nodo o i suoi figli sono già processati
+            $content = $this->_extractNodeContent($child);
+            if (!empty($content)) {
+                $label = $this->_getSectionLabel($child);
+                if ($label) {
+                    $uncaptured[] = [$label => $content];
+                } else {
+                    if (is_array($content)) {
+                        foreach ($content as $item) {
+                            $uncaptured[] = $item;
+                        }
+                    } else {
+                        $uncaptured[] = $content;
+                    }
+                }
+            }
+        }
+
+        // Filtra voci vuote
+        $uncaptured = array_filter($uncaptured, function($item) {
+            if (is_string($item)) return trim($item) !== '';
+            if (is_array($item)) return !empty($item);
+            return false;
+        });
+
+        return array_values($uncaptured);
+    }
+
+    /**
+     * Cerca di determinare un'etichetta per una sezione (da id, class, aria-label, heading figlio)
+     */
+    private function _getSectionLabel(\DOMNode $node) {
+        if (!($node instanceof \DOMElement)) {
+            return null;
+        }
+
+        // aria-label
+        $ariaLabel = $node->getAttribute('aria-label');
+        if ($ariaLabel !== '') {
+            return $this->_cleanTextContent($ariaLabel);
+        }
+
+        // aria-labelledby
+        $ariaLabelledBy = $node->getAttribute('aria-labelledby');
+        if ($ariaLabelledBy !== '') {
+            $xpath = new \DOMXPath($node->ownerDocument);
+            $labelNode = $xpath->query('//*[@id="' . $ariaLabelledBy . '"]')->item(0);
+            if ($labelNode) {
+                $label = $this->_cleanTextContent($labelNode->textContent);
+                if ($label !== '') return $label;
+            }
+        }
+
+        // id significativo (escludi id generati tipo "div-123")
+        $id = $node->getAttribute('id');
+        if ($id !== '' && !preg_match('/^[a-z]{0,3}\d+$/i', $id) && strlen($id) > 2 && strlen($id) < 50) {
+            return str_replace(['-', '_'], ' ', $id);
+        }
+
+        // class significativa (solo la prima classe significativa)
+        $class = $node->getAttribute('class');
+        if ($class !== '') {
+            $classes = preg_split('/\s+/', $class);
+            foreach ($classes as $cls) {
+                // Salta classi utility/framework (tailwind, bootstrap, ecc.)
+                if (preg_match('/^(col|row|container|flex|grid|d-|p-|m-|px-|py-|mx-|my-|w-|h-|bg-|text-|font-|border-|rounded|shadow|hidden|block|inline|relative|absolute|static|overflow|clearfix|wrapper|inner|outer|left|right|center)/i', $cls)) {
+                    continue;
+                }
+                if (strlen($cls) > 2 && strlen($cls) < 40 && !preg_match('/^\d+$/', $cls)) {
+                    return str_replace(['-', '_'], ' ', $cls);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Verifica se un elemento è nascosto
+     */
+    private function _isHiddenElement(\DOMNode $node) {
+        if (!($node instanceof \DOMElement)) {
+            return false;
+        }
+
+        if ($node->getAttribute('hidden') !== '') return true;
+        if ($node->getAttribute('aria-hidden') === 'true') return true;
+
+        $class = strtolower($node->getAttribute('class'));
+        if (strpos($class, 'hidden') !== false || strpos($class, 'sr-only') !== false || strpos($class, 'visually-hidden') !== false || strpos($class, 'd-none') !== false) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Pulisce il testo rimuovendo spazi, newline eccessivi e caratteri non stampabili
+     */
+    private function _cleanTextContent($text) {
+        // Rimuovi caratteri non stampabili (zero-width, soft hyphens, ecc.)
+        $text = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}\x{00AD}]/u', '', $text);
+        // Normalizza whitespace
+        $text = preg_replace('/[\s\t\n\r]+/', ' ', $text);
+        $text = trim($text);
+        // Decodifica entità HTML
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return $text;
+    }
+
+    /**
+     * Unisce blocchi di testo in un formato leggibile
+     */
+    private function _mergeTextBlocks(array $blocks) {
+        if (empty($blocks)) return '';
+
+        // Se c'è un solo elemento stringa, restituiscilo
+        if (count($blocks) === 1) {
+            return $blocks[0];
+        }
+
+        // Controlla se ci sono elementi complessi (array)
+        $hasComplex = false;
+        foreach ($blocks as $block) {
+            if (is_array($block)) {
+                $hasComplex = true;
+                break;
+            }
+        }
+
+        if (!$hasComplex) {
+            // Tutti stringhe: unisci con spazio, evita duplicati adiacenti
+            $merged = [];
+            $prev = '';
+            foreach ($blocks as $block) {
+                if (is_string($block) && $block !== '' && $block !== $prev) {
+                    $merged[] = $block;
+                    $prev = $block;
+                }
+            }
+            return count($merged) === 1 ? $merged[0] : implode(' ', $merged);
+        }
+
+        // Mix di stringhe e strutture: restituisci come array
+        $result = [];
+        $textBuffer = [];
+        foreach ($blocks as $block) {
+            if (is_string($block) && $block !== '') {
+                $textBuffer[] = $block;
+            } elseif (is_array($block)) {
+                if (!empty($textBuffer)) {
+                    $result[] = implode(' ', $textBuffer);
+                    $textBuffer = [];
+                }
+                $result[] = $block;
+            }
+        }
+        if (!empty($textBuffer)) {
+            $result[] = implode(' ', $textBuffer);
+        }
+
+        return count($result) === 1 ? $result[0] : $result;
+    }
+
+    /**
+     * Appiattisce il contenuto annidato in una stringa
+     */
+    private function _flattenContent($content) {
+        if (is_string($content)) return $content;
+        if (!is_array($content)) return '';
+
+        $parts = [];
+        foreach ($content as $item) {
+            if (is_string($item)) {
+                $parts[] = $item;
+            } elseif (is_array($item)) {
+                $flat = $this->_flattenContent($item);
+                if ($flat !== '') {
+                    $parts[] = $flat;
+                }
+            }
+        }
+        return implode(' ', $parts);
     }
     
     /**
