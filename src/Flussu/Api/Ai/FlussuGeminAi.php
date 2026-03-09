@@ -100,8 +100,9 @@ class FlussuGeminAi implements IAiProvider
             $response = $chat->sendMessage($sendText);
             $responseText=$response->text();
             // Extract token usage if available
-            if (method_exists($response, 'usageMetadata') && $response->usageMetadata()) {
-                $usage = $response->usageMetadata();
+            // usageMetadata is a property (not a method) in google-gemini-php/client v2
+            if (isset($response->usageMetadata)) {
+                $usage = $response->usageMetadata;
                 $tokenUsage = [
                     'model' => $this->_gemini_chat_model,
                     'input' => $usage->promptTokenCount ?? 0,
@@ -148,8 +149,9 @@ class FlussuGeminAi implements IAiProvider
 
             $responseText = $response->text();
 
-            if (method_exists($response, 'usageMetadata') && $response->usageMetadata()) {
-                $usage = $response->usageMetadata();
+            // usageMetadata is a property (not a method) in google-gemini-php/client v2
+            if (isset($response->usageMetadata)) {
+                $usage = $response->usageMetadata;
                 $tokenUsage = [
                     'model' => $this->_gemini_chat_model,
                     'input' => $usage->promptTokenCount ?? 0,
