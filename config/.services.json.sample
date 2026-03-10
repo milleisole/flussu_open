@@ -46,16 +46,19 @@
       "open_ai":{
         "auth_key":"6768-insert-your-api-key-8768",
         "model":"o1-mini",
-        "chat-model":"o3"
+        "chat-model":"o3",
+        "O4":"gpt-4o"
       },
       "xai_grok":{
         "auth_key":"6768-insert-your-api-key-8768",
-        "model":"grok-3-mini-fast"
+        "model":"grok-3-mini-fast",
+        "42":"grok-4-2"
       },
       "ggl_gemini":{
         "auth_key":"6768-insert-your-api-key-8768",
         "model":"gemini-2.0-flash",
-        "chat-model":"gemini-2.0-flash"
+        "chat-model":"gemini-2.0-flash",
+        "35":"gemini-3.5-pro"
       },
       "deepseek":{
         "auth_key":"6768-insert-your-api-key-8768",
@@ -64,8 +67,10 @@
       },
       "ant_claude":{
         "auth_key":"6768-insert-your-api-key-8768",
-        "model":"claude-3-5-sonnet-20241022",
-        "chat-model":"claude-3-5-sonnet-20241022"
+        "model":"claude-haiku-4-5",
+        "chat-model":"claude-haiku-4-5",
+        "OP46":"claude-opus-4-6",
+        "SO46":"claude-sonnet-4-6"
       },
       "huggingface":{
         "auth_token":"hf_insert-your-api-token-here",
