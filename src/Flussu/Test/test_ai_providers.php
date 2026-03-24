@@ -114,6 +114,13 @@ $aiProviders = [
         'config_key' => 'services.ai_provider.qwen.auth_key',
         'model_key' => 'services.ai_provider.qwen.model',
         'default_model' => 'qwen-turbo'
+    ],
+    [
+        'name' => 'Mistral AI',
+        'platform' => Platform::MISTRAL,
+        'config_key' => 'services.ai_provider.mistral.auth_key',
+        'model_key' => 'services.ai_provider.mistral.model',
+        'default_model' => 'mistral-large-latest'
     ]
 ];
 

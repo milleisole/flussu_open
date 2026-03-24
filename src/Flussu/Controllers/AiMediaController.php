@@ -37,6 +37,7 @@ use Flussu\Api\Ai\FlussuZeroOneAi;
 use Flussu\Api\Ai\FlussuKimiAi;
 use Flussu\Api\Ai\FlussuQwenAi;
 use Flussu\Api\Ai\FlussuStabilityAi;
+use Flussu\Api\Ai\FlussuMistralAi;
 
 class AiMediaController
 {
@@ -78,6 +79,9 @@ class AiMediaController
                 break;
             case Platform::STABILITY:
                 $this->_aiClient = new FlussuStabilityAi($model);
+                break;
+            case Platform::MISTRAL:
+                $this->_aiClient = new FlussuMistralAi($model, $chat_model);
                 break;
             default:
                 $this->_aiClient = new FlussuOpenAi($model, $chat_model);
