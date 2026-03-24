@@ -89,6 +89,11 @@
       "stability_ai":{
         "auth_key":"sk-insert-your-stability-ai-key",
         "model":"sd3.5-large"
+      },
+      "mistral":{
+        "auth_key":"sk-insert-your-mistral-api-key",
+        "model":"mistral-large-latest",
+        "chat-model":"mistral-large-latest"
       }
     }
   },
