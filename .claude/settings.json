@@ -1,0 +1,24 @@
+{
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Bash(rm:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)"
+    ],
+    "deny": [
+      "Read(config/.services.json)",
+      "Read(config/.services.json.BAK)",
+      "Edit(config/.services.json)",
+      "Edit(config/.services.json.BAK)",
+      "Read(.env)",
+      "Edit(.env)"
+    ]
+  }
+}

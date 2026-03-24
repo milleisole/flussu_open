@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flussu MiniCli — Esempio di integrazione</title>
+
+  <!--
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  PASSO 1: Includere lo script nel <head> della pagina.     ║
+    ║                                                            ║
+    ║  Attributi obbligatori:                                    ║
+    ║    server  — hostname del server Flussu                    ║
+    ║    wid     — ID del workflow da eseguire                   ║
+    ║                                                            ║
+    ║  Attributi opzionali:                                      ║
+    ║    lang    — lingua iniziale (it|en|fr|de|es)              ║
+    ║              Se omesso: usa la lingua della pagina         ║
+    ║              (<html lang="...">) o del browser.            ║
+    ║    apipath — path API custom (default /api/v2.0/...)       ║
+    ╚══════════════════════════════════════════════════════════════╝
+  -->
+  <script src="flussu_minicli.js"
+          server="srvdev4.flu.lt"
+          wid="[wf383fc8fab120998]"
+          lang="it"></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+      color: #333;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.5em; margin-bottom: 0.3em; }
+    h2 { font-size: 1.15em; margin-top: 2em; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    pre {
+      background: #f4f4f4; padding: 12px; border-radius: 6px;
+      overflow-x: auto; font-size: 13px; line-height: 1.5;
+    }
+    code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+    .demo-box {
+      border: 1px solid #e0e0e0; border-radius: 8px;
+      padding: 16px; margin: 12px 0; background: #fafafa;
+    }
+    .lang-btns button {
+      padding: 4px 14px; margin: 2px; border: 1px solid #ccc;
+      border-radius: 4px; cursor: pointer; background: #fff; font-size: 13px;
+    }
+    .lang-btns button:hover { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .lang-btns button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  </style>
+</head>
+<body>
+
+<h1>Flussu MiniCli</h1>
+<p>Widget inline minimale per integrare un workflow Flussu in qualsiasi pagina web.</p>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2>Esempio 1 — Integrazione minima</h2>
+<p>Un singolo <code>&lt;div class="flussu-minicli"&gt;</code> con le impostazioni dello script tag:</p>
+
+<div class="demo-box">
+  <!--
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  PASSO 2: Inserire un div con classe "flussu-minicli"      ║
+    ║  dove si vuole il widget. Si auto-attiva al caricamento.   ║
+    ║  Nessuna chiamata al server fino al primo invio.           ║
+    ╚══════════════════════════════════════════════════════════════╝
+  -->
+  <div class="flussu-minicli"></div>
+</div>
+
+<pre>&lt;div class="flussu-minicli"&gt;&lt;/div&gt;</pre>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2>Esempio 2 — Righe iniziali personalizzate</h2>
+<p>Area risposta di 4 righe e input di 2 righe fin da subito:</p>
+
+<div class="demo-box">
+  <div class="flussu-minicli" data-response-rows="4" data-input-rows="2"></div>
+</div>
+
+<pre>&lt;div class="flussu-minicli" data-response-rows="4" data-input-rows="2"&gt;&lt;/div&gt;</pre>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2>Esempio 3 — Cambio lingua</h2>
+<p>Clicca un bottone per cambiare lingua al widget. Il placeholder e i messaggi si aggiornano.</p>
+
+<div class="demo-box">
+  <div class="lang-btns" id="lang-btns">
+    <button onclick="changeLang('it')" class="active">Italiano</button>
+    <button onclick="changeLang('en')">English</button>
+    <button onclick="changeLang('fr')">Fran&ccedil;ais</button>
+    <button onclick="changeLang('de')">Deutsch</button>
+    <button onclick="changeLang('es')">Espa&ntilde;ol</button>
+  </div>
+  <div class="flussu-minicli" id="minicli-lang-demo" style="margin-top:10px"></div>
+</div>
+
+<pre>// JavaScript — cambio lingua runtime
+var widget = document.getElementById('minicli-lang-demo')._flussuMC;
+widget.setLang('en');  // cambia a inglese</pre>
+
+<script>
+  function changeLang(lang) {
+    var el = document.getElementById('minicli-lang-demo');
+    if (el && el._flussuMC) {
+      el._flussuMC.setLang(lang);
+    }
+    // Evidenzia bottone attivo
+    var btns = document.querySelectorAll('#lang-btns button');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+    event.target.classList.add('active');
+  }
+</script>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2>Riferimento attributi</h2>
+
+<table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0">
+  <tr style="background:#f0f0f0"><th style="text-align:left;padding:6px;border:1px solid #ddd">Attributo</th><th style="text-align:left;padding:6px;border:1px solid #ddd">Dove</th><th style="text-align:left;padding:6px;border:1px solid #ddd">Default</th><th style="text-align:left;padding:6px;border:1px solid #ddd">Descrizione</th></tr>
+  <tr><td style="padding:6px;border:1px solid #ddd"><code>server</code></td><td style="padding:6px;border:1px solid #ddd">script</td><td style="padding:6px;border:1px solid #ddd">location.hostname</td><td style="padding:6px;border:1px solid #ddd">Hostname del server Flussu</td></tr>
+  <tr><td style="padding:6px;border:1px solid #ddd"><code>wid</code></td><td style="padding:6px;border:1px solid #ddd">script</td><td style="padding:6px;border:1px solid #ddd">—</td><td style="padding:6px;border:1px solid #ddd">ID del workflow (obbligatorio)</td></tr>
+  <tr><td style="padding:6px;border:1px solid #ddd"><code>lang</code></td><td style="padding:6px;border:1px solid #ddd">script</td><td style="padding:6px;border:1px solid #ddd">lingua pagina</td><td style="padding:6px;border:1px solid #ddd">Lingua iniziale: it, en, fr, de, es</td></tr>
+  <tr><td style="padding:6px;border:1px solid #ddd"><code>apipath</code></td><td style="padding:6px;border:1px solid #ddd">script</td><td style="padding:6px;border:1px solid #ddd">/api/v2.0/flussueng.php</td><td style="padding:6px;border:1px solid #ddd">Path API custom</td></tr>
+  <tr><td style="padding:6px;border:1px solid #ddd"><code>data-wid</code></td><td style="padding:6px;border:1px solid #ddd">div</td><td style="padding:6px;border:1px solid #ddd">wid dello script</td><td style="padding:6px;border:1px solid #ddd">Override WID per singolo widget</td></tr>
+  <tr><td style="padding:6px;border:1px solid #ddd"><code>data-lang</code></td><td style="padding:6px;border:1px solid #ddd">div</td><td style="padding:6px;border:1px solid #ddd">lang dello script</td><td style="padding:6px;border:1px solid #ddd">Override lingua per singolo widget</td></tr>
+  <tr><td style="padding:6px;border:1px solid #ddd"><code>data-input-rows</code></td><td style="padding:6px;border:1px solid #ddd">div</td><td style="padding:6px;border:1px solid #ddd">1</td><td style="padding:6px;border:1px solid #ddd">Righe iniziali input (1-3)</td></tr>
+  <tr><td style="padding:6px;border:1px solid #ddd"><code>data-response-rows</code></td><td style="padding:6px;border:1px solid #ddd">div</td><td style="padding:6px;border:1px solid #ddd">1</td><td style="padding:6px;border:1px solid #ddd">Righe iniziali risposta (1-10)</td></tr>
+</table>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2>API JavaScript</h2>
+
+<pre>// Accedi all'istanza del widget
+var widget = document.querySelector('.flussu-minicli')._flussuMC;
+
+// Cambia lingua runtime
+widget.setLang('fr');  // it | en | fr | de | es</pre>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2>Note</h2>
+<ul>
+  <li>Nessuna richiesta al server fino al primo invio dell'utente.</li>
+  <li>Le aree si espandono automaticamente col contenuto e <strong>non si rimpiccioliscono</strong>.</li>
+  <li>Il testo della risposta &egrave; selezionabile e copiabile.</li>
+  <li>La sessione &egrave; salvata in un cookie separato per ogni WID.</li>
+  <li>Invio con <kbd>Enter</kbd>. Nuova riga con <kbd>Shift+Enter</kbd>.</li>
+  <li>La lingua viene rilevata automaticamente da <code>&lt;html lang="..."&gt;</code> se non specificata.</li>
+</ul>
+
+</body>
+</html>

@@ -1,93 +1,141 @@
 {
   "flussu":{
-    "version":"4.5",
-    "release":"20250802"
+    "version":"5.0",
+    "release":"20251103"
   },
   "services": {
     "google":{
-        "type": "service_account",
-        "project_id": "nome-progetto",
-        "private_key_id": "...",
-        "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-        "client_email": "account-service@nome-progetto.iam.gserviceaccount.com",
-        "client_id": "...",
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/account-service%40nome-progetto.iam.gserviceaccount.com",
-        "universe_domain": "googleapis.com",
-        "drive_config": {
-            "mode": "shared_folder",  
-            "shared_folder_id": "1TEOQ3kXRttHerGyBzCSUouO5Mr0gSkOU",
-            "share_with": [
-                {
-                    "email": "aldo@milleisole.com",
-                    "role": "writer"
-                },
-                {
-                    "email": "altro@esempio.com",
-                    "role": "reader"
-                }
-            ]
+      "type": "service_account",
+      "project_id": "your-project-name",
+      "private_key_id": "your-private-key-id-here",
+      "private_key": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n",
+      "client_email": "your-service-account@your-project.iam.gserviceaccount.com",
+      "client_id": "000000000000000000000",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/your-service-account%40your-project.iam.gserviceaccount.com",
+      "universe_domain": "googleapis.com",
+      "drive_config": {
+        "mode": "service_account_folder",
+        "share_with": [
+          {
+            "email": "user@example.com",
+            "role": "writer"
+          }
+        ]
+      }
+    },
+    "sms_provider":{
+      "default":"JomobileSms",
+      "JomobileSms":{
+        "api_key":"your-jomobile-api-key-here",
+        "method":"get"
+      },
+      "ovh_sms":{
+        "api_key":"your-ovh-sms-api-key-here",
+        "method":"post"
+      },
+      "SmsFactor":{
+        "api_key":"your-smsfactor-jwt-token-here",
+        "method":"post"
+      }
+    },
+    "shorturl":{
+      "default":"flu_lu",
+      "flu_lu":{
+        "api_key":"your-shorturl-api-key-here",
+        "uri":"flu.lu",
+        "method":"get"
+      }
+    },
+    "email":{
+      "default":"ovh",
+      "ovh":{
+        "smtp_host":"pro1.mail.ovh.net",
+        "smtp_user":"noreply@yourdomain.com",
+        "smtp_pass":"your-smtp-password-here",
+        "smtp_port":"587",
+        "smtp_encrypt":"TLS",
+        "smtp_auth":"1"
+      },
+      "ovh_ssl0":{
+        "smtp_host":"ssl0.ovh.net",
+        "smtp_user":"dontreply@yourdomain.com",
+        "smtp_pass":"your-smtp-password-here",
+        "smtp_port":"587",
+        "smtp_encrypt":"TLS",
+        "smtp_auth":"1"
+      }
+    },
+    "pay_provider":{
+      "stripe":{
+        "your_account_name":{
+          "prod":"sk_prod_your-stripe-production-key-here",
+          "test":"sk_test_your-stripe-test-key-here",
+          "method":"post"
         }
-    },
-    "microsoft":{
-        "tenant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        "client_id": "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
-        "client_secret": "questa_è_una_secret_generata_da_azure_ad",
-        "resource": "https://graph.microsoft.com"
-    },
-    "aws":{
-      "aws_access_key_id": "AKIAXXXXXXXXEXAMPLE",
-      "aws_secret_access_key": "xxxxxx/xxxxxxxxxxxxxx/xxxxxxxxxxxxxxxEXAMPLE",
-      "region": "us-east-1"
+      },
+      "revolut":{
+        "your_account_name":{
+          "prod":"rvk_prod_your-revolut-production-key-here",
+          "test":"rvk_test_your-revolut-test-key-here",
+          "method":"post"
+        }
+      }
     },
     "ai_provider":{
       "open_ai":{
-        "auth_key":"6768-insert-your-api-key-8768",
-        "model":"o1-mini",
-        "chat-model":"o3"
+        "auth_key":"sk-proj-your-openai-api-key-here",
+        "model":"gpt-5-nano",
+        "chat-model":"gpt-4o-mini"
       },
       "xai_grok":{
-        "auth_key":"6768-insert-your-api-key-8768",
-        "model":"grok-3-mini-fast"
+        "auth_key":"xai-your-grok-api-key-here",
+        "model":"grok-4-fast-non-reasoning",
+        "chat-model":"grok-4-fast-non-reasoning"
       },
       "ggl_gemini":{
-        "auth_key":"6768-insert-your-api-key-8768",
-        "model":"gemini-2.0-flash",
-        "chat-model":"gemini-2.0-flash"
+        "auth_key":"your-gemini-api-key-here",
+        "model":"gemini-3-flash-preview",
+        "chat-model":"gemini-3-flash-preview"
       },
       "deepseek":{
-        "auth_key":"6768-insert-your-api-key-8768",
-        "model":"deepseek-reasoning",
+        "auth_key":"sk-your-deepseek-api-key-here",
+        "model":"deepseek-chat",
         "chat-model":"deepseek-chat"
       },
       "ant_claude":{
-        "auth_key":"6768-insert-your-api-key-8768",
-        "model":"claude-3-5-sonnet-20241022",
-        "chat-model":"claude-3-5-sonnet-20241022"
-      },
-      "huggingface":{
-        "auth_token":"hf_insert-your-api-token-here",
-        "model":"Helsinki-NLP/opus-mt-it-en"
+        "auth_key":"sk-ant-your-anthropic-api-key-here",
+        "model":"claude-haiku-4-5",
+        "chat-model":"claude-haiku-4-5"
       },
       "zeroone_ai":{
-        "auth_key":"6768-insert-your-api-key-8768",
+        "auth_key":"your-01ai-api-key-here",
         "model":"yi-lightning",
         "chat-model":"yi-lightning"
       },
       "kimi":{
-        "auth_key":"6768-insert-your-api-key-8768",
-        "model":"moonshot-v1-8k",
-        "chat-model":"moonshot-v1-8k"
+        "auth_key":"sk-your-kimi-api-key-here",
+        "model":"kimi-k2-0905-preview",
+        "chat-model":"kimi-k2-0905-preview"
       },
       "qwen":{
-        "auth_key":"sk-insert-your-dashscope-api-key",
+        "auth_key":"sk-your-dashscope-api-key-here",
         "model":"qwen-turbo",
         "chat-model":"qwen-turbo"
       },
+      "huggingface":{
+        "auth_token":"hf-your-huggingface-token-here",
+        "model":"Helsinki-NLP/opus-mt-it-en"
+      },
+      "moonshot":{
+        "auth_key":"sk-your-moonshot-api-key-here",
+        "model":"moonshot-v1-8k",
+        "chat-model":"moonshot-v1-8k"
+      },
       "stability_ai":{
-        "auth_key":"sk-insert-your-stability-ai-key",
+        "auth_key":"sk-your-stability-ai-key-here",
         "model":"sd3.5-large"
       }
     }
@@ -95,7 +143,7 @@
   "webhooks":{
     "zapier":{
       "sign":["Zapier"],
-      "call":"ZapierController@apiCall",
+      "call":"ZapierController@apicall",
       "credentials": [
         {
           "username": "zapier_user",
@@ -122,9 +170,8 @@
       "call":"StripeController@webhook"
     },
     "revolut":{
-      "sign":["Revolut ","/revolut "],
+      "sign":["Revolut ","revolut "],
       "call":"RevolutController@webhook"
     }
   }
 }
-  
