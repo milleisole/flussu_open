@@ -1,0 +1,17 @@
+[Unit]
+Description=Flussu Scraper Microservice (Playwright + Readability)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/flussu/services/flussu-scraper
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3100
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

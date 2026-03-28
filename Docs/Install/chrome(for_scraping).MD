@@ -1,4 +1,8 @@
-# SCRAPING
+# SCRAPING (OBSOLETO)
+> **NOTA:** Questa guida e' obsoleta. Il sistema di scraping ora usa il microservizio
+> Flussu Scraper (Playwright). Vedi [../scraper/INSTALL.md](../scraper/INSTALL.md)
+
+## Vecchia procedura (non piu' necessaria)
 per poter fare scraping è necessario installare sia 
    composer require symfony/panther:^2.2 -W
 sia

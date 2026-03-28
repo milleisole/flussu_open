@@ -213,6 +213,30 @@ class Executor{
                         $Sess->assignVars("\$".$retVarName,$reslt[0]);
                         $Sess->assignVars("\$".$retVarName."_error",$reslt[1]);
                         break;
+                    case "doScrape":
+                        $Sess->statusCallExt(true);
+                        $url=$innerParams[0];
+                        $retVarName=$innerParams[1];
+                        try{
+                            $Sess->recLog("doScrape url: ".$url);
+                            $scraper = new \Flussu\Controllers\WebScraperController();
+                            $jsonStr = $scraper->getPageContentJson($url);
+                            $data = json_decode($jsonStr, true);
+                            $Sess->assignVars("\$".$retVarName, $jsonStr);
+                            $Sess->assignVars("\$".$retVarName."_title", $data['title'] ?? '');
+                            $Sess->assignVars("\$".$retVarName."_description", $data['description'] ?? '');
+                            $Sess->assignVars("\$".$retVarName."_content", $data['content'] ?? '');
+                            $Sess->assignVars("\$".$retVarName."_author", $data['author'] ?? '');
+                            $Sess->assignVars("\$".$retVarName."_url", $data['url'] ?? '');
+                            $Sess->assignVars("\$".$retVarName."_status", strval($data['status'] ?? ''));
+                            $Sess->assignVars("\$".$retVarName."_error", $data['error'] ?? '');
+                        } catch (\Throwable $e){
+                            $Sess->recLog("doScrape - execution EXCEPTION:".json_encode($e->getMessage()));
+                            $Sess->statusError(true);
+                            $Sess->assignVars("\$".$retVarName."_error", $e->getMessage());
+                        }
+                        $Sess->statusCallExt(false);
+                        break;
                     case "sendSms":
                         $Sess->statusCallExt(true);
                         $retVarName="";

@@ -7,3 +7,12 @@ composer install
 cd bin
 chmod +x add2cron.sh
 ./add2cron.sh
+cd ..
+# Install Flussu Scraper microservice
+if [ -d "services/flussu-scraper" ]; then
+    echo "Installing Flussu Scraper..."
+    cd services/flussu-scraper
+    chmod +x install.sh
+    ./install.sh
+    cd ../..
+fi

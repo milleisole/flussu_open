@@ -383,6 +383,10 @@ class Environment {
         return json_encode($results, JSON_PRETTY_PRINT);
     }
 
+    public function doScrape($url, $retVarName){
+        $this->_addToResArray("doScrape", array($url, $retVarName));
+    }
+
     public function addToGoogleSheet($fileId, $rowArray, $sheetName="", $formulaArray=[], $TitleArray=[]){
         $this->_addToResArray("addToGoogleSheet", array($fileId, $sheetName, $rowArray, $formulaArray, $TitleArray));
     }

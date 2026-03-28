@@ -84,6 +84,11 @@
         }
       }
     },
+    "scraper":{
+      "host": "127.0.0.1",
+      "timeout": 30,
+      "enabled": true
+    },
     "ai_provider":{
       "open_ai":{
         "auth_key":"sk-proj-your-openai-api-key-here",
