@@ -139,16 +139,36 @@ async function startWorkflow(initWid,initLang = "it") {
   WID= initWid || "";
   saveDefaultChatBarHTML();
   await sendStepData({}, renderFormFlussu);
+  // v4.6 DocSpace: load attached documents from server after init
+  loadDocspaceDocuments();
 }
 
 // Chiamare dopo ogni step form
 async function submitFormStep(termObj) {
-  appendUserFormCard(lastFormElms, termObj);   
+  // v4.6 DocSpace: upload pending files, then collect server paths
+  if (typeof attachedFiles !== 'undefined' && Array.isArray(attachedFiles) && attachedFiles.length > 0) {
+    // Upload any pending files first
+    const pending = attachedFiles.filter(f => f.status === 'pending');
+    if (pending.length > 0 && typeof uploadFiles === 'function') {
+      await uploadFiles(pending);
+    }
+    // Collect server paths of successfully uploaded files
+    const docPaths = attachedFiles
+      .filter(f => f.status === 'done' && f.serverPath)
+      .map(f => f.serverPath);
+    if (docPaths.length > 0) {
+      termObj['$docspace_files'] = docPaths;
+    }
+    // Clear attachedFiles
+    attachedFiles.length = 0;
+    if (typeof renderUploadList === 'function') renderUploadList();
+  }
+  appendUserFormCard(lastFormElms, termObj);
 
   const chatForm = document.getElementById('chat-form')
-                     .querySelector('div.rounded-2xl'); 
-  disabilitaChatBar();       
-  showFormSpinner(chatForm); 
+                     .querySelector('div.rounded-2xl');
+  disabilitaChatBar();
+  showFormSpinner(chatForm);
 
   await sendStepData(termObj, (json) => {
     if (json.sid) SID = json.sid;
@@ -825,9 +845,34 @@ document.querySelectorAll('pre code').forEach((el) => {
 }
 
 
+// v4.6 DocSpace: reload document list from server
+async function loadDocspaceDocuments() {
+  if (!SID) return;
+  try {
+    const res = await fetch(`/flucli/docspace.SRV.php?action=documents&sid=${encodeURIComponent(SID)}`);
+    const json = await res.json();
+    if (json.status === 'ok' && json.documents && json.documents.length > 0 && typeof attachedFiles !== 'undefined') {
+      // Populate attachedFiles with server docs so the UI shows them
+      json.documents.forEach(doc => {
+        attachedFiles.push({
+          file: { name: doc.originalName, size: doc.sizeBytes },
+          status: 'done',
+          percent: 100,
+          serverPath: '',  // already processed, no path needed
+          docspaceId: doc.id
+        });
+      });
+      if (typeof renderUploadList === 'function') renderUploadList();
+    }
+  } catch (e) {
+    // silently fail — documents still exist on server
+  }
+}
+
 // EXPORT
 window.startWorkflow = startWorkflow;
 window.submitFormStep = submitFormStep;
 window.setLanguage = setLanguage;
 window.inviaTermUpload = inviaTermUpload;
 window.resetFlussuSession = resetFlussuSession;
+window.loadDocspaceDocuments = loadDocspaceDocuments;

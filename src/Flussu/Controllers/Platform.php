@@ -29,4 +29,5 @@ enum Platform: int {
     case QWEN = 8;
     case STABILITY = 9;  // v4.5.2 - Stability AI (Stable Diffusion) - image generation only
     case MISTRAL = 10;
+    case ZAI_GLM = 11;
 }

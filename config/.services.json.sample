@@ -142,6 +142,11 @@
         "auth_key":"sk-insert-your-mistral-api-key",
         "model":"mistral-large-latest",
         "chat-model":"mistral-large-latest"
+      },
+      "zai_glm":{
+        "auth_key":"sk-your-zai-api-key-here",
+        "model":"glm-4.5v",
+        "chat-model":"glm-4.6"
       }
     }
   },

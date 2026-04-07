@@ -297,11 +297,21 @@ class Executor{
                         // V4.3 - Send to AI
                         $Sess->statusCallExt(true);
                         $Sess->recLog("AI provider: ".$innerParams[0]);
-                        $Sess->recLog("call AI: ".$innerParams[1]);
+
+                        // V4.6 - Document Space: inject document context into prompt
+                        $sendText = $innerParams[1];
+                        $docSpace = new \Flussu\Documents\DocumentSpace($Sess->getId());
+                        if ($docSpace->hasDocuments()) {
+                            $docContext = $docSpace->getContextForAi();
+                            $sendText = $docContext . "\n\n" . $sendText;
+                            $Sess->recLog("DocSpace: injected " . strlen($docContext) . " chars of document context");
+                        }
+
+                        $Sess->recLog("call AI: ".$sendText);
                         // Use Platform enum directly from numeric value, fallback to CHATGPT if invalid
                         $platform = Platform::tryFrom((int)$innerParams[0]) ?? Platform::CHATGPT;
                         $ctrl = new AiChatController($platform);
-                        $reslt=$ctrl->chat($Sess->getId(), $innerParams[1]);
+                        $reslt=$ctrl->chat($Sess->getId(), $sendText);
                         if ($reslt[0]!="Ok"){
                             $Sess->recLog("AI response: ".json_encode($reslt[1]));
                             $Sess->statusError(true);
@@ -347,6 +357,7 @@ class Executor{
                         break;
                     case "generateImage":
                         // V4.5.2 - Generate image with AI (DALL-E 3)
+                        // V4.6 - Generated files now saved in session's docspace/generated/
                         $Sess->statusCallExt(true);
                         $Sess->recLog("AI image generation - provider: ".$innerParams[0]);
                         $Sess->recLog("AI image prompt: ".$innerParams[1]);
@@ -358,9 +369,39 @@ class Executor{
                         if ($reslt[0] != "Ok") {
                             $Sess->recLog("AI image generation error: " . json_encode($reslt[1]));
                             $Sess->statusError(true);
+                        } else {
+                            // Copy generated file into session's docspace/generated/
+                            $docSpace = new \Flussu\Documents\DocumentSpace($Sess->getId());
+                            $genUrl = $reslt[1]; // URL from AiMediaController
+                            // Extract filename from URL and copy file
+                            $genFilename = basename(parse_url($genUrl, PHP_URL_PATH));
+                            $origPath = $_SERVER['DOCUMENT_ROOT'] . parse_url($genUrl, PHP_URL_PATH);
+                            if (file_exists($origPath)) {
+                                $genResult = $docSpace->addGenerated(file_get_contents($origPath), $genFilename, 'image/png');
+                                $reslt[1] = $genResult['url']; // Replace URL with docspace URL
+                                $Sess->recLog("DocSpace generated: " . $genFilename);
+                            }
                         }
                         $Sess->assignVars($innerParams[2], $reslt[1]);
                         $Sess->statusCallExt(false);
+                        break;
+                    case "addDocToSpace":
+                        // V4.6 - Add document to session's Document Space
+                        $docSpace = new \Flussu\Documents\DocumentSpace($Sess->getId());
+                        $dsResult = $docSpace->addDocument($innerParams[0], $innerParams[1]);
+                        $Sess->recLog("DocSpace add: " . $innerParams[1] . " -> " . ($dsResult['success'] ? 'OK' : $dsResult['error']));
+                        break;
+                    case "clearDocSpace":
+                        // V4.6 - Clear session's Document Space
+                        \Flussu\Documents\DocumentSpace::cleanup($Sess->getId());
+                        $Sess->recLog("DocSpace cleared");
+                        break;
+                    case "listGenFiles":
+                        // V4.6 - List generated files in session's Document Space
+                        $docSpace = new \Flussu\Documents\DocumentSpace($Sess->getId());
+                        $genFiles = $docSpace->getGeneratedFiles();
+                        $Sess->assignVars($innerParams[0], json_encode($genFiles));
+                        $Sess->recLog("DocSpace listGenFiles: " . count($genFiles) . " files");
                         break;
                 /*
                     case "openAi":

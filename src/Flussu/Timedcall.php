@@ -177,6 +177,24 @@ class Timedcall
                 echo $m_time->format("Y-m-d H:i:s") . " is in the future.\r\n";
             }
         }
+        // V4.6 - Cleanup orphaned document spaces (sessions ended abnormally)
+        // Convert PHP warnings (unlink/rmdir/chmod) into ErrorExceptions so failures are not silent.
+        set_error_handler(function ($severity, $message, $file, $line) {
+            if (!(error_reporting() & $severity)) return false;
+            throw new \ErrorException($message, 0, $severity, $file, $line);
+        });
+        try {
+            $cleaned = \Flussu\Documents\DocumentSpace::cleanupOrphaned(4);
+            if ($cleaned > 0) {
+                echo "DocSpace: cleaned $cleaned orphaned spaces\r\n";
+                General::Log2("DocSpace: cleaned $cleaned orphaned spaces", $this->_logDir);
+            }
+        } catch (\Throwable $e) {
+            General::Log2("DocSpace cleanup error: " . $e->getMessage(), $this->_logDir);
+        } finally {
+            restore_error_handler();
+        }
+
         General::Log2("Timedcall: end",$this->_logDir);
         echo "\r\n\033[01;32m" . date("Y-m-d H:i:s") . "\033[0m - end\r\n---------------------------\r\n";
     }

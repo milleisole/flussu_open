@@ -121,6 +121,13 @@ $aiProviders = [
         'config_key' => 'services.ai_provider.mistral.auth_key',
         'model_key' => 'services.ai_provider.mistral.model',
         'default_model' => 'mistral-large-latest'
+    ],
+    [
+        'name' => 'Z.AI GLM',
+        'platform' => Platform::ZAI_GLM,
+        'config_key' => 'services.ai_provider.zai_glm.auth_key',
+        'model_key' => 'services.ai_provider.zai_glm.chat-model',
+        'default_model' => 'glm-4.6'
     ]
 ];
 

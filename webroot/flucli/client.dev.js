@@ -72,12 +72,6 @@ chatForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (isUploading) return;
   const text = chatInput.value.trim();
-  if (attachedFiles.some(f=>f.status==='pending')) {
-    isUploading = true;
-    checkSendBtn();
-    await uploadFiles(attachedFiles.filter(f=>f.status==='pending'));
-    isUploading = false;
-  }
   if (text || attachedFiles.length > 0) {
     appendMessage({ role: 'user', content: text, files: [] });
     chatInput.value = "";
@@ -100,6 +94,10 @@ function uploadSingleFileObj(fobj) {
   return new Promise((resolve) => {
     const formData = new FormData();
     formData.append('file', fobj.file);
+    // v4.6 DocSpace: pass SID so the server processes into docspace directly
+    if (typeof SID !== 'undefined' && SID) {
+      formData.append('sid', SID);
+    }
     const xhr = new XMLHttpRequest();
     xhr.open('POST', 'upload.SRV.php', true);
     xhr.upload.onprogress = function (e) {
@@ -114,7 +112,12 @@ function uploadSingleFileObj(fobj) {
       if (xhr.status === 200) {
         let res;
         try { res = JSON.parse(xhr.responseText); } catch (e) { res = null; }
-        fobj.status = (res && res.status === 'ok') ? 'done' : 'error';
+        if (res && res.status === 'ok') {
+          fobj.status = 'done';
+          fobj.serverPath = res.path || '';  // v4.6 DocSpace: capture server path
+        } else {
+          fobj.status = 'error';
+        }
       } else {
         fobj.status = 'error';
       }

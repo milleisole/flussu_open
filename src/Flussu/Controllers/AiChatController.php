@@ -42,6 +42,7 @@ use Flussu\Api\Ai\FlussuKimiAi;
 use Flussu\Api\Ai\FlussuQwenAi;
 use Flussu\Api\Ai\FlussuStabilityAi;
 use Flussu\Api\Ai\FlussuMistralAi;
+use Flussu\Api\Ai\FlussuZaiGlmAi;
 use Log;
 
 class AiChatController 
@@ -92,6 +93,10 @@ class AiChatController
                 break;
             case Platform::MISTRAL:
                 $this->_aiClient= new FlussuMistralAi($model, $chat_model);
+                $this->_linkify=0;
+                break;
+            case Platform::ZAI_GLM:
+                $this->_aiClient= new FlussuZaiGlmAi($model, $chat_model);
                 $this->_linkify=0;
                 break;
         }

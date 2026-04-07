@@ -219,6 +219,11 @@ class Environment {
     public function analyzeMediaWithAi  ($filePath, $prompt, $varResponseName, $provider=0)          {$this->_addToResArray("analyzeMedia", array($provider, $filePath, $prompt, $varResponseName));}
     public function generateImageWithAi ($prompt, $varFileUrlName, $provider=0, $size="1024x1024", $quality="standard") {$this->_addToResArray("generateImage", array($provider, $prompt, $varFileUrlName, $size, $quality));}
 
+    // v4.6 Document Space
+    public function addDocToSpace        ($filePath, $originalName=null)  {$this->_addToResArray("addDocToSpace", array($filePath, $originalName ?? basename($filePath)));}
+    public function clearDocSpace        ()                               {$this->_addToResArray("clearDocSpace", array());}
+    public function listGeneratedFiles   ($varName)                       {$this->_addToResArray("listGenFiles", array($varName));}
+
 /*
     // v2.8 OpenAi Query
     public function queryOpenAi         ($textQuery,$varResponseName)   {$this->_addToResArray("openAi", array($textQuery,$varResponseName));}

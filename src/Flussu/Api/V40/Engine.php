@@ -324,6 +324,43 @@ class Engine {
             $terms=$attachedFile->Terms;
             // ------------------------------------------
 
+            // -----------------------------------------
+            //  DOCUMENT SPACE - v4.6
+            //  Scansiona /Uploads/temp/ per file dsp_* in attesa
+            //  di essere processati nel DocumentSpace della sessione.
+            //  Supporta anche $docspace_files nei terms (API diretta).
+            // -----------------------------------------
+            if (!empty($sid)) {
+                $tempDir = $_SERVER['DOCUMENT_ROOT'] . "/../Uploads/temp/";
+                $dspFiles = glob($tempDir . "dsp_*");
+                if (!empty($dspFiles)) {
+                    $docSpace = new \Flussu\Documents\DocumentSpace($sid);
+                    foreach ($dspFiles as $dspFile) {
+                        if (!is_file($dspFile)) continue;
+                        $originalName = preg_replace('/^dsp_[a-f0-9]+_/', '', basename($dspFile));
+                        $result = $docSpace->addDocument($dspFile, $originalName);
+                        if ($result['success']) {
+                            unlink($dspFile); // rimuovi da temp dopo il processing
+                        }
+                    }
+                }
+                // Supporto API diretta tramite $docspace_files nei terms
+                $docspaceFiles = $terms['$docspace_files'] ?? null;
+                if ($docspaceFiles) {
+                    if (is_string($docspaceFiles)) {
+                        $docspaceFiles = json_decode($docspaceFiles, true);
+                    }
+                    if (is_array($docspaceFiles) && !empty($docspaceFiles)) {
+                        $docSpace = $docSpace ?? new \Flussu\Documents\DocumentSpace($sid);
+                        foreach ($docspaceFiles as $dsFile) {
+                            $docSpace->addDocument($dsFile, basename($dsFile));
+                        }
+                    }
+                    unset($terms['$docspace_files']);
+                }
+            }
+            // ------------------------------------------
+
             if (!empty($sid)){
                 $frmBid2=General::montanara($bid,substr(str_replace("-","",$sid),5,5));
                 if (!empty($frmBid2))
