@@ -27,6 +27,9 @@ use Flussu\Contracts\IAiProvider;
 use Flussu\General;
 use Claude\Claude3Api\Client;
 use Claude\Claude3Api\Config;
+use Claude\Claude3Api\Models\Message;
+use Claude\Claude3Api\Models\Content\TextContent;
+use Claude\Claude3Api\Requests\MessageRequest;
 use Log;
 use Exception;
 
@@ -101,6 +104,105 @@ class FlussuClaudeAi implements IAiProvider
         }
         $resChat=[$sendArray, $response->getContent()[0]['text'], $tokenUsage];
         return $resChat;
+    }
+
+    /**
+     * v4.6 - Tool-use / function-calling path for $LLMextra.
+     *
+     * Builds an Anthropic Messages request with tools, tool_choice, system,
+     * temperature, max_tokens (all optional) and returns a normalized
+     * response shaped like the UPrompt `LLMextra` contract.
+     *
+     * @param string $userText   User prompt (becomes the single "user" message).
+     * @param array  $extra      Parsed LLMextra payload (model, tools, tool_choice, system, temperature, max_tokens).
+     * @return array             [string $textReply, ?array $tokenUsage, array $llmExtra]
+     *                           - $textReply: '' on tool_use, else the assistant text
+     *                           - $tokenUsage: ['model', 'input', 'output'] for $INFO
+     *                           - $llmExtra: normalized response object to forward to the caller
+     */
+    public function chatExtra(string $userText, array $extra): array {
+        $model = !empty($extra['model']) ? (string)$extra['model'] : $this->_claude_chat_model;
+        $tools = isset($extra['tools']) && is_array($extra['tools']) ? $extra['tools'] : [];
+        $toolChoice = isset($extra['tool_choice']) && is_array($extra['tool_choice'])
+            ? $extra['tool_choice']
+            : ['type' => 'any'];
+        $system = isset($extra['system']) ? (string)$extra['system'] : null;
+        $temperature = isset($extra['temperature']) ? (float)$extra['temperature'] : 0.0;
+        $maxTokens = isset($extra['max_tokens']) ? (int)$extra['max_tokens'] : 1024;
+
+        $req = new MessageRequest();
+        $req->setModel($model);
+        $req->setMaxTokens($maxTokens);
+        $req->setTemperature($temperature);
+        if ($system !== null && $system !== '') {
+            $req->setSystem($system);
+        }
+        foreach ($tools as $tool) {
+            if (is_array($tool)) {
+                $req->addTool($tool);
+            }
+        }
+        if (!empty($tools)) {
+            $req->setToolChoice($toolChoice);
+        }
+        $req->addMessage(new Message('user', [new TextContent($userText)]));
+
+        try {
+            $response = $this->_claude3->sendMessage($req);
+        } catch (\Throwable $e) {
+            return ['', null, [
+                'type' => 'error',
+                'error' => $e->getMessage(),
+                'model' => $model,
+            ]];
+        }
+
+        $stopReason = $response->getStopReason();
+        $content = $response->getContent();
+        $usage = $response->getUsage();
+        $respModel = $response->getModel() ?? $model;
+
+        $toolUse = null;
+        $textOut = '';
+        if (is_array($content)) {
+            foreach ($content as $block) {
+                $bt = $block['type'] ?? null;
+                if ($bt === 'tool_use' && $toolUse === null) {
+                    $toolUse = [
+                        'name'  => $block['name']  ?? '',
+                        'input' => $block['input'] ?? new \stdClass(),
+                    ];
+                } elseif ($bt === 'text') {
+                    $textOut .= $block['text'] ?? '';
+                }
+            }
+        }
+
+        $llmExtra = [
+            'stop_reason' => $stopReason,
+            'model'       => $respModel,
+            'usage'       => [
+                'input_tokens'  => $usage['input_tokens']  ?? 0,
+                'output_tokens' => $usage['output_tokens'] ?? 0,
+            ],
+        ];
+        if ($toolUse !== null) {
+            $llmExtra['type'] = 'tool_use';
+            $llmExtra['tool_use'] = $toolUse;
+            $textReply = '';
+        } else {
+            $llmExtra['type'] = 'text';
+            $llmExtra['text'] = $textOut;
+            $textReply = $textOut;
+        }
+
+        $tokenUsage = [
+            'model'  => $respModel,
+            'input'  => $llmExtra['usage']['input_tokens'],
+            'output' => $llmExtra['usage']['output_tokens'],
+        ];
+
+        return [$textReply, $tokenUsage, $llmExtra];
     }
 
     // v4.5.2 - AI Media Exchange: Vision

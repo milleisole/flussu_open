@@ -497,6 +497,13 @@ class Engine {
                 // Clear INFO from session after sending
                 $wSess->assignVars('$INFO', '');
             }
+            // V4.6 - Include LLMextra (tool-use response) if the last sendToAi step produced one
+            $llmExtraOut = $wSess->getVarValue('$LLMEXTRA_OUT');
+            if (!empty($llmExtraOut)) {
+                $decoded = is_string($llmExtraOut) ? json_decode($llmExtraOut, true) : $llmExtraOut;
+                $res["LLMextra"] = is_array($decoded) ? $decoded : $llmExtraOut;
+                $wSess->assignVars('$LLMEXTRA_OUT', '');
+            }
         }
         return $res;
     }

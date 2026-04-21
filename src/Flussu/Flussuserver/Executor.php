@@ -308,6 +308,62 @@ class Executor{
                         }
 
                         $Sess->recLog("call AI: ".$sendText);
+
+                        // V4.6 - $LLMextra: optional TRM-supplied JSON enabling tool-use / function-calling.
+                        // If present, override $setAgent-based provider selection using LLMextra.model,
+                        // forward tools/tool_choice/system/temperature/max_tokens, and expose the normalized
+                        // response as session var $LLMEXTRA_OUT (Engine promotes it to top-level "LLMextra").
+                        $llmExtraRaw = $Sess->getVarValue('$LLMextra');
+                        $llmExtra = null;
+                        if (!empty($llmExtraRaw) && is_string($llmExtraRaw)) {
+                            $decoded = json_decode($llmExtraRaw, true);
+                            if (is_array($decoded)) {
+                                $llmExtra = $decoded;
+                            } else {
+                                $Sess->recLog("LLMextra: JSON parse failed, falling back to standard flow");
+                            }
+                            // consume the input so it doesn't leak into the next step
+                            $Sess->removeVars('$LLMextra');
+                        }
+
+                        if ($llmExtra !== null) {
+                            // Pick provider from LLMextra.model prefix; fall back to workflow-declared platform.
+                            $fallbackPlatform = Platform::tryFrom((int)$innerParams[0]) ?? Platform::CHATGPT;
+                            $modelId = isset($llmExtra['model']) ? (string)$llmExtra['model'] : '';
+                            $platform = $fallbackPlatform;
+                            if ($modelId !== '') {
+                                $ml = strtolower($modelId);
+                                if (str_starts_with($ml, 'claude-'))       $platform = Platform::CLAUDE;
+                                elseif (str_starts_with($ml, 'gpt-'))      $platform = Platform::CHATGPT;
+                                elseif (str_starts_with($ml, 'gemini-'))   $platform = Platform::GEMINI;
+                                elseif (str_starts_with($ml, 'grok-'))     $platform = Platform::GROK;
+                                elseif (str_starts_with($ml, 'deepseek-')) $platform = Platform::DEEPSEEK;
+                                elseif (str_starts_with($ml, 'mistral-'))  $platform = Platform::MISTRAL;
+                            }
+                            $Sess->recLog("LLMextra: provider=".$platform->name." model=".$modelId);
+                            $ctrl = new AiChatController($platform, $modelId, $modelId);
+                            $reslt = $ctrl->chatExtra($Sess->getId(), $sendText, $llmExtra);
+                            if ($reslt[0] !== "Ok") {
+                                $Sess->recLog("AI LLMextra error: ".json_encode($reslt[1]));
+                                $Sess->statusError(true);
+                            }
+                            $Sess->assignVars($innerParams[2], $reslt[1]);
+                            if (isset($reslt[2]) && is_array($reslt[2])) {
+                                $tokenInfo = [
+                                    'MDL' => $reslt[2]['model']  ?? 'unknown',
+                                    'CTI' => $reslt[2]['input']  ?? 0,
+                                    'CTO' => $reslt[2]['output'] ?? 0
+                                ];
+                                $Sess->assignVars('$INFO', json_encode($tokenInfo));
+                                $Sess->recLog("AI tokens - MDL:".$tokenInfo['MDL']." - IN: ".$tokenInfo['CTI']." - OUT: ".$tokenInfo['CTO']);
+                            }
+                            if (isset($reslt[3]) && is_array($reslt[3])) {
+                                $Sess->assignVars('$LLMEXTRA_OUT', json_encode($reslt[3]));
+                                $Sess->recLog("LLMextra out: type=".($reslt[3]['type'] ?? '?')." stop=".($reslt[3]['stop_reason'] ?? '?'));
+                            }
+                            break;
+                        }
+
                         // Use Platform enum directly from numeric value, fallback to CHATGPT if invalid
                         $platform = Platform::tryFrom((int)$innerParams[0]) ?? Platform::CHATGPT;
                         $ctrl = new AiChatController($platform);

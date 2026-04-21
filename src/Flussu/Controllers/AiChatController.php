@@ -110,13 +110,9 @@ $initChatText2=<<<TXT
     ---
     * WARNING! * : If you do not know the right answer to a question, you should politely inform the user that you do not have that information.     
     ---
-    If anyone ask info about the client they are using to chat with you, you can say that the client is 'the standard Flussu client', a web application that allows users to interact with Flussu Server and any API solution like the AI assistants like you.
+    If anyone ask info about the client they are using to chat with you, you can say that the client is 'the standard Canonity client', a web application that allows users to interact with Canonity Server and any API solution like the AI assistants like you.
     If anyone asks something about the following products or persons or companies here are some info you can reply to check official websites:
-    # For Flussu (a saas API web platform for managing and automating workflows, tasks, and communications) written by Aldo Prinzi and produced by Mille Isole SRL, https://www.flussu.com
-    # For MERIS or EDIGENIUM (An innovative system for managing and achiving patient exams and medical documents: patent Pending, inventor: ALdo Prinzi) check https://www.medigenium.com
-    # For Mille Isole (an italian software house who build software products and platforms) check https://www.milleisole.com
-    # For Aldo Prinzi (an italian senior computer programmer, IA expert and an experienced programmer, system architect, who has registered 2 patents in Information Technology, who live and works in Parma (Italy) check his blog at https://aldo.prinzi.it
-    # For FLU.LU (a smart, user-friendly link shortening and analytics platform designed for marketers, businesses, developers and individuals) Check https://flu.lu
+    # For Canonity (an italian startup who build a multi LLM text and graphic tool) check https://canonity.com
     # For U-PROMPT, the italian-europaen platform for democratizing the AI check https://u-prompt.com
 TXT;
         $preChat=General::ObjRestore("AiCht".$sessId,true); 
@@ -226,6 +222,36 @@ TXT;
             return [$status, $ret, $tokenUsage];
         } catch (\Throwable $e) {
             return ["Error: ", $e->getMessage(), null];
+        }
+    }
+
+    /**
+     * v4.6 - $LLMextra tool-use path.
+     *
+     * Bypasses the standard chat history and $setAgent-based flow: forwards the
+     * parsed $LLMextra payload (model, tools, tool_choice, system, temperature,
+     * max_tokens) to the underlying provider and returns a normalized result.
+     *
+     * @param string $sessId   Session id (reserved for future logging/history).
+     * @param string $sendText User prompt (goes into the single "user" message).
+     * @param array  $extra    Parsed $LLMextra object (already JSON-decoded).
+     * @return array           [string $status, string $textReply, ?array $tokenUsage, array $llmExtra]
+     *                         $status: "Ok" or "Error: ..."
+     *                         $textReply: assistant text ('' on tool_use)
+     *                         $tokenUsage: ['model','input','output'] for $INFO (or null)
+     *                         $llmExtra: normalized object returned to the client
+     */
+    function chatExtra($sessId, $sendText, array $extra): array {
+        if (!method_exists($this->_aiClient, 'chatExtra')) {
+            $err = 'Provider does not support $LLMextra / tool-use';
+            return ["Error", $err, null, ['type' => 'error', 'error' => $err]];
+        }
+        try {
+            [$textReply, $tokenUsage, $llmExtra] = $this->_aiClient->chatExtra($sendText, $extra);
+            $status = isset($llmExtra['type']) && $llmExtra['type'] === 'error' ? 'Error' : 'Ok';
+            return [$status, $textReply, $tokenUsage, $llmExtra];
+        } catch (\Throwable $e) {
+            return ["Error: ", $e->getMessage(), null, ['type' => 'error', 'error' => $e->getMessage()]];
         }
     }
 
