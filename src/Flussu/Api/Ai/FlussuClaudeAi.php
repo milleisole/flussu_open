@@ -25,11 +25,7 @@
 namespace Flussu\Api\Ai;
 use Flussu\Contracts\IAiProvider;
 use Flussu\General;
-use Claude\Claude3Api\Client;
-use Claude\Claude3Api\Config;
-use Claude\Claude3Api\Models\Message;
-use Claude\Claude3Api\Models\Content\TextContent;
-use Claude\Claude3Api\Requests\MessageRequest;
+use ClaudePhp\ClaudePhp;
 use Log;
 use Exception;
 
@@ -62,8 +58,7 @@ class FlussuClaudeAi implements IAiProvider
                     $this->_claude_chat_model=config("services.ai_provider.ant_claude.chat-model");
             }
 
-            $config = new Config($this->_claude_key );
-            $this->_claude3 = new Client($config);
+            $this->_claude3 = new ClaudePhp(apiKey: $this->_claude_key);
         }
     }
 
@@ -84,26 +79,27 @@ class FlussuClaudeAi implements IAiProvider
 
     private function _chatContinue($sendArray){
         try{
-            $response = $this->_claude3->chat([
-                'model' => $this->_claude_chat_model,
-                'messages' => $sendArray
+            $response = $this->_claude3->messages()->create([
+                'model'      => $this->_claude_chat_model,
+                'max_tokens' => 1024,
+                'messages'   => $sendArray,
             ]);
         } catch (\Throwable $e) {
             //Log::error("Claude API Error: " . $e->getMessage());
             return "Error: no response. Details: " . $e->getMessage();
         }
-        // Extract token usage if available
-        $tokenUsage = null;
-        if (method_exists($response, 'getUsage')) {
-            $usage = $response->getUsage();
-            $tokenUsage = [
-                'model' => $this->_claude_chat_model,
-                'input' => $usage['input_tokens'] ?? 0,
-                'output' => $usage['output_tokens'] ?? 0
-            ];
+        $tokenUsage = [
+            'model'  => $this->_claude_chat_model,
+            'input'  => $response->usage->input_tokens,
+            'output' => $response->usage->output_tokens,
+        ];
+        $textOut = '';
+        foreach ($response->content as $block) {
+            if (($block['type'] ?? null) === 'text') {
+                $textOut .= $block['text'] ?? '';
+            }
         }
-        $resChat=[$sendArray, $response->getContent()[0]['text'], $tokenUsage];
-        return $resChat;
+        return [$sendArray, $textOut, $tokenUsage];
     }
 
     /**
@@ -130,25 +126,25 @@ class FlussuClaudeAi implements IAiProvider
         $temperature = isset($extra['temperature']) ? (float)$extra['temperature'] : 0.0;
         $maxTokens = isset($extra['max_tokens']) ? (int)$extra['max_tokens'] : 1024;
 
-        $req = new MessageRequest();
-        $req->setModel($model);
-        $req->setMaxTokens($maxTokens);
-        $req->setTemperature($temperature);
+        $payload = [
+            'model'       => $model,
+            'max_tokens'  => $maxTokens,
+            'temperature' => $temperature,
+            'messages'    => [
+                ['role' => 'user', 'content' => $userText],
+            ],
+        ];
         if ($system !== null && $system !== '') {
-            $req->setSystem($system);
+            $payload['system'] = $system;
         }
-        foreach ($tools as $tool) {
-            if (is_array($tool)) {
-                $req->addTool($tool);
-            }
+        $filteredTools = array_values(array_filter($tools, 'is_array'));
+        if (!empty($filteredTools)) {
+            $payload['tools'] = $filteredTools;
+            $payload['tool_choice'] = $toolChoice;
         }
-        if (!empty($tools)) {
-            $req->setToolChoice($toolChoice);
-        }
-        $req->addMessage(new Message('user', [new TextContent($userText)]));
 
         try {
-            $response = $this->_claude3->sendMessage($req);
+            $response = $this->_claude3->messages()->create($payload);
         } catch (\Throwable $e) {
             return ['', null, [
                 'type' => 'error',
@@ -157,10 +153,13 @@ class FlussuClaudeAi implements IAiProvider
             ]];
         }
 
-        $stopReason = $response->getStopReason();
-        $content = $response->getContent();
-        $usage = $response->getUsage();
-        $respModel = $response->getModel() ?? $model;
+        $stopReason = $response->stop_reason;
+        $content    = $response->content;
+        $respModel  = $response->model ?? $model;
+        $usage      = [
+            'input_tokens'  => $response->usage->input_tokens,
+            'output_tokens' => $response->usage->output_tokens,
+        ];
 
         $toolUse = null;
         $textOut = '';
