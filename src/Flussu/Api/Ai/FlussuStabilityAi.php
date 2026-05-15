@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.2 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0- Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Flussu Stability AI interface - v1.0
  * CREATED DATE:     22.02.2026 - Aldus - Flussu v4.5.2
- * VERSION REL.:     4.5.2 20260222
- * UPDATE DATE:      22.02:2026 - Aldus
+ * VERSION REL.:     5.0 -def- 20260426
+ * UPDATE DATE:      26.04:2026 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  * Stability AI provider for Stable Diffusion image generation.
  * Supports SD3, SD3.5, SDXL models via api.stability.ai

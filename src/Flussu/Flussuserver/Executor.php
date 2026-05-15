@@ -414,11 +414,16 @@ class Executor{
                     case "generateImage":
                         // V4.5.2 - Generate image with AI (DALL-E 3)
                         // V4.6 - Generated files now saved in session's docspace/generated/
+                        // V5.0 - resolveImageProvider() lets non-image-capable providers (e.g. GROK)
+                        //        delegate image generation to a configured fallback (e.g. TOGETHER/FLUX).
                         $Sess->statusCallExt(true);
                         $Sess->recLog("AI image generation - provider: ".$innerParams[0]);
                         $Sess->recLog("AI image prompt: ".$innerParams[1]);
                         $platform = Platform::tryFrom((int)$innerParams[0]) ?? Platform::CHATGPT;
-                        $mediaCtrl = new AiMediaController($platform);
+                        $imgPlatform = $platform->resolveImageProvider();
+                        if ($imgPlatform !== $platform)
+                            $Sess->recLog("AI image provider redirected: " . $platform->name . " → " . $imgPlatform->name);
+                        $mediaCtrl = new AiMediaController($imgPlatform);
                         $imgSize = $innerParams[3] ?? "1024x1024";
                         $imgQuality = $innerParams[4] ?? "standard";
                         $reslt = $mediaCtrl->generateImage($Sess->getId(), $innerParams[1], $imgSize, $imgQuality);
@@ -439,6 +444,16 @@ class Executor{
                             }
                         }
                         $Sess->assignVars($innerParams[2], $reslt[1]);
+                        // V5.0 - Log image-gen token usage (synthetic for image APIs: output=N images)
+                        if (isset($reslt[2]) && is_array($reslt[2])) {
+                            $tokenInfo = [
+                                'MDL' => $reslt[2]['model'] ?? 'unknown',
+                                'CTI' => $reslt[2]['input'] ?? 0,
+                                'CTO' => $reslt[2]['output'] ?? 0,
+                            ];
+                            $Sess->assignVars('$INFO', json_encode($tokenInfo));
+                            $Sess->recLog("AI image tokens - MDL:" . $tokenInfo['MDL'] . " - IN: ".$tokenInfo['CTI']." - OUT: ".$tokenInfo['CTO']);
+                        }
                         $Sess->statusCallExt(false);
                         break;
                     case "addDocToSpace":

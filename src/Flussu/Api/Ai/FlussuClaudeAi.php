@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0- Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,13 +23,15 @@
  * Added: Vision support (Claude 3.5 Sonnet)
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
+use Flussu\Config;
 use Flussu\Contracts\IAiProvider;
+use Flussu\Contracts\IAiProviderExtra;
 use Flussu\General;
 use ClaudePhp\ClaudePhp;
 use Log;
 use Exception;
 
-class FlussuClaudeAi implements IAiProvider
+class FlussuClaudeAi implements IAiProvider, IAiProviderExtra
 {
     private $_aiErrorState=false;
     private $_claude3;
@@ -38,7 +40,7 @@ class FlussuClaudeAi implements IAiProvider
     private $_claude_chat_model="";
     
     public function canBrowseWeb(){
-        return false;
+        return true;
     }
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_claude3)){
@@ -82,6 +84,7 @@ class FlussuClaudeAi implements IAiProvider
             $response = $this->_claude3->messages()->create([
                 'model'      => $this->_claude_chat_model,
                 'max_tokens' => 1024,
+                'temperature'=> (float) Config::init()->aiTemperature('ant_claude'),
                 'messages'   => $sendArray,
             ]);
         } catch (\Throwable $e) {
@@ -123,7 +126,9 @@ class FlussuClaudeAi implements IAiProvider
             ? $extra['tool_choice']
             : ['type' => 'any'];
         $system = isset($extra['system']) ? (string)$extra['system'] : null;
-        $temperature = isset($extra['temperature']) ? (float)$extra['temperature'] : 0.0;
+        $temperature = isset($extra['temperature'])
+            ? (float)$extra['temperature']
+            : (float) Config::init()->aiTemperature('ant_claude');
         $maxTokens = isset($extra['max_tokens']) ? (int)$extra['max_tokens'] : 1024;
 
         $payload = [
@@ -258,11 +263,78 @@ class FlussuClaudeAi implements IAiProvider
         return ["error" => "Image generation not supported by Claude"];
     }
 
-    function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
-        /*
+    /**
+     * v5.x — Native web research via Anthropic web_search tool.
+     * Returns [history, replyText, tokenUsage] like chat().
+     */
+    function chat_WebPreview($sendText, $session="", $max_output_tokens=1024, $temperature=null){
+        if ($temperature === null) {
+            $temperature = (float) Config::init()->aiTemperature('ant_claude');
+        }
+        $payload = [
+            'model'       => $this->_claude_chat_model,
+            'max_tokens'  => $max_output_tokens,
+            'temperature' => $temperature,
+            'messages'    => [['role' => 'user', 'content' => $sendText]],
+            'tools'       => [[
+                'type'     => 'web_search_20250305',
+                'name'     => 'web_search',
+                'max_uses' => 5,
+            ]],
+        ];
+        try {
+            $response = $this->_claude3->messages()->create($payload);
+        } catch (\Throwable $e) {
+            return [[['role' => 'user', 'content' => $sendText]],
+                    "Error: web_search via Anthropic failed: " . $e->getMessage(),
+                    null];
+        }
 
-        */
-        return [];
+        $textOut   = '';
+        $citations = [];
+        if (is_array($response->content)) {
+            foreach ($response->content as $block) {
+                $type = $block['type'] ?? null;
+                if ($type === 'text') {
+                    $textOut .= (string)($block['text'] ?? '');
+                    if (!empty($block['citations']) && is_array($block['citations'])) {
+                        foreach ($block['citations'] as $c) {
+                            $url = $c['url'] ?? null;
+                            $title = $c['title'] ?? '';
+                            if (!empty($url) && !isset($citations[$url])) {
+                                $citations[$url] = $title !== '' ? $title : $url;
+                            }
+                        }
+                    }
+                } elseif ($type === 'web_search_tool_result' && !empty($block['content']) && is_array($block['content'])) {
+                    foreach ($block['content'] as $item) {
+                        $url = $item['url'] ?? null;
+                        $title = $item['title'] ?? '';
+                        if (!empty($url) && !isset($citations[$url])) {
+                            $citations[$url] = $title !== '' ? $title : $url;
+                        }
+                    }
+                }
+            }
+        }
+        $textOut = trim($textOut);
+        if (!empty($citations)) {
+            $lines = ["", "---", "> **Fonti:**"];
+            $i = 1;
+            foreach ($citations as $u => $t) {
+                $lines[] = "> [$i] [$t]($u)";
+                $i++;
+            }
+            $textOut .= "\n" . implode("\n", $lines);
+        }
+
+        $tokenUsage = [
+            'model'  => $this->_claude_chat_model,
+            'input'  => $response->usage->input_tokens  ?? 0,
+            'output' => $response->usage->output_tokens ?? 0,
+        ];
+        $history = [['role' => 'user', 'content' => $sendText]];
+        return [$history, $textOut, $tokenUsage];
     }
 }
  /*-------------

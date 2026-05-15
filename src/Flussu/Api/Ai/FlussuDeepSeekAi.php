@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0- Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@
  * 
  * CLASS-NAME:       Flussu DeepSeek interface - v1.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.5.1 20250820 
- * UPDATE DATE:      20.08:2025 - Aldus
+ * VERSION REL.:     5.0 -def- 20260426
+ * UPDATE DATE:      26.04:2026 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
+use Flussu\Config;
 use Flussu\Contracts\IAiProvider;
 use Flussu\General;
 use DeepSeek\DeepSeekClient;
@@ -78,10 +79,10 @@ class FlussuDeepSeekAi implements IAiProvider
 
     private function _chatContinue($arrayText){
         try{
-            $result = $this->_deepseek->query(json_encode(["messages"=>$arrayText]))->withModel($this->_deepseek_chat_model)->run();
+            $temperature = (float) Config::init()->aiTemperature('deepseek');
+            $result = $this->_deepseek->query(json_encode(["messages"=>$arrayText]))->withModel($this->_deepseek_chat_model)->setTemperature($temperature)->run();
         } catch (\Throwable $e) {
-            //Log::error("Claude API Error: " . $e->getMessage());
-            return "Error: no response. Details: " . $e->getMessage();
+            return [$arrayText, "Error: no response. Details: " . $e->getMessage(), null];
         }
         $res=json_decode($result, true);
         // Extract token usage if available
@@ -106,8 +107,11 @@ class FlussuDeepSeekAi implements IAiProvider
         return ["error" => "Image generation not supported by DeepSeek"];
     }
 
-    function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
-        $result = $this->_deepseek->query($sendText)->withTemperature($temperature)->run();
+    function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=null){
+        if ($temperature === null) {
+            $temperature = (float) Config::init()->aiTemperature('deepseek');
+        }
+        $result = $this->_deepseek->query($sendText)->setTemperature($temperature)->run();
         return $result;
     }
 }

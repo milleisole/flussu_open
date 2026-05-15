@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0- Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@
  * 
  * CLASS-NAME:       Flussu OpenAi interface - v2.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.5.2 20260222
- * UPDATE DATE:      22.02:2026 - Aldus
+ * VERSION REL.:     5.0 -def- 20260426
+ * UPDATE DATE:      26.04:2026 - Aldus
  * Added: Vision (GPT-4o) and Image Generation (DALL-E 3)
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
@@ -31,6 +31,7 @@ use OpenAI\Client;
 use Log;
 use Exception;
 use OpenAI\OpenAI;
+use Flussu\Config;
 use Flussu\Contracts\IAiProvider;
 class FlussuOpenAi implements IAiProvider
 {
@@ -41,7 +42,7 @@ class FlussuOpenAi implements IAiProvider
     private $_open_ai_chat_model="";
     
     public function canBrowseWeb(){
-        return false;
+        return true;
     }
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_open_ai)){
@@ -106,6 +107,7 @@ class FlussuOpenAi implements IAiProvider
             $result = $this->_open_ai->chat()->create([
                 'model' => $this->_open_ai_chat_model,
                 'messages' => $arrayText,
+                'temperature' => (float) Config::init()->aiTemperature('open_ai'),
                 /*'tools' => [
                     [
                         'type' => 'web_search'
@@ -174,74 +176,176 @@ class FlussuOpenAi implements IAiProvider
     }
 
     public function generateImage($prompt, $size="1024x1024", $quality="standard"): array {
+        $imageModel = config("services.ai_provider.open_ai.image-model");
+        if (empty($imageModel))
+            $imageModel = "dall-e-3";
+
+        $isGptImage = ($imageModel === 'gpt-image-1' || strpos($imageModel, 'gpt-image') === 0);
+
+        // For gpt-image-1 use direct REST call: the openai-php/client SDK does not always
+        // expose the response fields properly for this newer endpoint.
+        if ($isGptImage) {
+            $qMap = ['standard' => 'medium', 'hd' => 'high'];
+            $payload = [
+                'model'   => $imageModel,
+                'prompt'  => $prompt,
+                'n'       => 1,
+                'size'    => $size,
+                'quality' => $qMap[$quality] ?? $quality,
+            ];
+            try {
+                $http = new \GuzzleHttp\Client(['timeout' => 120]);
+                $resp = $http->post('https://api.openai.com/v1/images/generations', [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $this->_open_ai_key,
+                        'Content-Type'  => 'application/json',
+                    ],
+                    'json' => $payload,
+                    'http_errors' => false,
+                ]);
+                $code = $resp->getStatusCode();
+                $raw  = (string)$resp->getBody();
+                $body = json_decode($raw, true);
+            } catch (\Throwable $e) {
+                return ["error" => "Image generation HTTP failed: " . $e->getMessage()];
+            }
+            if ($code !== 200)
+                return ["error" => "OpenAI image API HTTP $code: " . substr($raw, 0, 500)];
+            // gpt-image-1 returns real token usage (input/output tokens for the rendering pipeline)
+            $tokenUsage = [
+                'model'  => $imageModel,
+                'input'  => $body['usage']['input_tokens']  ?? 0,
+                'output' => $body['usage']['output_tokens'] ?? 1,
+            ];
+            $b64 = $body['data'][0]['b64_json'] ?? null;
+            if (empty($b64)) {
+                if (!empty($body['data'][0]['url'])) {
+                    $bin = @file_get_contents($body['data'][0]['url']);
+                    if ($bin !== false)
+                        return [
+                            "b64_data" => base64_encode($bin),
+                            "revised_prompt" => $body['data'][0]['revised_prompt'] ?? $prompt,
+                            "tokenUsage" => $tokenUsage,
+                        ];
+                }
+                return ["error" => "No image data in response. Body: " . substr($raw, 0, 500)];
+            }
+            return [
+                "b64_data" => $b64,
+                "revised_prompt" => $body['data'][0]['revised_prompt'] ?? $prompt,
+                "tokenUsage" => $tokenUsage,
+            ];
+        }
+
+        // DALL-E 2 / DALL-E 3 path via SDK
+        $params = [
+            'model'  => $imageModel,
+            'prompt' => $prompt,
+            'n'      => 1,
+            'size'   => $size,
+            'quality' => $quality,
+            'response_format' => 'b64_json',
+        ];
         try {
-            $result = $this->_open_ai->images()->create([
-                'model' => 'dall-e-3',
-                'prompt' => $prompt,
-                'n' => 1,
-                'size' => $size,
-                'quality' => $quality,
-                'response_format' => 'b64_json'
-            ]);
+            $result = $this->_open_ai->images()->create($params);
         } catch (\Throwable $e) {
             return ["error" => "Error: image generation failed. " . $e->getMessage()];
         }
 
         $imageData = $result->data[0]->b64Json ?? null;
+        if (empty($imageData)) {
+            // Fallback: some SDK versions expose the array form
+            $arr = method_exists($result, 'toArray') ? $result->toArray() : null;
+            if (is_array($arr)) {
+                $imageData = $arr['data'][0]['b64_json'] ?? null;
+                if (empty($imageData) && !empty($arr['data'][0]['url'])) {
+                    $bin = @file_get_contents($arr['data'][0]['url']);
+                    if ($bin !== false) $imageData = base64_encode($bin);
+                }
+            }
+        }
         if (empty($imageData))
             return ["error" => "Error: no image data returned"];
 
         return [
             "b64_data" => $imageData,
-            "revised_prompt" => $result->data[0]->revisedPrompt ?? $prompt
+            "revised_prompt" => $result->data[0]->revisedPrompt ?? $prompt,
+            "tokenUsage" => [
+                'model'  => $imageModel,
+                'input'  => 0,
+                'output' => 1,
+            ],
         ];
     }
 
-    function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
-        $response = $this->_open_ai->responses()->create([
-            'model' => $this->_open_ai_chat_model,
-            'tools' => [
-                [
-                    'type' => 'web_search'
-                ]
-            ],
-            'input' => $sendText,
-            'temperature' => $temperature,
-            'max_output_tokens' => $max_output_tokens,
-            'tool_choice' => 'auto',
-            'parallel_tool_calls' => true,
-            'store' => true,
-            'metadata' => [
-                /*'user_id' => '123',*/
-                'session_id' => $session
-            ]
-        ]);
-
-        $response->id; // 'resp_67ccd2bed1ec8190b14f964abc054267'
-        $response->object; // 'response'
-        $response->createdAt; // 1741476542
-        $response->status; // 'completed'
-        $response->model; // 'gpt-4o-mini'
-
-        foreach ($response->output as $output) {
-            $output->type; // 'message'
-            $output->id; // 'msg_67ccd2bf17f0819081ff3bb2cf6508e6'
-            $output->status; // 'completed'
-            $output->role; // 'assistant'
-            
-            foreach ($output->content as $content) {
-                $content->type; // 'output_text'
-                $content->text; // The response text
-                $content->annotations; // Any annotations in the response
-            }
+    /**
+     * v5.x — Native web research via OpenAI Responses API + web_search tool.
+     * Returns the same [history, replyText, tokenUsage] shape as chat() so that
+     * AiChatController and AiWebController can treat it uniformly.
+     */
+    function chat_WebPreview($sendText, $session="", $max_output_tokens=1024, $temperature=null){
+        if ($temperature === null) {
+            $temperature = (float) Config::init()->aiTemperature('open_ai');
+        }
+        try {
+            $response = $this->_open_ai->responses()->create([
+                'model'              => $this->_open_ai_chat_model,
+                'tools'              => [['type' => 'web_search']],
+                'input'              => $sendText,
+                'temperature'        => $temperature,
+                'max_output_tokens'  => $max_output_tokens,
+                'tool_choice'        => 'auto',
+                'parallel_tool_calls'=> true,
+                'store'              => true,
+                'metadata'           => ['session_id' => (string)$session],
+            ]);
+        } catch (\Throwable $e) {
+            return [[['role' => 'user', 'content' => $sendText]],
+                    "Error: web_search via OpenAI Responses API failed: " . $e->getMessage(),
+                    null];
         }
 
-        $response->usage->inputTokens; // 36
-        $response->usage->outputTokens; // 87
-        $response->usage->totalTokens; // 123
+        $textOut   = '';
+        $citations = [];
+        if (isset($response->output) && is_iterable($response->output)) {
+            foreach ($response->output as $output) {
+                if (!isset($output->content) || !is_iterable($output->content)) continue;
+                foreach ($output->content as $content) {
+                    $type = $content->type ?? null;
+                    if ($type === 'output_text' || $type === 'text') {
+                        $textOut .= (string)($content->text ?? '');
+                        $annots = $content->annotations ?? [];
+                        if (is_iterable($annots)) {
+                            foreach ($annots as $a) {
+                                $url = $a->url ?? ($a->source ?? null);
+                                $title = $a->title ?? '';
+                                if (!empty($url) && !isset($citations[$url])) {
+                                    $citations[$url] = $title !== '' ? $title : $url;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        $textOut = trim($textOut);
+        if (!empty($citations)) {
+            $lines = ["", "---", "> **Fonti:**"];
+            $i = 1;
+            foreach ($citations as $u => $t) {
+                $lines[] = "> [$i] [$t]($u)";
+                $i++;
+            }
+            $textOut = $textOut . "\n" . implode("\n", $lines);
+        }
 
-        $response->toArray(); // ['id' => 'resp_67ccd2bed1ec8190b14f964abc054267', ...]
-        return $response;
+        $tokenUsage = [
+            'model'  => $this->_open_ai_chat_model,
+            'input'  => $response->usage->inputTokens  ?? 0,
+            'output' => $response->usage->outputTokens ?? 0,
+        ];
+        $history = [['role' => 'user', 'content' => $sendText]];
+        return [$history, $textOut, $tokenUsage];
     }
 }
  /*-------------

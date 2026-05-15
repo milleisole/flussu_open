@@ -45,6 +45,7 @@
 */
 namespace Flussu\Api\Ai;
 
+use Flussu\Config;
 use Flussu\Contracts\IAiProvider;
 use Flussu\General;
 use Log;
@@ -217,7 +218,7 @@ class FlussuHuggingFaceAi implements IAiProvider
                     'inputs' => $text,
                     'parameters' => [
                         'max_new_tokens' => 250,
-                        'temperature' => 0.7,
+                        'temperature' => (float) Config::init()->aiTemperature('huggingface'),
                         'top_p' => 0.9,
                         'do_sample' => true
                     ]

@@ -85,54 +85,70 @@
       }
     },
     "ai_provider":{
+      "default_temperature": 0.7,
+      "service_model":"mistral",
       "open_ai":{
         "auth_key":"sk-proj-your-openai-api-key-here",
         "model":"gpt-5-nano",
-        "chat-model":"gpt-4o-mini"
+        "chat-model":"gpt-4o-mini",
+        "image-model":"gpt-image-1",
+        "default_temperature": 0.7
       },
       "xai_grok":{
         "auth_key":"xai-your-grok-api-key-here",
         "model":"grok-4-fast-non-reasoning",
-        "chat-model":"grok-4-fast-non-reasoning"
+        "chat-model":"grok-4-fast-non-reasoning",
+        "image-model":"grok-imagine-image",
+        "default_temperature": 0.7
       },
       "ggl_gemini":{
         "auth_key":"your-gemini-api-key-here",
         "model":"gemini-3-flash-preview",
-        "chat-model":"gemini-3-flash-preview"
+        "chat-model":"gemini-3-flash-preview",
+        "image-model":"gemini-2.5-flash-image",
+        "default_temperature": 0.7
       },
       "deepseek":{
         "auth_key":"sk-your-deepseek-api-key-here",
         "model":"deepseek-chat",
-        "chat-model":"deepseek-chat"
+        "chat-model":"deepseek-chat",
+        "default_temperature": 1.3
       },
       "ant_claude":{
         "auth_key":"sk-ant-your-anthropic-api-key-here",
         "model":"claude-haiku-4-5",
-        "chat-model":"claude-haiku-4-5"
+        "chat-model":"claude-haiku-4-5",
+        "default_temperature": 0.7
       },
       "zeroone_ai":{
         "auth_key":"your-01ai-api-key-here",
         "model":"yi-lightning",
-        "chat-model":"yi-lightning"
+        "chat-model":"yi-lightning",
+        "default_temperature": 0.7
       },
       "kimi":{
         "auth_key":"sk-your-kimi-api-key-here",
         "model":"kimi-k2-0905-preview",
-        "chat-model":"kimi-k2-0905-preview"
+        "chat-model":"kimi-k2-0905-preview",
+        "default_temperature": 0.3
       },
       "qwen":{
         "auth_key":"sk-your-dashscope-api-key-here",
         "model":"qwen-turbo",
-        "chat-model":"qwen-turbo"
+        "chat-model":"qwen-turbo",
+        "image-model":"wan2.2-t2i-flash",
+        "default_temperature": 0.7
       },
       "huggingface":{
         "auth_token":"hf-your-huggingface-token-here",
-        "model":"Helsinki-NLP/opus-mt-it-en"
+        "model":"Helsinki-NLP/opus-mt-it-en",
+        "default_temperature": 0.7
       },
       "moonshot":{
         "auth_key":"sk-your-moonshot-api-key-here",
         "model":"moonshot-v1-8k",
-        "chat-model":"moonshot-v1-8k"
+        "chat-model":"moonshot-v1-8k",
+        "default_temperature": 0.3
       },
       "stability_ai":{
         "auth_key":"sk-your-stability-ai-key-here",
@@ -141,13 +157,34 @@
       "mistral":{
         "auth_key":"sk-insert-your-mistral-api-key",
         "model":"mistral-large-latest",
-        "chat-model":"mistral-large-latest"
+        "chat-model":"mistral-large-latest",
+        "default_temperature": 0.7
       },
       "zai_glm":{
         "auth_key":"sk-your-zai-api-key-here",
         "model":"glm-4.5v",
-        "chat-model":"glm-4.6"
+        "chat-model":"glm-4.6",
+        "image-model":"cogView-4-250304",
+        "default_temperature": 0.6
+      },
+      "together":{
+        "auth_key":"your-together-api-key-here",
+        "model":"meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        "chat-model":"meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        "image-model":"black-forest-labs/FLUX.1-schnell",
+        "default_temperature": 0.7
       }
+    },
+    "web_research":{
+      "default_lang":"it",
+      "default_geo":"it",
+      "top_results":5,
+      "deep_fetch":1,
+      "deep_fetch_format":"markdown",
+      "deep_fetch_max_chars":12000,
+      "per_request_timeout_sec":12,
+      "prefer_native_provider_tool":true,
+      "engines":["duckduckgo","brave","searx","startpage","presearch"]
     }
   },
   "webhooks":{

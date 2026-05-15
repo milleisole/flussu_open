@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5- Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0- Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,15 @@
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Flussu Mistral AI interface - v1.0
  * CREATED DATE:     24.03.2026 - Flussu v4.5
- * VERSION REL.:     4.5.2 20260324
- * UPDATE DATE:      24.03:2026
+ * VERSION REL.:     5.0 -def- 20260426
+ * UPDATE DATE:      26.04:2026 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\General;
 use Log;
 use Exception;
 use GuzzleHttp\Client;
+use Flussu\Config;
 use Flussu\Contracts\IAiProvider;
 class FlussuMistralAi implements IAiProvider
 {
@@ -84,7 +85,8 @@ class FlussuMistralAi implements IAiProvider
         $payload = [
             'model' => $this->_mistral_chat_model,
             'messages' => $arrayText,
-            'max_tokens' => 2000
+            'max_tokens' => 2000,
+            'temperature' => (float) Config::init()->aiTemperature('mistral')
         ];
         try {
             $response = $this->client->post('chat/completions', [
@@ -159,7 +161,8 @@ class FlussuMistralAi implements IAiProvider
             $payload = [
                 'model' => $this->_mistral_ai_model,
                 'messages' => $preChat,
-                'max_tokens' => 2000
+                'max_tokens' => 2000,
+                'temperature' => (float) Config::init()->aiTemperature('mistral')
             ];
 
             $response = $this->client->post('chat/completions', [

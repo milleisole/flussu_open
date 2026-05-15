@@ -16,14 +16,15 @@
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Flussu Kimi (Moonshot AI) interface - v1.0
  * CREATED DATE:     26.01.2026 - Claude - Flussu v4.5
- * VERSION REL.:     4.5.2 20260126
- * UPDATE DATE:      26.01.2026 - Claude
+ * VERSION REL.:     5.0 -def- 20260426
+ * UPDATE DATE:      26.04:2026 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\General;
 use Log;
 use Exception;
 use GuzzleHttp\Client;
+use Flussu\Config;
 use Flussu\Contracts\IAiProvider;
 
 class FlussuKimiAi implements IAiProvider
@@ -81,7 +82,8 @@ class FlussuKimiAi implements IAiProvider
     private function _chatContinue($arrayText){
         $payload = [
             'model' => $this->_kimi_chat_model,
-            'messages' => $arrayText
+            'messages' => $arrayText,
+            'temperature' => (float) Config::init()->aiTemperature('kimi')
             //,'max_tokens' => 2000
         ];
         try {

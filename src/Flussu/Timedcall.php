@@ -195,6 +195,22 @@ class Timedcall
             restore_error_handler();
         }
 
+        // v5.0 - Cleanup old AI-generated images and analysis files (no per-session ownership)
+        try {
+            $imgCleaned = \Flussu\Controllers\AiMediaController::cleanupGeneratedFiles(72);
+            if ($imgCleaned > 0) {
+                echo "AiMedia: cleaned $imgCleaned generated images (>72h)\r\n";
+                General::Log2("AiMedia: cleaned $imgCleaned generated images (>72h)", $this->_logDir);
+            }
+            $anCleaned = \Flussu\Controllers\AiMediaController::cleanupAiMediaDir('analysis', 24);
+            if ($anCleaned > 0) {
+                echo "AiMedia: cleaned $anCleaned analysis files (>24h)\r\n";
+                General::Log2("AiMedia: cleaned $anCleaned analysis files (>24h)", $this->_logDir);
+            }
+        } catch (\Throwable $e) {
+            General::Log2("AiMedia cleanup error: " . $e->getMessage(), $this->_logDir);
+        }
+
         General::Log2("Timedcall: end",$this->_logDir);
         echo "\r\n\033[01;32m" . date("Y-m-d H:i:s") . "\033[0m - end\r\n---------------------------\r\n";
     }

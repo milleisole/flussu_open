@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.2 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0- Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Flussu AI Media Controller - v1.0
  * CREATED DATE:     22.02.2026 - Aldus - Flussu v4.5.2
- * VERSION REL.:     4.5.2 20260222
- * UPDATE DATE:      22.02:2026 - Aldus
+ * VERSION REL.:     5.0 -def- 20260426
+ * UPDATE DATE:      26.04:2026 - Aldus
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  * Orchestrates AI media operations:
  * Scenario A: Analyze media (vision/OCR) via AI providers
@@ -39,6 +39,7 @@ use Flussu\Api\Ai\FlussuQwenAi;
 use Flussu\Api\Ai\FlussuStabilityAi;
 use Flussu\Api\Ai\FlussuMistralAi;
 use Flussu\Api\Ai\FlussuZaiGlmAi;
+use Flussu\Api\Ai\FlussuTogetherAi;
 
 class AiMediaController
 {
@@ -86,6 +87,9 @@ class AiMediaController
                 break;
             case Platform::ZAI_GLM:
                 $this->_aiClient = new FlussuZaiGlmAi($model, $chat_model);
+                break;
+            case Platform::TOGETHER:
+                $this->_aiClient = new FlussuTogetherAi($model, $chat_model);
                 break;
             default:
                 $this->_aiClient = new FlussuOpenAi($model, $chat_model);
@@ -175,6 +179,15 @@ class AiMediaController
                 return ["Error", $result['error'], null];
             }
 
+
+            // v5.0 - URL passthrough: providers (e.g. Z.ai/mfile) can return a CDN URL
+            // already hosting the image. Skip local download/storage entirely.
+            if (!empty($result['url']) && empty($result['b64_data'])) {
+                General::addRowLog("AI image (URL passthrough): " . $result['url'] . " for session " . $sessId);
+                $usage = self::_refineImageTokenUsage($result['tokenUsage'] ?? null, null);
+                return ["Ok", $result['url'], $usage];
+            }
+
             if (!isset($result['b64_data'])) {
                 return ["Error", "No image data returned", null];
             }
@@ -198,19 +211,90 @@ class AiMediaController
             $relativePath = '/Uploads/ai_media/generated/' . $filename;
             $fileUrl = '';
             if (!empty($filehost)) {
-                $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
-                $fileUrl = $protocol . '://' . $filehost . $relativePath;
+                // Accept "host", "host:port" or full "scheme://host[:port]" in env.
+                if (strpos($filehost, '://') !== false) {
+                    $fileUrl = rtrim($filehost, '/') . $relativePath;
+                } else {
+                    // Prefer explicit env override; otherwise detect HTTPS via $_SERVER (also
+                    // honour reverse-proxy header HTTP_X_FORWARDED_PROTO); default to https.
+                    $protocol = $_ENV['protocol'] ?? null;
+                    if (empty($protocol)) {
+                        if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                            $protocol = 'https';
+                        elseif (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']))
+                            $protocol = $_SERVER['HTTP_X_FORWARDED_PROTO'];
+                        else
+                            $protocol = 'https';
+                    }
+                    $fileUrl = $protocol . '://' . $filehost . $relativePath;
+                }
             } else {
                 $fileUrl = $relativePath;
             }
 
             General::addRowLog("AI image generated: " . $filePath . " for session " . $sessId);
 
-            return ["Ok", $fileUrl, null];
+            $usage = self::_refineImageTokenUsage($result['tokenUsage'] ?? null, strlen($imageData));
+            return ["Ok", $fileUrl, $usage];
 
         } catch (\Throwable $e) {
             return ["Error", $e->getMessage(), null];
         }
+    }
+
+    /**
+     * v5.0 — Refine the synthetic tokenUsage emitted by image-gen providers.
+     * Most image APIs don't bill in tokens, so providers return output=1 as a placeholder.
+     * Here we replace that with a meaningful proxy:
+     *   - if we know the produced bytes (b64 path): tokens = bytes / 4
+     *   - if we don't (URL passthrough): random 30000-45000
+     * Real token usage from providers like gpt-image-1 (output > 1) is preserved.
+     */
+    private static function _refineImageTokenUsage(?array $usage, ?int $imageBytes): ?array
+    {
+        if (!is_array($usage)) return null;
+        $current = (int)($usage['output'] ?? 0);
+        if ($current > 1) return $usage; // real usage from API, leave alone
+        if ($imageBytes !== null && $imageBytes > 0) {
+            $usage['output'] = (int)floor($imageBytes / 4);
+        } else {
+            $usage['output'] = random_int(30000, 45000);
+        }
+        return $usage;
+    }
+
+    /**
+     * v5.0 — Translate a raw provider/HTTP error into a user-friendly English message.
+     * Used for chat-facing replies; workflow logs keep the raw message for debugging.
+     */
+    public static function humanizeImageError(string $rawError): string
+    {
+        $low = strtolower($rawError);
+        if (strpos($low, 'nsfw') !== false
+            || strpos($low, 'safety') !== false
+            || strpos($low, 'moderation') !== false
+            || strpos($low, 'content policy') !== false
+            || strpos($low, 'content_policy') !== false
+            || strpos($low, 'content filter') !== false)
+            return "The system cannot generate this image because the request may violate the content policy. Please try with a different subject.";
+        if (strpos($low, 'copyright') !== false || strpos($low, 'trademark') !== false || strpos($low, 'celebrity') !== false || strpos($low, 'public figure') !== false)
+            return "The system cannot generate this image because it could infringe copyright or trademark. Please describe a generic subject instead.";
+        if (strpos($low, 'rate') !== false && strpos($low, 'limit') !== false)
+            return "Image generation rate limit reached. Please try again in a few moments.";
+        if (strpos($low, 'insufficient') !== false || strpos($low, 'billing') !== false || strpos($low, 'credits') !== false || strpos($low, 'quota') !== false)
+            return "Image generation is temporarily unavailable (billing or quota issue). Please contact the administrator.";
+        if (strpos($low, 'unauthorized') !== false || strpos($low, ' 401') !== false || strpos($low, ' 403') !== false || strpos($low, 'forbidden') !== false)
+            return "Image generation authentication failed. Please contact the administrator.";
+        if (strpos($low, 'not_available') !== false
+            || strpos($low, 'model_notavailable') !== false
+            || strpos($low, 'not available') !== false
+            || strpos($low, 'unknown model') !== false
+            || strpos($low, 'model not found') !== false
+            || strpos($low, 'deprecated') !== false)
+            return "The configured image model is not available. Please contact the administrator.";
+        if (strpos($low, 'timeout') !== false || strpos($low, 'timed out') !== false)
+            return "Image generation timed out. Please try again.";
+        return "Image generation failed. Please try again, possibly with a different prompt.";
     }
 
     /**
@@ -234,14 +318,35 @@ class AiMediaController
      */
     public function cleanupAnalysisFiles(int $hours = 24): int
     {
+        return self::cleanupAiMediaDir('analysis', $hours);
+    }
+
+    /**
+     * Cleanup old generated images (older than $hours).
+     * Static so it can be invoked from CLI/cron without provider instantiation.
+     * Default 72h: long enough that a chat user re-opening a conversation still sees
+     * the image inline, short enough to avoid unbounded disk growth.
+     */
+    public static function cleanupGeneratedFiles(int $hours = 72): int
+    {
+        return self::cleanupAiMediaDir('generated', $hours);
+    }
+
+    /**
+     * Internal: prune files older than $hours from /Uploads/ai_media/{$subdir}/.
+     * Resolves the path the same way the constructor does so it works in HTTP and CLI.
+     */
+    public static function cleanupAiMediaDir(string $subdir, int $hours): int
+    {
+        $base = ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 3)) . '/Uploads/ai_media/' . $subdir;
+        if (!is_dir($base)) return 0;
         $deleted = 0;
         $cutoff = time() - ($hours * 3600);
-        $files = glob($this->_analysisDir . '/*');
-
+        $files = glob($base . '/*');
+        if (!is_array($files)) return 0;
         foreach ($files as $file) {
             if (is_file($file) && filemtime($file) < $cutoff) {
-                if (unlink($file))
-                    $deleted++;
+                if (@unlink($file)) $deleted++;
             }
         }
         return $deleted;

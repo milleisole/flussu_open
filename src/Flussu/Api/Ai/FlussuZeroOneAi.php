@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0- Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,15 @@
  * --------------------------------------------------------------------*
  * CLASS-NAME:       Flussu 01.AI (Z-AI) interface - v1.0
  * CREATED DATE:     26.01.2026 - Claude - Flussu v4.5
- * VERSION REL.:     4.5.2 20260126
- * UPDATE DATE:      26.01.2026 - Claude
+ * VERSION REL.:     5.0 -def- 20260426
+ * UPDATE DATE:      26.04:2026 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\General;
 use Log;
 use Exception;
 use GuzzleHttp\Client;
+use Flussu\Config;
 use Flussu\Contracts\IAiProvider;
 
 class FlussuZeroOneAi implements IAiProvider
@@ -82,7 +83,8 @@ class FlussuZeroOneAi implements IAiProvider
         $payload = [
             'model' => $this->_zeroone_chat_model,
             'messages' => $arrayText,
-            'max_tokens' => 2000
+            'max_tokens' => 2000,
+            'temperature' => (float) Config::init()->aiTemperature('zeroone_ai')
         ];
         try {
             $response = $this->client->post('chat/completions', [

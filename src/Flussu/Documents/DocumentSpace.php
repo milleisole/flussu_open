@@ -68,12 +68,25 @@ class DocumentSpace
     public function __construct(string $sessId)
     {
         $this->_sessId = $sessId;
-        $this->_baseDir = $_SERVER['DOCUMENT_ROOT'] . "/../Uploads/docspace/" . $sessId . "/";
+        $this->_baseDir = self::_resolveDocspaceRoot() . $sessId . "/";
         if (!is_dir($this->_baseDir)) {
             mkdir($this->_baseDir, 0775, true);
             @chmod($this->_baseDir, 0775);
         }
         $this->_touchSidDate();
+    }
+
+    /**
+     * Resolve the docspace root path. Works both in HTTP context (where
+     * $_SERVER['DOCUMENT_ROOT'] points to webroot/) and in CLI context
+     * (where DOCUMENT_ROOT is empty — e.g. cron/Timedcall).
+     */
+    private static function _resolveDocspaceRoot(): string
+    {
+        if (!empty($_SERVER['DOCUMENT_ROOT']))
+            return rtrim($_SERVER['DOCUMENT_ROOT'], '/') . "/../Uploads/docspace/";
+        // CLI fallback: DocumentSpace.php is at src/Flussu/Documents/, repo root is 3 levels up
+        return dirname(__DIR__, 3) . "/Uploads/docspace/";
     }
 
     /**
@@ -368,7 +381,7 @@ class DocumentSpace
      */
     public static function cleanup(string $sessId): void
     {
-        $baseDir = $_SERVER['DOCUMENT_ROOT'] . "/../Uploads/docspace/" . $sessId . "/";
+        $baseDir = self::_resolveDocspaceRoot() . $sessId . "/";
         if (is_dir($baseDir)) {
             self::_removeDir($baseDir);
         }
@@ -382,7 +395,7 @@ class DocumentSpace
      */
     public static function cleanupOrphaned(int $maxAgeHours = 4): int
     {
-        $docspaceRoot = $_SERVER['DOCUMENT_ROOT'] . "/../Uploads/docspace/";
+        $docspaceRoot = self::_resolveDocspaceRoot();
         if (!is_dir($docspaceRoot)) return 0;
 
         $count = 0;

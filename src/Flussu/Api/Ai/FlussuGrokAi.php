@@ -1,6 +1,6 @@
 <?php
 /* --------------------------------------------------------------------*
- * Flussu v4.5.0 - Mille Isole SRL - Released under Apache License 2.0
+ * Flussu v5.0- Mille Isole SRL - Released under Apache License 2.0
  * --------------------------------------------------------------------*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,15 @@
  * 
  * CLASS-NAME:       Flussu Grok interface - v1.0
  * CREATED DATE:     31.05.2025 - Aldus - Flussu v4.3
- * VERSION REL.:     4.5.1 20250820 
- * UPDATE DATE:      20.08:2025 - Aldus
+ * VERSION REL.:     5.0 -def- 20260426
+ * UPDATE DATE:      26.04:2026 - Aldus
  * -------------------------------------------------------*/
 namespace Flussu\Api\Ai;
 use Flussu\General;
 use Log;
 use Exception;
 use GuzzleHttp\Client;
+use Flussu\Config;
 use Flussu\Contracts\IAiProvider;
 class FlussuGrokAi implements IAiProvider
 {
@@ -37,7 +38,7 @@ class FlussuGrokAi implements IAiProvider
     private $client;
 
     public function canBrowseWeb(){
-        return false;
+        return true;
     }
     public function __construct($model="",$chat_model=""){
         if (!isset($this->_grok_ai)){
@@ -84,7 +85,8 @@ class FlussuGrokAi implements IAiProvider
         $payload = [
             'model' => $this->_grok_chat_model,
             'messages' => $arrayText,
-            'max_tokens' => 2000
+            'max_tokens' => 2000,
+            'temperature' => (float) Config::init()->aiTemperature('xai_grok')
         ];
         try {
             $response = $this->client->post('chat/completions', [
@@ -125,16 +127,160 @@ class FlussuGrokAi implements IAiProvider
     public function analyzeMedia($preChat, $mediaPath, $prompt, $role="user"): array {
         return [[], "Error: media analysis not supported by Grok", null];
     }
-    public function canGenerateImages(): bool { return false; }
+    // v4.5.2 - Image Generation via grok-2-image (OpenAI-compatible images endpoint)
+    public function canGenerateImages(): bool { return true; }
     public function generateImage($prompt, $size="1024x1024", $quality="standard"): array {
-        return ["error" => "Image generation not supported by Grok"];
+        $imageModel = config("services.ai_provider.xai_grok.image-model");
+        if (empty($imageModel))
+            $imageModel = "grok-imagine-image";
+
+        // grok-2-image does not currently accept size/quality params; ignore them
+        $payload = [
+            'model'  => $imageModel,
+            'prompt' => $prompt,
+            'n'      => 1,
+            'response_format' => 'b64_json',
+        ];
+        try {
+            $response = $this->client->post('images/generations', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->_grok_ai_key,
+                    'Content-Type'  => 'application/json',
+                ],
+                'timeout' => 120,
+                'connect_timeout' => 20,
+                'json' => $payload,
+                'http_errors' => false,
+            ]);
+            $code = $response->getStatusCode();
+            $raw  = (string)$response->getBody();
+            $data = json_decode($raw, true);
+        } catch (\Throwable $e) {
+            General::addRowLog("Grok image transport error: " . $e->getMessage());
+            return ["error" => "Grok image generation failed: " . $e->getMessage()];
+        }
+
+        if ($code !== 200) {
+            General::addRowLog("Grok image HTTP $code body=" . substr($raw, 0, 500));
+            return ["error" => "Grok HTTP $code: " . substr($raw, 0, 500)];
+        }
+
+        $first = $data['data'][0] ?? null;
+        if (!$first) {
+            General::addRowLog("Grok image empty data: " . substr($raw, 0, 500));
+            return ["error" => "No image data returned by Grok. Body: " . substr($raw, 0, 500)];
+        }
+
+        $tokenUsage = [
+            'model'  => $imageModel,
+            'input'  => 0,
+            'output' => 1,
+        ];
+        if (!empty($first['b64_json']))
+            return [
+                "b64_data" => $first['b64_json'],
+                "revised_prompt" => $first['revised_prompt'] ?? $prompt,
+                "tokenUsage" => $tokenUsage,
+            ];
+        if (!empty($first['url'])) {
+            $bin = $this->_fetchUrl($first['url']);
+            if ($bin === null) {
+                General::addRowLog("Grok URL fetch failed: " . $first['url']);
+                return ["error" => "Grok returned URL but fetch failed: " . $first['url']];
+            }
+            return [
+                "b64_data" => base64_encode($bin),
+                "revised_prompt" => $first['revised_prompt'] ?? $prompt,
+                "tokenUsage" => $tokenUsage,
+            ];
+        }
+        General::addRowLog("Grok image no url/b64: " . substr($raw, 0, 500));
+        return ["error" => "No image data returned by Grok"];
     }
 
-    function chat_WebPreview($sendText,$session="123-231-321",$max_output_tokens=150,$temperature=0.7){
-        /*
+    /**
+     * v5.x — Native web research via xAI Grok Live Search (search_parameters).
+     * Returns [history, replyText, tokenUsage] like chat().
+     */
+    function chat_WebPreview($sendText, $session="", $max_output_tokens=1024, $temperature=null){
+        if ($temperature === null) {
+            $temperature = (float) Config::init()->aiTemperature('xai_grok');
+        }
+        $messages = [['role' => 'user', 'content' => $sendText]];
+        $payload = [
+            'model'       => $this->_grok_chat_model,
+            'messages'    => $messages,
+            'max_tokens'  => $max_output_tokens,
+            'temperature' => $temperature,
+            'search_parameters' => [
+                'mode'                => 'auto',
+                'max_search_results'  => 5,
+                'return_citations'    => true,
+            ],
+        ];
+        try {
+            $resp = $this->client->post('chat/completions', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->_grok_ai_key,
+                    'Content-Type'  => 'application/json',
+                ],
+                'timeout'         => 120,
+                'connect_timeout' => 20,
+                'json'            => $payload,
+                'http_errors'     => false,
+            ]);
+            $code = $resp->getStatusCode();
+            $raw  = (string)$resp->getBody();
+            $data = json_decode($raw, true);
+        } catch (\Throwable $e) {
+            return [$messages, "Error: Grok web search failed: " . $e->getMessage(), null];
+        }
+        if ($code !== 200 || !is_array($data)) {
+            return [$messages, "Error: Grok HTTP $code: " . substr($raw, 0, 500), null];
+        }
 
-        */
-        return [];
+        $textOut = (string)($data['choices'][0]['message']['content'] ?? '');
+        $textOut = trim($textOut);
+
+        $citations = [];
+        if (!empty($data['citations']) && is_array($data['citations'])) {
+            foreach ($data['citations'] as $u) {
+                if (is_string($u) && $u !== '' && !isset($citations[$u])) {
+                    $citations[$u] = $u;
+                }
+            }
+        }
+        if (!empty($citations)) {
+            $lines = ["", "---", "> **Fonti:**"];
+            $i = 1;
+            foreach ($citations as $u => $t) {
+                $lines[] = "> [$i] [$t]($u)";
+                $i++;
+            }
+            $textOut .= "\n" . implode("\n", $lines);
+        }
+
+        $tokenUsage = [
+            'model'  => $this->_grok_chat_model,
+            'input'  => $data['usage']['prompt_tokens']     ?? 0,
+            'output' => $data['usage']['completion_tokens'] ?? 0,
+        ];
+        return [$messages, $textOut, $tokenUsage];
+    }
+
+    private function _fetchUrl(string $url): ?string {
+        try {
+            $http = new Client(['timeout' => 60, 'connect_timeout' => 20]);
+            $resp = $http->get($url, ['http_errors' => false]);
+            if ($resp->getStatusCode() !== 200) {
+                General::addRowLog("URL fetch HTTP " . $resp->getStatusCode() . " for " . $url);
+                return null;
+            }
+            return (string)$resp->getBody();
+        } catch (\Throwable $e) {
+            General::addRowLog("URL fetch exception (" . $e->getMessage() . ") for " . $url);
+            return null;
+        }
     }
 }
  /*-------------

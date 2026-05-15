@@ -192,7 +192,31 @@ final class Config
 
         return $value;
     }
-    
+
+    /**
+     * Risolve la temperatura di default per uno specifico AI provider con
+     * cascata: per-provider → globale → fallback hardcoded.
+     *
+     * Lookup order:
+     *   1. services.ai_provider.{providerKey}.default_temperature
+     *   2. services.ai_provider.default_temperature
+     *   3. $finalFallback (0.7 = default storico Flussu pre-v5.0)
+     *
+     * @param string $providerKey  La chiave del provider in config (es. "deepseek", "open_ai", "ant_claude").
+     * @param float  $finalFallback  Default usato se nessuna chiave di config è impostata.
+     * @return float
+     */
+    public function aiTemperature(string $providerKey, float $finalFallback = 0.7): float
+    {
+        $perProvider = $this->get("services.ai_provider.{$providerKey}.default_temperature");
+        if ($perProvider !== null && is_numeric($perProvider))
+            return (float) $perProvider;
+        $global = $this->get('services.ai_provider.default_temperature');
+        if ($global !== null && is_numeric($global))
+            return (float) $global;
+        return $finalFallback;
+    }
+
     /**
      * Impediamo la clonazione e la serializzazione (immutabilità).
      */
