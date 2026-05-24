@@ -777,9 +777,28 @@ class DocumentSpace
                     $maxCols = max($maxCols, count($cells));
                     $rowData = [];
                     foreach ($cells as $cell) {
-                        $v = $cell->getValue();
+                        // v5.x — OpenSpout's FormulaCell::getValue() returns the
+                        // formula string ("=SUM(A1:A10)"), not the computed
+                        // result. The cached <v> value is exposed via
+                        // getComputedValue(). Without this branch the LLM
+                        // would see formula text instead of numbers and could
+                        // not do any quantitative analysis. Fall back to the
+                        // formula text only when the file has no cached value
+                        // (typically programmatically-generated workbooks that
+                        // were never opened/saved in Excel/LibreOffice), so
+                        // the LLM at least knows a formula is there.
+                        if ($cell instanceof \OpenSpout\Common\Entity\Cell\FormulaCell) {
+                            $v = $cell->getComputedValue();
+                            if ($v === null) {
+                                $v = $cell->getValue();
+                            }
+                        } else {
+                            $v = $cell->getValue();
+                        }
                         if ($v instanceof \DateTimeInterface) {
                             $v = $v->format('Y-m-d H:i:s');
+                        } elseif ($v instanceof \DateInterval) {
+                            $v = $v->format('%yY%mM%dDT%hH%iM%sS');
                         } elseif (is_bool($v)) {
                             $v = $v ? 'TRUE' : 'FALSE';
                         } else {
