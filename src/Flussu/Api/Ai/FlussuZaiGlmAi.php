@@ -165,6 +165,15 @@ class FlussuZaiGlmAi implements IAiProvider
                 'temperature' => (float) Config::init()->aiTemperature('zai_glm')
             ];
 
+            // [DIAG_VISION_v1] confirm which Z-AI model is actually receiving the image
+            \Flussu\General::Log_nocaller('[DIAG_VISION_v1] ZaiGlm analyzeMedia: model=' . $this->_zai_glm_model
+                . ' chat_model=' . $this->_zai_glm_chat_model
+                . ' mime=' . $mimeType
+                . ' imgBytes=' . strlen($imageData)
+                . ' b64Chars=' . strlen($base64Image)
+                . ' msgCount=' . count($preChat)
+                . ' lastMsgContentType=' . (is_array($preChat[count($preChat)-1]['content'] ?? null) ? 'parts' : 'string'), true);
+
             $response = $this->client->post('chat/completions', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->_zai_glm_key,

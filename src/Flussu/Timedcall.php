@@ -189,6 +189,12 @@ class Timedcall
                 echo "DocSpace: cleaned $cleaned orphaned spaces\r\n";
                 General::Log2("DocSpace: cleaned $cleaned orphaned spaces", $this->_logDir);
             }
+            // v5.x — sweep Uploads/temp/dsp_* that never made it into any session
+            $cleanedTmp = \Flussu\Documents\DocumentSpace::cleanupTempUploads(4);
+            if ($cleanedTmp > 0) {
+                echo "DocSpace: cleaned $cleanedTmp stale temp uploads\r\n";
+                General::Log2("DocSpace: cleaned $cleanedTmp stale temp uploads", $this->_logDir);
+            }
         } catch (\Throwable $e) {
             General::Log2("DocSpace cleanup error: " . $e->getMessage(), $this->_logDir);
         } finally {

@@ -139,6 +139,21 @@ class FlussuGeminAi implements IAiProvider
         if ($fileData === false)
             return [[], "Error: cannot read file " . $mediaPath, null];
 
+        // v5.x — Gemini PHP SDK's Blob expects a MimeType enum, not a string.
+        // mime_content_type() returns plain strings (e.g. "image/jpeg"); some
+        // aliases ("image/jpg", "image/x-png") aren't covered by the enum's
+        // canonical values, so map them explicitly before calling ::from().
+        $mimeAlias = [
+            'image/jpg'   => 'image/jpeg',
+            'image/pjpeg' => 'image/jpeg',
+            'image/x-png' => 'image/png',
+        ];
+        $normalizedMime = $mimeAlias[$mimeType] ?? $mimeType;
+        $mimeEnum = MimeType::tryFrom($normalizedMime);
+        if ($mimeEnum === null) {
+            return [[], "Error: unsupported media type for Gemini: $mimeType", null];
+        }
+
         $base64Data = base64_encode($fileData);
         $tokenUsage = null;
 
@@ -149,7 +164,7 @@ class FlussuGeminAi implements IAiProvider
                 ->generateContent([
                     $prompt,
                     new Blob(
-                        mimeType: $mimeType,
+                        mimeType: $mimeEnum,
                         data: $base64Data
                     )
                 ]);

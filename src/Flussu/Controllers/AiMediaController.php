@@ -131,6 +131,23 @@ class AiMediaController
         if (is_null($preChat) || empty($preChat))
             $preChat = [];
 
+        // v5.x — history is persisted text-only and re-attaches images each turn.
+        // Strip any leftover multi-part content from prior turns before passing to
+        // the provider, so a turn that ran on OpenAI doesn't leak image_url parts
+        // into a Claude/Gemini payload (and vice versa).
+        // [DIAG_VISION_v1] count multi-part messages found in restored history
+        $diagMultipartBefore = 0;
+        foreach ((array)$preChat as $m) {
+            if (isset($m['content']) && is_array($m['content'])) $diagMultipartBefore++;
+        }
+        if (is_array($preChat)) {
+            General::normalizeAiHistoryToText($preChat);
+        }
+        General::Log_nocaller('[DIAG_VISION_v1] AiMediaController restore sess=' . $sessId
+            . ' historyMsgs=' . count((array)$preChat)
+            . ' multipartBefore=' . $diagMultipartBefore
+            . ' (normalized to text)', true);
+
         try {
             $result = $this->_aiClient->analyzeMedia($preChat, $mediaPath, $prompt);
 
@@ -147,6 +164,10 @@ class AiMediaController
                     'role' => 'assistant',
                     'content' => $result[1],
                 ];
+                // v5.x — flatten the current turn's multi-part user message back to
+                // plain text before persistence. The image was already injected this
+                // turn; the next turn will re-fetch it from DocumentSpace.
+                General::normalizeAiHistoryToText($history);
                 General::ObjPersist("AiCht" . $sessId, $history);
             }
 

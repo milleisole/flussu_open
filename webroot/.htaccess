@@ -1,0 +1,16 @@
+# Flussu — Apache+mod_php per-app overrides
+#
+# Questa istanza serve PHP via mod_php (vedi mods-enabled/php8.2.conf:
+# "SetHandler application/x-httpd-php"). In mod_php il file .user.ini
+# NON viene letto, quindi i limiti devono passare da qui via php_value.
+# Il VirtualHost ha AllowOverride All, quindi queste direttive sono effettive.
+#
+# Lo scopo è onorare il limite documentato di 20MB per file caricati via
+# /flucli/upload.SRV.php. I default di sistema (upload_max_filesize=2M,
+# post_max_size=8M) erano molto sotto soglia.
+#
+# Nota: post_max_size deve essere >= upload_max_filesize, con un piccolo
+# margine per gli altri campi del form multipart.
+
+php_value upload_max_filesize 25M
+php_value post_max_size       30M

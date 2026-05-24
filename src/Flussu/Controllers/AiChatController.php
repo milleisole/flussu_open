@@ -208,6 +208,13 @@ TXT;
         if (is_null($preChat) || empty($preChat))
             $preChat=[];
 
+        // v5.x — defensive: history may contain multi-part content left over from
+        // a previous analyzeMedia turn (or from older saves before this normalization).
+        // Flatten to text so a text-only chat() never re-sends stale image parts.
+        if (is_array($preChat)) {
+            General::normalizeAiHistoryToText($preChat);
+        }
+
         // [DIAG_QWEN_v1] inbound to chat()
         General::Log_nocaller('[DIAG_QWEN_v1] chat() IN platform=' . $this->_platform->name
             . ' sess=' . $sessId

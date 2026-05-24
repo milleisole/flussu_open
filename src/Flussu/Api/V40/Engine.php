@@ -325,25 +325,18 @@ class Engine {
             // ------------------------------------------
 
             // -----------------------------------------
-            //  DOCUMENT SPACE - v4.6
-            //  Scansiona /Uploads/temp/ per file dsp_* in attesa
-            //  di essere processati nel DocumentSpace della sessione.
-            //  Supporta anche $docspace_files nei terms (API diretta).
+            //  DOCUMENT SPACE - v4.6 / v5.x
+            //  v5.x: il "glob dsp_*" automatico è stato rimosso. Era pensato come
+            //  fallback per upload anonimi senza SID, ma causava cross-session
+            //  pollution: ogni sessione ingeriva gli orfani in temp/ di tutte
+            //  le altre. La regola ora è: i file finiscono nel DocumentSpace
+            //  della sessione SOLO se (a) /flucli/upload.SRV.php è chiamato con
+            //  `sid=`, o (b) il mittente passa esplicitamente $docspace_files
+            //  nei TRM con i path ricevuti dall'upload. La pulizia degli
+            //  orfani in Uploads/temp/dsp_* è demandata a
+            //  DocumentSpace::cleanupTempUploads (vedi Timedcall).
             // -----------------------------------------
             if (!empty($sid)) {
-                $tempDir = $_SERVER['DOCUMENT_ROOT'] . "/../Uploads/temp/";
-                $dspFiles = glob($tempDir . "dsp_*");
-                if (!empty($dspFiles)) {
-                    $docSpace = new \Flussu\Documents\DocumentSpace($sid);
-                    foreach ($dspFiles as $dspFile) {
-                        if (!is_file($dspFile)) continue;
-                        $originalName = preg_replace('/^dsp_[a-f0-9]+_/', '', basename($dspFile));
-                        $result = $docSpace->addDocument($dspFile, $originalName);
-                        if ($result['success']) {
-                            unlink($dspFile); // rimuovi da temp dopo il processing
-                        }
-                    }
-                }
                 // Supporto API diretta tramite $docspace_files nei terms
                 $docspaceFiles = $terms['$docspace_files'] ?? null;
                 if ($docspaceFiles) {
@@ -351,9 +344,15 @@ class Engine {
                         $docspaceFiles = json_decode($docspaceFiles, true);
                     }
                     if (is_array($docspaceFiles) && !empty($docspaceFiles)) {
-                        $docSpace = $docSpace ?? new \Flussu\Documents\DocumentSpace($sid);
+                        $docSpace = new \Flussu\Documents\DocumentSpace($sid);
                         foreach ($docspaceFiles as $dsFile) {
-                            $docSpace->addDocument($dsFile, basename($dsFile));
+                            $addRes = $docSpace->addDocument($dsFile, basename($dsFile));
+                            // [DIAG_VISION_v1] confirm each $docspace_files entry actually lands in DocSpace
+                            \Flussu\General::Log_nocaller('[DIAG_VISION_v1] Engine $docspace_files sid=' . $sid
+                                . ' path=' . $dsFile
+                                . ' fileExists=' . (file_exists($dsFile) ? 'yes' : 'NO')
+                                . ' addSuccess=' . (!empty($addRes['success']) ? 'yes' : 'NO')
+                                . ' err=' . ($addRes['error'] ?? ''), true);
                         }
                     }
                     unset($terms['$docspace_files']);

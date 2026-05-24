@@ -239,6 +239,28 @@ class General {
             }
         }
     }
+    /**
+     * v5.x — Flatten any multi-part content (OpenAI/Claude/Gemini vision shapes)
+     * down to a plain text string. Persisted AI history must stay provider-agnostic;
+     * images live in DocumentSpace and are re-attached fresh each turn, not stored
+     * in the chat history.
+     */
+    static function normalizeAiHistoryToText(array &$history): void
+    {
+        foreach ($history as &$msg) {
+            if (isset($msg['content']) && is_array($msg['content'])) {
+                $text = '';
+                foreach ($msg['content'] as $part) {
+                    if (is_array($part) && (($part['type'] ?? '') === 'text') && isset($part['text'])) {
+                        $text .= (string)$part['text'];
+                    }
+                }
+                $msg['content'] = $text;
+            }
+        }
+        unset($msg);
+    }
+
     static function ObjPersist($id,$obj)
     {
         $fname=hash('sha256', $id);

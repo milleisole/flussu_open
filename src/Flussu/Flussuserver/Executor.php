@@ -367,7 +367,47 @@ class Executor{
                         // Use Platform enum directly from numeric value, fallback to CHATGPT if invalid
                         $platform = Platform::tryFrom((int)$innerParams[0]) ?? Platform::CHATGPT;
                         $ctrl = new AiChatController($platform);
-                        $reslt=$ctrl->chat($Sess->getId(), $sendText);
+
+                        // v5.x - Vision route: when DocumentSpace holds image attachments, dispatch
+                        // to AiMediaController::analyzeMedia so the bytes reach the model. Without
+                        // this, getContextForAi only injects a "[image available]" placeholder and
+                        // the LLM correctly reports it cannot see anything.
+                        $imagePaths = $docSpace->getImagePaths();
+                        // [DIAG_VISION_v1] log the routing decision every turn — both branches
+                        \Flussu\General::Log_nocaller('[DIAG_VISION_v1] sendToAi decision sess=' . $Sess->getId()
+                            . ' platform=' . $platform->name
+                            . ' hasDocs=' . ($docSpace->hasDocuments() ? 'yes' : 'no')
+                            . ' imgCount=' . count($imagePaths)
+                            . ' branch=' . (!empty($imagePaths) ? 'vision' : 'text-only'), true);
+                        if (!empty($imagePaths)) {
+                            $mediaCtrl = new AiMediaController($platform);
+                            if ($mediaCtrl->canAnalyze()) {
+                                $Sess->recLog("DocSpace: " . count($imagePaths) . " image(s) found, routing to analyzeMedia");
+                                // [DIAG_VISION_v1] confirm vision routing path + image presence
+                                \Flussu\General::Log_nocaller('[DIAG_VISION_v1] route=analyzeMedia platform=' . $platform->name
+                                    . ' sess=' . $Sess->getId()
+                                    . ' imgCount=' . count($imagePaths)
+                                    . ' firstImg=' . $imagePaths[0]
+                                    . ' firstImgExists=' . (file_exists($imagePaths[0]) ? 'yes' : 'NO')
+                                    . ' firstImgBytes=' . (file_exists($imagePaths[0]) ? filesize($imagePaths[0]) : 0)
+                                    . ' promptLen=' . strlen($sendText), true);
+                                if (count($imagePaths) > 1) {
+                                    $Sess->recLog("DocSpace: only first image will be sent this turn (single-media flow)");
+                                }
+                                $reslt = $mediaCtrl->analyzeMedia($Sess->getId(), $imagePaths[0], $sendText);
+                                // [DIAG_VISION_v1] response status + token usage from vision call
+                                \Flussu\General::Log_nocaller('[DIAG_VISION_v1] analyzeMedia DONE platform=' . $platform->name
+                                    . ' status=' . ($reslt[0] ?? '?')
+                                    . ' replyLen=' . (is_string($reslt[1] ?? null) ? strlen($reslt[1]) : -1)
+                                    . ' tokenUsage=' . json_encode($reslt[2] ?? null)
+                                    . ' replyHead=' . substr((string)($reslt[1] ?? ''), 0, 200), true);
+                            } else {
+                                $Sess->recLog("DocSpace: vision not supported by " . $platform->name . ", falling back to text-only chat");
+                                $reslt = $ctrl->chat($Sess->getId(), $sendText);
+                            }
+                        } else {
+                            $reslt = $ctrl->chat($Sess->getId(), $sendText);
+                        }
                         if ($reslt[0]!="Ok"){
                             $Sess->recLog("AI response: ".json_encode($reslt[1]));
                             $Sess->statusError(true);
