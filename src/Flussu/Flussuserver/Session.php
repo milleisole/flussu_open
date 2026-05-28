@@ -1271,6 +1271,10 @@ class Session {
     }
 
     function __destruct(){
+        // v5.x - defensive: skip when the object was created via
+        // ReflectionClass::newInstanceWithoutConstructor (tests). Production
+        // code always runs the constructor which initialises _WofoDNC.
+        if (!isset($this->_WofoDNC)) return;
         $durmsec=intval((microtime(true) - $this->_timestart) * 1000);
         $start_time = microtime(true);
         if (!$this->_doNotSaveHistory){
