@@ -213,7 +213,7 @@ class Environment {
 
     // v4.3 Ai Agent Chat
     public function initAiAgent         ($initChatText)  {$this->_addToResArray("initAiAgent", array($initChatText));}
-    public function sendToAi            ($sendText, $varResponseName,$provider=0,$allowFile=false)  {$this->_addToResArray("sendToAi", array($provider,$sendText, $varResponseName, $allowFile));}
+    public function sendToAi            ($sendText, $varResponseName,$provider=0,$allowFile=true)  {$this->_addToResArray("sendToAi", array($provider,$sendText, $varResponseName, $allowFile));}
 
     // v4.5.2 AI Media Exchange
     public function analyzeMediaWithAi  ($filePath, $prompt, $varResponseName, $provider=0)          {$this->_addToResArray("analyzeMedia", array($provider, $filePath, $prompt, $varResponseName));}

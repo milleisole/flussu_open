@@ -10,7 +10,7 @@
 
 **Non-goals — explicit architectural constraint.** Flussu does **not** generate, render, convert or persist the file. It stays an orchestrator. md→pdf, file write, docx packaging, etc. are the caller's responsibility. Flussu only:
 
-1. injects a "capability" instruction into the prompt sent to the AI (opt-in),
+1. injects a "capability" instruction into the prompt sent to the AI (on by default, opt-out per call),
 2. intercepts the LLM reply when it contains a `flussu-file` block,
 3. forwards the content to the caller as a typed element inside `elms`.
 
@@ -61,15 +61,20 @@ When a valid `flussu-file` block is intercepted, Flussu emits, inside `elms`, a 
 
 **Backward compatibility.** Clients that don't recognise `document` should ignore the element or render the `content` as plain text. No existing key changes.
 
-## 5. Activation — opt-in
+## 5. Activation — on by default (opt-out per call)
 
-The capability is **off by default**. It must be turned on per workflow step by the workflow author, to avoid wasting tokens on the capability prompt and to avoid the LLM generating files spontaneously.
+**Updated 2026-05-28 post-merge.** Original design was opt-in (`$allowFile = false`). After integration test the decision was reversed: every `sendToAi` call now prepends the capability prompt unless the workflow author explicitly opts out. Rationale: zero-configuration for workflow authors, the LLM "just knows" it can return a file when the user asks. Token cost (~300 input tokens per call) is accepted as a system-wide trade-off.
 
-**Surface** — extend the existing `Environment::sendToAi` signature with one optional positional parameter:
+**Surface** — `Environment::sendToAi` 4th positional parameter:
 
 ```php
 // src/Flussu/Flussuserver/Environment.php:216
-public function sendToAi($sendText, $varResponseName, $provider = 0, $allowFile = false)
+public function sendToAi($sendText, $varResponseName, $provider = 0, $allowFile = true)
+```
+
+A workflow author can still silence the capability for a specific node by passing `false` explicitly:
+```php
+$F->sendToAi($msg, '$out', 0, false);
 ```
 
 The same param is propagated as a 4th item in the `$innerParams` array consumed by `Executor::sendToAi` (`src/Flussu/Flussuserver/Executor.php:296`).
@@ -139,7 +144,7 @@ Placement matters: the decoration loop already handles arbitrary `display_info.t
 
 | File | Line(s) | What |
 |------|---------|------|
-| `src/Flussu/Flussuserver/Environment.php` | 216 | Add `$allowFile = false` to `sendToAi`; forward as 4th element in `_addToResArray` |
+| `src/Flussu/Flussuserver/Environment.php` | 216 | Add `$allowFile = true` to `sendToAi` (default on); forward as 4th element in `_addToResArray` |
 | `src/Flussu/Flussuserver/Executor.php` | 296-428 | Read `$innerParams[3]` as `$allowFile`; prepend capability prompt if set; intercept reply; call `pushPendingElm` on success |
 | `src/Flussu/Flussuserver/Session.php` | new methods | `pushPendingElm` / `flushPendingElms` + private buffer |
 | `src/Flussu/Api/V40/Engine.php` | ~377 | Merge `flushPendingElms()` into `$frmElms` before the decoration loop |
@@ -154,7 +159,7 @@ The capability prompt text is a constant in `Executor` (or a small helper class)
 - [ ] `content` is preserved verbatim, **no** htmlspecialchars / sanitize on it (it is a file body)
 - [ ] non-UTF-8 bytes in `content` → reject (validation failure → degrade to text)
 - [ ] payload size cap (e.g. 256 KB) to avoid abusive responses bloating `elms`
-- [ ] block appearing **without** opt-in → parsed defensively, NOT emitted (zero-change invariant), only a warn log so the workflow author notices
+- [ ] block appearing on a node that opted **out** (`allowFile=false`) → parsed defensively, NOT emitted, only a warn log so the workflow author notices
 - [ ] two or more `flussu-file` blocks in one reply → keep the first, warn-log the others (decision recorded in §6.1)
 
 ## 10. Documentation

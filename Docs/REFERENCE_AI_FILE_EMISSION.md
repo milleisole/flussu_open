@@ -6,10 +6,10 @@
 
 ## 1. Workflow side — `sendToAi(..., allowFile)`
 
-`Environment::sendToAi` accepts an optional 4th positional parameter:
+`Environment::sendToAi` accepts an optional 4th positional parameter. **Default is `true`**: the capability is on for every call, the workflow author opts out per node if needed.
 
 ```php
-$wofoEnv->sendToAi($sendText, $varResponseName, $provider = 0, $allowFile = false);
+$wofoEnv->sendToAi($sendText, $varResponseName, $provider = 0, $allowFile = true);
 ```
 
 | Parameter         | Type | Default | Meaning |
@@ -17,22 +17,23 @@ $wofoEnv->sendToAi($sendText, $varResponseName, $provider = 0, $allowFile = fals
 | `sendText`        | string | — | The user message to send to the AI. |
 | `varResponseName` | string | — | Session variable that will hold the AI's prose reply. |
 | `provider`        | int    | `0`   | `Platform` enum value (`0` = workflow-declared default). |
-| `allowFile`       | bool   | `false` | **Opt-in for AI file emission.** When `true`, Flussu prepends a capability prompt instructing the LLM that it MAY emit a `flussu-file` fenced block if (and only if) the user explicitly asks for a file. |
+| `allowFile`       | bool   | `true` | **AI file emission capability.** When `true` (default), Flussu prepends a capability prompt that tells the LLM it MAY emit a `flussu-file` fenced block when the user explicitly asks for a file. Pass `false` to silence the capability on a specific node (saves ~300 input tokens). |
 
-**When to turn it on.** Turn on `allowFile` only on nodes where the user is likely to ask for a file (markdown, json, html). Off elsewhere, to save tokens on the capability prompt and avoid the LLM emitting blocks unprompted.
+**When you might want `allowFile=false`.** On nodes where you are absolutely certain a file emission would be noise — long-running classifiers, query planners, intent routers — or to shave tokens on extremely high-volume paths. Default is on, you only pass it when you want it off.
 
-**What happens when on:**
+**What happens (default behaviour):**
 
 1. The capability prompt is prepended to `sendText`. The prompt is in English, single source of truth at `FlussuFileBlock::CAPABILITY_PROMPT`.
 2. The LLM reply is parsed.
 3. If a valid `flussu-file` block is present:
    - the block is **stripped** from the reply text before it is stored in `$varResponseName` — `$varResponseName` carries only the prose
    - the file payload is forwarded to the caller as a `DOC$N` element inside `elms` (see §2)
-4. If no block is present: behaviour identical to the no-`allowFile` case.
+4. If no block is present: identical to a normal chat turn.
 
-**What happens when off (default):**
+**What happens when explicitly off (`allowFile=false`):**
 
-- Nothing. Zero changes vs. the pre-v5 behaviour, even if the LLM somehow emits a `flussu-file` block (it will be passed through verbatim as text and a `[DOC_FILE_v1] unsolicited_block` line will be written to the log).
+- The capability prompt is NOT prepended.
+- The LLM reply is still parsed defensively. If a block is detected, it is passed through verbatim as text and a `[DOC_FILE_v1] unsolicited_block` log line is written so you notice.
 
 ## 2. API response side — `display_info.type:"document"`
 
