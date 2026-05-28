@@ -83,6 +83,11 @@ class Session {
     private $_is_expired=false;
     private $_history=[];
     private $_arVars=[];
+    // v5.x - AI File Emission: side-channel buffer for elements emitted
+    // outside the current workflow block (DOC$, future tool-use outputs).
+    // Per-turn, in-memory only — never persisted.
+    private $_pendingElms = [];
+    private $_pendingElmsCounter = 0;
     public  $arVarKeys=[];
     private $_lastVarCmd=[];
     private $_wfError=false;
@@ -897,6 +902,31 @@ class Session {
         return true;
     }
 
+    /**
+     * v5.x - Push an element emitted outside the current workflow block.
+     * `$typePrefix` is the element-type tag (e.g. "DOC"); the resulting key
+     * is "DOC$1", "DOC$2", … with the counter scoped to the current turn.
+     * `$payload` follows the elms convention: [content, metadata] (or
+     * [content, metadata, value]).
+     */
+    public function pushPendingElm(string $typePrefix, array $payload): void {
+        $this->_pendingElmsCounter++;
+        $key = $typePrefix . '$' . $this->_pendingElmsCounter;
+        $this->_pendingElms[$key] = $payload;
+    }
+
+    /**
+     * v5.x - Return AND clear all pending elements. Called by Engine after
+     * building $frmElms. Returns an associative array suitable for
+     * array_merge into $frmElms.
+     */
+    public function flushPendingElms(): array {
+        $out = $this->_pendingElms;
+        $this->_pendingElms = [];
+        $this->_pendingElmsCounter = 0;
+        return $out;
+    }
+
     private function _updateWorklog($transExec){
         if (count($this->_wrklogs)>0){
             $TX=$this->_WofoDNC->updateWorklog($this->_wrklogs,$transExec);
@@ -1241,6 +1271,10 @@ class Session {
     }
 
     function __destruct(){
+        // v5.x - defensive: skip when the object was created via
+        // ReflectionClass::newInstanceWithoutConstructor (tests). Production
+        // code always runs the constructor which initialises _WofoDNC.
+        if (!isset($this->_WofoDNC)) return;
         $durmsec=intval((microtime(true) - $this->_timestart) * 1000);
         $start_time = microtime(true);
         if (!$this->_doNotSaveHistory){

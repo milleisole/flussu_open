@@ -67,6 +67,7 @@ use Flussu\Flussuserver\NC\HandlerNC;
 use Flussu\Controllers\Platform;
 use Flussu\Controllers\AiChatController;
 use Flussu\Controllers\AiMediaController;
+use Flussu\Helpers\FlussuFileBlock;
 class Executor{
     private $_xcelm=array();
     private $_en=0;
@@ -297,6 +298,7 @@ class Executor{
                         // V4.3 - Send to AI
                         $Sess->statusCallExt(true);
                         $Sess->recLog("AI provider: ".$innerParams[0]);
+                        $allowFile = (bool)($innerParams[3] ?? false);
 
                         // V4.6 - Document Space: inject document context into prompt
                         $sendText = $innerParams[1];
@@ -305,6 +307,13 @@ class Executor{
                             $docContext = $docSpace->getContextForAi();
                             $sendText = $docContext . "\n\n" . $sendText;
                             $Sess->recLog("DocSpace: injected " . strlen($docContext) . " chars of document context");
+                        }
+
+                        // v5.x - AI File Emission capability (opt-in via 4th sendToAi param).
+                        // Prepended LAST so the capability rules are the first thing the model reads.
+                        if ($allowFile) {
+                            $sendText = FlussuFileBlock::CAPABILITY_PROMPT . "\n\n" . $sendText;
+                            $Sess->recLog("AI File Emission: capability ON");
                         }
 
                         $Sess->recLog("call AI: ".$sendText);
@@ -414,7 +423,45 @@ class Executor{
                             //$reslt[1]="[ERROR]";
                             //break;
                         }
-                        $Sess->assignVars($innerParams[2],$reslt[1]);
+                        // v5.x - AI File Emission: intercept the reply.
+                        // Parsing runs ALWAYS (cheap), but emission only when capability=ON
+                        // so we preserve the zero-change invariant when off (Docs/DESIGN_AI_FILE_EMISSION.md §11).
+                        // Scope note: the $llmExtra fast-path above (break at the end of its branch)
+                        // intentionally bypasses this interception — tool-use flows handle structured
+                        // output through $LLMEXTRA_OUT, not flussu-file.
+                        // On AI error ($reslt[0] != "Ok"), $reslt[1] may be a non-string (array/object);
+                        // the is_string guard skips parsing and we assign as-is (pre-v5 behaviour).
+                        $replyForVar = $reslt[1];
+                        if (is_string($reslt[1])) {
+                            $fb = FlussuFileBlock::parse($reslt[1]);
+                            if ($fb['found']) {
+                                if ($allowFile && $fb['valid']) {
+                                    $replyForVar = $fb['stripped'];
+                                    $docElm = [
+                                        $fb['payload']['content'],
+                                        ['display_info' => array_filter([
+                                            'type'     => 'document',
+                                            'format'   => $fb['payload']['format'],
+                                            'filename' => $fb['payload']['filename'] ?? null,
+                                        ], fn($v) => $v !== null)],
+                                    ];
+                                    $Sess->pushPendingElm('DOC', $docElm);
+                                    General::Log_nocaller('[DOC_FILE_v1] emit sess=' . $Sess->getId()
+                                        . ' fmt=' . $fb['payload']['format']
+                                        . ' bytes=' . strlen($fb['payload']['content'])
+                                        . ' extras=' . $fb['extras']
+                                        . ' trailing=' . ($fb['trailing'] ? 'yes' : 'no'), true);
+                                } elseif ($allowFile && !$fb['valid']) {
+                                    General::Log_nocaller('[DOC_FILE_v1] parse_fail sess=' . $Sess->getId()
+                                        . ' reason=' . $fb['reason'], true);
+                                } else {
+                                    // capability OFF but the model emitted anyway — log and pass through unchanged
+                                    General::Log_nocaller('[DOC_FILE_v1] unsolicited_block sess=' . $Sess->getId()
+                                        . ' len=' . strlen($reslt[1]), true);
+                                }
+                            }
+                        }
+                        $Sess->assignVars($innerParams[2], $replyForVar);
                         // V4.5.2 - Track LLM token consumption in INFO session variable
                         if (isset($reslt[2]) && is_array($reslt[2])) {
                             $tokenInfo = [
