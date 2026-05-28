@@ -22,10 +22,15 @@ Content-Type: multipart/form-data
 ```
 pdf  docx  txt  md  log  xlsx  ods  csv
 jpg  jpeg  png  gif  webp
+json  yaml  yml  xml  html  htm  css  js
 ```
 
 Files outside this list are rejected with HTTP 200 + `status:"error"`
 (generic) **except** for the structured rejections listed below.
+
+The third row (`json`…`js`) is read as raw plain-text and handed to the
+LLM as-is — no JSON/XML parsing, no HTML DOM, no JS AST. Subject to the
+same 500 KB per-file cap as `txt`/`md`/`log` (see _Hard limits_ below).
 
 ## Hard limits
 
@@ -34,7 +39,7 @@ Files outside this list are rejected with HTTP 200 + `status:"error"`
 | Maximum upload size (application cap) | **20 MB** | `webroot/flucli/upload.SRV.php` (`$maxSize`) |
 | Maximum sheets per XLSX / ODS | **30** | `DocumentSpace::MAX_SPREADSHEET_SHEETS` |
 | Maximum rows per sheet | **5000** | `DocumentSpace::MAX_SPREADSHEET_ROWS` |
-| Maximum raw text per text file (`txt`, `md`, `log`, `csv`) | **500 KB** | `DocumentSpace::MAX_TEXT_BYTES` |
+| Maximum raw text per text file (`txt`, `md`, `log`, `csv`, `json`, `yaml`, `yml`, `xml`, `html`, `htm`, `css`, `js`) | **500 KB** | `DocumentSpace::MAX_TEXT_BYTES` |
 | Maximum PDF pages | **50** | `DocumentSpace::MAX_PDF_PAGES` |
 | AI-context budget across all documents in a session | **50 KB** | `DocumentSpace::MAX_CONTEXT_CHARS` |
 

@@ -147,14 +147,41 @@ class AiWebController
             try {
                 General::addRowLog("Web research: native path on " . $this->_platform->name . " (action=$action)");
                 $native = $this->_aiClient->chat_WebPreview($userText, $sessId, 1024, 0.3);
-                if (is_array($native) && isset($native[1]) && trim((string)$native[1]) !== '') {
+                if (is_array($native)
+                    && isset($native[1])
+                    && trim((string)$native[1]) !== ''
+                    && stripos((string)$native[1], 'Error:') !== 0) {
                     $reply = (string)$native[1];
                     $usage = isset($native[2]) && is_array($native[2]) ? $native[2] : null;
                     return ["Ok", $reply, $usage];
                 }
-                General::addRowLog("Web research: native returned empty, falling back to hybrid");
+                General::addRowLog("Web research: native returned empty or error reply on " . $this->_platform->name);
             } catch (\Throwable $e) {
-                General::addRowLog("Web research: native failed (" . $e->getMessage() . "), falling back to hybrid");
+                General::addRowLog("Web research: native failed on " . $this->_platform->name . " (" . $e->getMessage() . ")");
+            }
+        }
+
+        // 1b. Gemini runtime fallback for providers kept on a native path that
+        // failed at runtime (GROK / QWEN / ZAI_GLM timeout, rate-limit, ...).
+        // CHATGPT, DEEPSEEK and the no-web providers are already redirected
+        // statically by Platform::resolveWebProvider(), so $this->_platform is
+        // already GEMINI for those — skipping this block prevents a double call.
+        if ($this->_platform !== Platform::GEMINI && $action !== 'fetch') {
+            try {
+                General::addRowLog("Web research: Gemini fallback attempt for " . $this->_platform->name);
+                $gemini = new FlussuGeminAi();
+                $native = $gemini->chat_WebPreview($userText, $sessId, 1024, 0.3);
+                if (is_array($native)
+                    && isset($native[1])
+                    && trim((string)$native[1]) !== ''
+                    && stripos((string)$native[1], 'Error:') !== 0) {
+                    $reply = (string)$native[1];
+                    $usage = isset($native[2]) && is_array($native[2]) ? $native[2] : null;
+                    return ["Ok", $reply, $usage];
+                }
+                General::addRowLog("Web research: Gemini fallback returned empty or error reply");
+            } catch (\Throwable $e) {
+                General::addRowLog("Web research: Gemini fallback exception: " . $e->getMessage());
             }
         }
 

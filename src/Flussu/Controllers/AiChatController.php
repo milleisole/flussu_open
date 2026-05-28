@@ -828,29 +828,43 @@ TXT;
      * on error) so the caller can derive a meaningful filename for the client envelope.
      */
     private function _dispatchImageGeneration(string $sessId, string $imgPrompt): array {
-        try {
-            $imgPlatform = $this->_platform->resolveImageProvider();
-            if ($imgPlatform !== $this->_platform)
-                General::addRowLog("Image dispatch redirected: " . $this->_platform->name . " → " . $imgPlatform->name);
-            $media = new AiMediaController($imgPlatform);
-            if (!$media->canGenerate())
-                return ["_(Image generation is not supported by the current provider.)_", null, null];
-            $img = $media->generateImage($sessId, $imgPrompt);
-            if (($img[0] ?? '') !== 'Ok' || empty($img[1])) {
-                $rawErr = (string)($img[1] ?? 'unknown');
-                General::addRowLog("AI chat-image error (raw): " . $rawErr);
-                $friendly = AiMediaController::humanizeImageError($rawErr);
-                return ["_(" . $friendly . ")_", null, null];
-            }
+        $primary = $this->_platform->resolveImageProvider();
+        if ($primary !== $this->_platform)
+            General::addRowLog("Image dispatch redirected: " . $this->_platform->name . " → " . $primary->name);
 
-            $url   = $img[1];
-            $usage = $img[2] ?? null;
-            General::addRowLog("AI chat-image dispatched: " . $url . " for session " . $sessId);
-            return ["![generated](" . $url . ")", is_array($usage) ? $usage : null, $url];
-        } catch (\Throwable $e) {
-            General::addRowLog("AI chat-image exception: " . $e->getMessage());
-            return ["_(" . AiMediaController::humanizeImageError($e->getMessage()) . ")_", null, null];
+        $attempts = [$primary];
+        $fallback = $primary->resolveImageFallbackProvider();
+        if ($fallback !== null && $fallback !== $primary)
+            $attempts[] = $fallback;
+
+        $lastErr = 'unknown';
+        foreach ($attempts as $i => $platform) {
+            $isFallback = ($i > 0);
+            try {
+                if ($isFallback)
+                    General::addRowLog("AI chat-image fallback attempt on " . $platform->name . " after primary failure (lastErr: " . substr($lastErr, 0, 200) . ")");
+                $media = new AiMediaController($platform);
+                if (!$media->canGenerate()) {
+                    $lastErr = "provider " . $platform->name . " does not support image generation";
+                    continue;
+                }
+                $img = $media->generateImage($sessId, $imgPrompt);
+                if (($img[0] ?? '') !== 'Ok' || empty($img[1])) {
+                    $lastErr = (string)($img[1] ?? 'unknown');
+                    General::addRowLog("AI chat-image error on " . $platform->name . " (raw): " . $lastErr);
+                    continue;
+                }
+                $url   = $img[1];
+                $usage = $img[2] ?? null;
+                General::addRowLog("AI chat-image dispatched on " . $platform->name . ": " . $url . " for session " . $sessId);
+                return ["![generated](" . $url . ")", is_array($usage) ? $usage : null, $url];
+            } catch (\Throwable $e) {
+                $lastErr = $e->getMessage();
+                General::addRowLog("AI chat-image exception on " . $platform->name . ": " . $lastErr);
+            }
         }
+
+        return ["_(" . AiMediaController::humanizeImageError($lastErr) . ")_", null, null];
     }
 
     /**

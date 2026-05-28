@@ -64,18 +64,50 @@ enum Platform: int {
     /**
      * v5.x — Web research counterpart of resolveImageProvider().
      *
-     * Unlike image generation (which delegates to TOGETHER for chat-only providers),
-     * web research uses Flussu's local hybrid pipeline as the shared agent:
-     * WebSearchController + WebScraperController + a synthesis call back to the
-     * same chat provider. So this method is a passthrough by default.
+     * Providers redirected → GEMINI (google_search grounding):
+     *   CHATGPT      — openai-php/client v0.10.3 has no responses() method
+     *   DEEPSEEK     — chat_WebPreview is a plain chat call, no web tool (false positive)
+     *   HUGGINGFACE, ZEROONE, KIMI, STABILITY, MISTRAL, TOGETHER — no native web tool
      *
-     * It exists for symmetry with resolveImageProvider() and as an extension point:
-     * an operator wanting to force every web request through a single AI vendor with
-     * a native browsing tool can override this match table to redirect to that
-     * provider (e.g. CHATGPT via its Responses-API web_search tool).
+     * Providers kept on their native path (with Gemini runtime fallback in
+     * AiWebController if the native call fails):
+     *   GEMINI, CLAUDE, GROK, QWEN, ZAI_GLM
      */
     public function resolveWebProvider(): self
     {
-        return $this;
+        return match ($this) {
+            self::CHATGPT,
+            self::DEEPSEEK,
+            self::HUGGINGFACE,
+            self::ZEROONE,
+            self::KIMI,
+            self::STABILITY,
+            self::MISTRAL,
+            self::TOGETHER  => self::GEMINI,
+            default         => $this,
+        };
+    }
+
+    /**
+     * v5.x — Runtime fallback for image generation when the primary provider
+     * (as resolved by resolveImageProvider) fails: account/credit issues,
+     * model deprecation, transient outage, or content-policy rejection on a
+     * provider with stricter moderation than the fallback.
+     *
+     * Returns the platform to retry on, or null if no fallback is defined.
+     * Mirrors the Gemini runtime fallback used in AiWebController::dispatch().
+     *
+     * TOGETHER ↔ QWEN reciprocal: both are serverless image providers with
+     * loose moderation and complementary failure modes (Together's FLUX is
+     * synchronous and may hit rate limits; Qwen's DashScope is async with a
+     * task queue). If one is down, the other usually still serves.
+     */
+    public function resolveImageFallbackProvider(): ?self
+    {
+        return match ($this) {
+            self::TOGETHER => self::QWEN,
+            self::QWEN     => self::TOGETHER,
+            default        => null,
+        };
     }
 }

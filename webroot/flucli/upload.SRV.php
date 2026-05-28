@@ -101,7 +101,10 @@ if ($file['size'] > $maxSize) {
 }
 
 // Allowed extensions
-$allowedExts = ['pdf','docx','txt','md','log','xlsx','ods','csv','jpg','jpeg','png','gif','webp'];
+$allowedExts = [
+    'pdf','docx','txt','md','log','xlsx','ods','csv','jpg','jpeg','png','gif','webp',
+    'json','yaml','yml','xml','html','htm','css','js',
+];
 $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
 
 // v5.x — structured 422 rejections: extensions we explicitly recognize but
