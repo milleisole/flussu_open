@@ -157,17 +157,13 @@ The capability prompt text is a constant in `Executor` (or a small helper class)
 - [ ] block appearing **without** opt-in → parsed defensively, NOT emitted (zero-change invariant), only a warn log so the workflow author notices
 - [ ] two or more `flussu-file` blocks in one reply → keep the first, warn-log the others (decision recorded in §6.1)
 
-## 10. Documentation updates
+## 10. Documentation
 
-The user brief lists `wofoEnv-commands.md` and `API_V40_REFERENCE.md`. **Neither file exists in the repo as of 2026-05-28** — `find` returns no match. Open question for the implementation phase:
+**Resolved 2026-05-28.** The brief named `wofoEnv-commands.md` and `API_V40_REFERENCE.md`; neither existed in the repo. Rather than create two large generic reference docs (out of scope), a single focused reference for this feature was written:
 
-- locate the actual files used as workflow-command reference and v4.0 API reference (candidates under `Docs/`, `Docs/Man/`, or outside the repo)
-- OR create them under `Docs/` following the convention of `DESIGN_AI_MEDIA_EXCHANGE.md` etc.
+→ **`Docs/REFERENCE_AI_FILE_EMISSION.md`** — covers the `allowFile` parameter (workflow author perspective) and the `display_info.type:"document"` element (API consumer perspective) in one place, with examples.
 
-Either way, the new content to add is:
-
-- **wofoEnv side:** describe the 4th positional parameter `allowFile` on `sendToAi`, with a one-liner example.
-- **API v4.0 side:** add `display_info.type:"document"` to the table of element types, with a complete example response.
+If/when a project-wide workflow-command reference or API-response reference is built, the relevant sections can be moved out of `REFERENCE_AI_FILE_EMISSION.md` and into the appropriate home; the design and contract live here, the user-facing docs live there.
 
 ## 11. Acceptance criteria
 
