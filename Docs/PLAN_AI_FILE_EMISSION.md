@@ -90,16 +90,20 @@ TXT;
      *   [
      *     'found'    => bool,          // a `flussu-file` fence was present
      *     'valid'    => bool,          // payload parsed AND validated
-     *     'reason'   => string|null,   // when !valid: short tag for logging
+     *     'reason'   => string|null,   // when !valid: short tag; null when valid or !found
      *     'stripped' => string,        // reply with the (first) block removed; equals input when !found
+     *     'trailing' => bool,          // true when non-whitespace text follows the first fence (warn-log fodder)
      *     'extras'   => int,           // extra blocks found beyond the first (warn-log fodder)
      *     'payload'  => array|null,    // validated payload: ['format'=>..,'content'=>..,'filename'=>?]
      *   ]
+     *
+     * NOTE: `payload['filename']` is caller-suggested and unsanitised. Apply
+     * basename() + null-byte strip before any filesystem use.
      */
     public static function parse(string $reply): array {
         $out = [
             'found' => false, 'valid' => false, 'reason' => null,
-            'stripped' => $reply, 'extras' => 0, 'payload' => null,
+            'stripped' => $reply, 'trailing' => false, 'extras' => 0, 'payload' => null,
         ];
 
         if (!preg_match_all('~```flussu-file\s*\R(.*?)\R```~s', $reply, $m, PREG_OFFSET_CAPTURE)) {
@@ -115,6 +119,7 @@ TXT;
 
         $out['stripped'] = substr($reply, 0, $firstFenceOffset)
                          . substr($reply, $firstFenceOffset + $firstFenceLen);
+        $out['trailing'] = (trim(substr($reply, $firstFenceOffset + $firstFenceLen)) !== '');
 
         $decoded = json_decode($innerJson, true);
         if (!is_array($decoded)) {
@@ -203,20 +208,29 @@ function assertEq($label, $expected, $actual) {
 
 // ---- 1. No block → unchanged ------------------------------------------------
 $r = FlussuFileBlock::parse("just a plain reply, nothing fenced.");
-assertEq("no-block: found=false",  false, $r['found']);
-assertEq("no-block: valid=false",  false, $r['valid']);
-assertEq("no-block: stripped==in", "just a plain reply, nothing fenced.", $r['stripped']);
+assertEq("no-block: found=false",    false, $r['found']);
+assertEq("no-block: valid=false",    false, $r['valid']);
+assertEq("no-block: trailing=false", false, $r['trailing']);
+assertEq("no-block: stripped==in",   "just a plain reply, nothing fenced.", $r['stripped']);
 
 // ---- 2. Happy path: minimal valid block -------------------------------------
 $reply = "Here's your file.\n\n```flussu-file\n{\"format\":\"md\",\"filename\":\"x.md\",\"content\":\"# Hi\"}\n```";
 $r = FlussuFileBlock::parse($reply);
-assertEq("happy: found",    true, $r['found']);
-assertEq("happy: valid",    true, $r['valid']);
-assertEq("happy: format",   "md",         $r['payload']['format']);
-assertEq("happy: content",  "# Hi",       $r['payload']['content']);
-assertEq("happy: filename", "x.md",       $r['payload']['filename']);
-assertEq("happy: extras=0", 0, $r['extras']);
+assertEq("happy: found",      true, $r['found']);
+assertEq("happy: valid",      true, $r['valid']);
+assertEq("happy: trailing",   false, $r['trailing']);
+assertEq("happy: format",     "md",         $r['payload']['format']);
+assertEq("happy: content",    "# Hi",       $r['payload']['content']);
+assertEq("happy: filename",   "x.md",       $r['payload']['filename']);
+assertEq("happy: extras=0",   0, $r['extras']);
 assertEq("happy: stripped trims block", "Here's your file.\n\n", $r['stripped']);
+
+// ---- 2b. Trailing prose after the block → trailing=true ---------------------
+$reply = "before\n```flussu-file\n{\"content\":\"x\"}\n```\nuh-oh I kept talking";
+$r = FlussuFileBlock::parse($reply);
+assertEq("trailing: valid",    true, $r['valid']);
+assertEq("trailing: trailing", true, $r['trailing']);
+assertEq("trailing: content",  "x", $r['payload']['content']);
 
 // ---- 3. Default format when omitted ----------------------------------------
 $reply = "```flussu-file\n{\"content\":\"hello\"}\n```";
@@ -275,7 +289,7 @@ exit($fail === 0 ? 0 : 1);
 - [ ] **Step 2.2 — Run the tests, confirm all pass**
 
 Run: `php src/Flussu/Test/test_flussu_file_block.php`
-Expected: `--- 26 passed, 0 failed ---` exit code 0.
+Expected: `--- 31 passed, 0 failed ---` exit code 0.
 
 If failures appear, fix the parser (Task 1 helper), re-run. The parser is small enough that each failing assertion points to one specific branch.
 
@@ -552,7 +566,8 @@ Replace the `$Sess->assignVars($innerParams[2],$reslt[1]);` line with the parse 
                                     \Flussu\General::Log_nocaller('[DOC_FILE_v1] emit sess=' . $Sess->getId()
                                         . ' fmt=' . $fb['payload']['format']
                                         . ' bytes=' . strlen($fb['payload']['content'])
-                                        . ' extras=' . $fb['extras'], true);
+                                        . ' extras=' . $fb['extras']
+                                        . ' trailing=' . ($fb['trailing'] ? 'yes' : 'no'), true);
                                 } elseif ($allowFile && !$fb['valid']) {
                                     \Flussu\General::Log_nocaller('[DOC_FILE_v1] parse_fail sess=' . $Sess->getId()
                                         . ' reason=' . $fb['reason'], true);
