@@ -374,6 +374,12 @@ class Engine {
             $frmBid=$wwork->getBlockId();
             // APPLICARE HTMLSANITIZE PRIMA DI INVIARE!
             $frmElms=$wwork->getExecElements($restart,$restRows);
+            // v5.x - AI File Emission: drain Session's side-channel buffer
+            // (DOC$ from sendToAi with allowFile=true). Done BEFORE the
+            // decoration switch so DOC elements receive the standard pass.
+            foreach ($wSess->flushPendingElms() as $sideKey => $sidePayload) {
+                $frmElms[$sideKey] = $sidePayload;
+            }
             //$frmElms["0RD_0"]="";
             if ($restart){
                 $frmElms=array_merge($frmElms, array("TITLE$0"=>array($wSess->getWfTitle(),"")));
@@ -415,6 +421,13 @@ class Engine {
                             $aVal="[val]:";
                             if (count($aElm)>2);
                                 $aVal=$aElm[2];
+                            break;
+                        case "DOC":
+                            // v5.x - AI File Emission: passthrough.
+                            // $Elm is the file body (string), $Css already carries
+                            // display_info.type=document set by Executor. Skip the
+                            // sanitiser — this is a file body, not HTML to render.
+                            $frmElms[$Key] = [$Elm, $Css];
                             break;
                         case "M":
                             if (strpos($Elm,'flussu_qrc')===false){
