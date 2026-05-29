@@ -80,10 +80,15 @@ class FlussuClaudeAi implements IAiProvider, IAiProviderExtra
     }
 
     private function _chatContinue($sendArray){
+        // v5.x - max_tokens read from config (services.ai_provider.ant_claude.max_tokens)
+        // with a safe default of 8192 (supported by every current Claude 4.x model).
+        // Previously hardcoded to 1024 — caused mid-output truncation on long
+        // structured replies (AI File Emission blocks, tables, multi-day plans).
+        $maxTokens = (int) (config("services.ai_provider.ant_claude.max_tokens") ?: 8192);
         try{
             $response = $this->_claude3->messages()->create([
                 'model'      => $this->_claude_chat_model,
-                'max_tokens' => 1024,
+                'max_tokens' => $maxTokens,
                 'temperature'=> (float) Config::init()->aiTemperature('ant_claude'),
                 'messages'   => $sendArray,
             ]);
@@ -129,7 +134,11 @@ class FlussuClaudeAi implements IAiProvider, IAiProviderExtra
         $temperature = isset($extra['temperature'])
             ? (float)$extra['temperature']
             : (float) Config::init()->aiTemperature('ant_claude');
-        $maxTokens = isset($extra['max_tokens']) ? (int)$extra['max_tokens'] : 1024;
+        // v5.x - fallback bumped from 1024 to 8192 (same rationale as _chatContinue).
+        // LLMextra-provided max_tokens still wins when explicitly set.
+        $maxTokens = isset($extra['max_tokens'])
+            ? (int)$extra['max_tokens']
+            : (int) (config("services.ai_provider.ant_claude.max_tokens") ?: 8192);
 
         $payload = [
             'model'       => $model,
