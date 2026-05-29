@@ -91,6 +91,23 @@ $r = FlussuFileBlock::parse($reply);
 assertEq("crlf: valid", true, $r['valid']);
 assertEq("crlf: content", "x", $r['payload']['content']);
 
+// ---- 10. Same-line fence + JSON (Claude style, observed in production) ------
+// Some models emit the entire block on one line instead of following the
+// fence-on-own-line layout from the capability prompt. The parser must
+// tolerate it (no \R required between fence and JSON).
+$reply = "Ecco il file.\n\n```flussu-file {\"format\":\"md\",\"filename\":\"d.md\",\"content\":\"# Hi\"}```";
+$r = FlussuFileBlock::parse($reply);
+assertEq("same-line: valid",    true,    $r['valid']);
+assertEq("same-line: content",  "# Hi",  $r['payload']['content']);
+assertEq("same-line: filename", "d.md",  $r['payload']['filename']);
+assertEq("same-line: trailing", false,   $r['trailing']);
+
+// ---- 11. Mixed: fence then JSON on next line, closing fence on same line ----
+$reply = "```flussu-file\n{\"content\":\"x\"}```";
+$r = FlussuFileBlock::parse($reply);
+assertEq("mixed: valid", true, $r['valid']);
+assertEq("mixed: content", "x", $r['payload']['content']);
+
 // NOTE: the parser also rejects non-UTF-8 `content` via mb_check_encoding,
 // but in PHP 8+ json_decode catches malformed UTF-8 first and returns null,
 // so this branch is effectively defense-in-depth. Not unit-tested here.

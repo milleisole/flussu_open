@@ -63,7 +63,11 @@ TXT;
             'stripped' => $reply, 'trailing' => false, 'extras' => 0, 'payload' => null,
         ];
 
-        if (!preg_match_all('~```flussu-file\s*\R(.*?)\R```~s', $reply, $m, PREG_OFFSET_CAPTURE)) {
+        // Tolerant fence regex: accepts the JSON payload on its own line
+        // (Mistral/GPT style) OR on the same line as the opening fence
+        // (Claude style, observed in production). `\s` includes \n/\r so
+        // the `s` modifier + lazy `.*?` correctly handles either layout.
+        if (!preg_match_all('~```flussu-file\s*(.*?)\s*```~s', $reply, $m, PREG_OFFSET_CAPTURE)) {
             return $out;
         }
         $out['found']  = true;
