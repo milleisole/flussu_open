@@ -60,7 +60,12 @@ class FlussuClaudeAi implements IAiProvider, IAiProviderExtra
                     $this->_claude_chat_model=config("services.ai_provider.ant_claude.chat-model");
             }
 
-            $this->_claude3 = new ClaudePhp(apiKey: $this->_claude_key);
+            // v5.x - SDK timeout: claude-php-sdk default is 30s. Combined with
+            // higher max_tokens (8192) this is too tight for long structured
+            // outputs (multi-day plans, full reports). 120s gives Claude room
+            // to generate. Tunable via config services.ai_provider.ant_claude.timeout.
+            $timeout = (float) (config("services.ai_provider.ant_claude.timeout") ?: 120.0);
+            $this->_claude3 = new ClaudePhp(apiKey: $this->_claude_key, timeout: $timeout);
         }
     }
 
@@ -93,8 +98,13 @@ class FlussuClaudeAi implements IAiProvider, IAiProviderExtra
                 'messages'   => $sendArray,
             ]);
         } catch (\Throwable $e) {
-            //Log::error("Claude API Error: " . $e->getMessage());
-            return "Error: no response. Details: " . $e->getMessage();
+            // v5.x - return the contract tuple even on error so downstream
+            // (AiChatController, Executor) doesn't choke on a bare string.
+            // The bare-string return was the root cause of the degenerate
+            // L$1 = "r" symptom observed after the max_tokens bump triggered
+            // SDK timeouts.
+            General::Log_nocaller('[CLAUDE_ERR] _chatContinue exception: ' . $e->getMessage(), true);
+            return [$sendArray, "Error: no response. Details: " . $e->getMessage(), null];
         }
         $tokenUsage = [
             'model'  => $this->_claude_chat_model,
