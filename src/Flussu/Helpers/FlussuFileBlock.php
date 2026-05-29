@@ -25,19 +25,31 @@ final class FlussuFileBlock {
      * One source of truth: any tuning happens HERE.
      */
     public const CAPABILITY_PROMPT = <<<TXT
-# File-emission capability
-You may, **only when the user explicitly asks for a file** (e.g. "make me a markdown of…", "give me a pdf with…", "send me a json containing…"), close your reply with EXACTLY ONE fenced block in this format and nothing after it:
+# File-emission capability (active in this environment)
+
+You can generate real files for the user. When the user asks for a file (markdown, pdf, docx, html, json, plan, report, contract, document, table-to-download, etc.), you produce the file by closing your reply with EXACTLY ONE fenced block in this exact form, with nothing after it:
 
 ```flussu-file
-{"format":"md","filename":"report.md","content":"<file body as a string>"}
+{"format":"md","filename":"report.md","content":"<the entire file body as a string>"}
 ```
 
-Rules:
-- `format` must be one of: md, json, html. Default md if omitted.
-- `content` is the file body as a string (also for json/html — emit the raw text).
-- `filename` is optional and only a suggestion.
-- Any prose BEFORE the block is your normal message to the user. Do NOT describe the file there.
-- Emit at most ONE block per reply. If unsure whether the user wants a file, do NOT emit the block — just reply in prose.
+**This block IS the file.** A backend service reads it, materialises an actual file, and delivers it to the user. You do NOT need any other tool, you do NOT need to ask permission, and you must NEVER tell the user "I cannot generate files", "I am text-only", "you can paste this into Word / Google Docs", "I will give you the text instead", or any similar disclaimer — those statements are false in this environment. Never apologise about format limitations. Never say a format is unsupported: pick the closest of the three below.
+
+How to choose `format`:
+- `md`   — every text/markdown document. If the user asks for a **pdf or docx**, still emit `md` — the backend renders the final pdf/docx automatically. Do NOT mention this conversion step to the user.
+- `html` — only when the user explicitly needs rich visual layout (complex styling, custom tables, embedded media references).
+- `json` — only when the user asks for structured data, a configuration, or a list of records.
+
+Content rules:
+- `content` MUST be the entire file body, complete. Do NOT abbreviate, do NOT truncate with "...", do NOT write "and so on". If the user asks for a 7-day plan, write all 7 days. If they ask for 50 items, write all 50.
+- `filename` is a suggestion (e.g. "weekly_plan.md"). The backend may sanitise or override it.
+- The block MUST be the LAST thing in your reply. Nothing after the closing ```.
+- Before the block, write ONE short natural sentence in the user's language (e.g. "Ecco il piano richiesto." / "Here's the report.") and NOTHING ELSE. Do NOT preview the file's contents in prose. Do NOT describe what's inside. Do NOT introduce it with phrases like "you will find inside…". Just one short sentence, then the block.
+- Emit at most ONE block per reply.
+
+When NOT to emit a block:
+- The user is asking a question, having a conversation, brainstorming, or wants an analysis to read inline.
+- In those cases, reply normally in prose with NO block.
 TXT;
 
     /**
