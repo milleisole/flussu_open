@@ -13,8 +13,10 @@ final class FlussuFileBlock {
     /** Hard cap on the decoded `content` string (bytes). Over cap → reject. */
     public const MAX_CONTENT_BYTES = 262144; // 256 KB, decision §12.2
 
-    /** Allowed values for the optional `format` field. */
-    public const ALLOWED_FORMATS = ['md', 'json', 'html'];
+    /** Common format hints — NOT enforced. `format` is free-form metadata: the
+     *  content body is always Markdown (or raw text for structured formats) and
+     *  the CALLER converts it into the requested file format. */
+    public const COMMON_FORMATS = ['md', 'txt', 'pdf', 'docx', 'html', 'json', 'csv', 'svg', 'xlsx'];
 
     /** Default format when the LLM omits the field. */
     public const DEFAULT_FORMAT = 'md';
@@ -33,12 +35,18 @@ You can generate real files for the user. When the user asks for a file (markdow
 {"format":"md","filename":"report.md","content":"<the entire file body as a string>"}
 ```
 
-**This block IS the file.** A backend service reads it, materialises an actual file, and delivers it to the user. You do NOT need any other tool, you do NOT need to ask permission, and you must NEVER tell the user "I cannot generate files", "I am text-only", "you can paste this into Word / Google Docs", "I will give you the text instead", or any similar disclaimer — those statements are false in this environment. Never apologise about format limitations. Never say a format is unsupported: pick the closest of the three below.
+**This block IS the file.** A backend service reads it, materialises an actual file in the requested format, and delivers it to the user. You do NOT need any other tool, you do NOT need to ask permission, and you must NEVER tell the user "I cannot generate files", "I am text-only", "you can paste this into Word / Google Docs", "I will give you the text instead", or any similar disclaimer — those statements are false in this environment. Never apologise about format limitations and never say a format is unsupported.
 
 How to choose `format`:
-- `md`   — every text/markdown document. If the user asks for a **pdf or docx**, still emit `md` — the backend renders the final pdf/docx automatically. Do NOT mention this conversion step to the user.
-- `html` — only when the user explicitly needs rich visual layout (complex styling, custom tables, embedded media references).
-- `json` — only when the user asks for structured data, a configuration, or a list of records.
+- Set `format` to the file format the user actually asked for — e.g. `md`, `txt`, `pdf`, `docx`, `html`, `json`, `csv`, `svg`, `xlsx`, etc. If the user did not specify one, use `md`.
+- ALWAYS write `content` as Markdown (the full document body, in plain Markdown text). The delivery layer converts that Markdown into the requested `format` and assigns the right extension — do NOT try to produce pdf/docx/binary bytes yourself, and do NOT mention this conversion step to the user.
+- Only exception: for inherently-structured formats (`json`, `csv`, `svg`) write the raw structured content directly instead of Markdown.
+
+Images are NOT files — NEVER emit a flussu-file block for a raster image:
+- A flussu-file block carries a TEXT document body; it can NEVER carry an actual picture.
+- If the user asks for a photo, picture, illustration, render, ritratto, foto, immagine, logo, poster, icon or any RASTER image, DO NOT emit a flussu-file block and DO NOT describe it in prose. Reply with EXACTLY one line of JSON, nothing before or after:
+{"FLUSSU_IMG":"<a detailed English prompt suitable for an image generation model>"}
+  The backend generates the actual image with the configured image-generation provider. Inline SVG is allowed only for charts/diagrams/schematics.
 
 Content rules:
 - `content` MUST be the entire file body, complete. Do NOT abbreviate, do NOT truncate with "...", do NOT write "and so on". If the user asks for a 7-day plan, write all 7 days. If they ask for 50 items, write all 50.
@@ -111,10 +119,13 @@ TXT;
             $out['reason'] = 'invalid_utf8';
             return $out;
         }
-        $format = $decoded['format'] ?? self::DEFAULT_FORMAT;
-        if (!in_array($format, self::ALLOWED_FORMATS, true)) {
-            $out['reason'] = 'unknown_format';
-            return $out;
+        // `format` is free-form metadata: the caller (frontend) converts the
+        // Markdown body into whatever the user requested (pdf, docx, txt, svg,
+        // xlsx, ...). Flussu does NOT render — it only passes the tag through.
+        $format = strtolower(trim((string)($decoded['format'] ?? self::DEFAULT_FORMAT)));
+        $format = preg_replace('/[^a-z0-9]+/', '', $format);
+        if ($format === '') {
+            $format = self::DEFAULT_FORMAT;
         }
 
         $payload = ['format' => $format, 'content' => $decoded['content']];

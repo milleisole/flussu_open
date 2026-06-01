@@ -49,8 +49,8 @@ When `allowFile=true` and the LLM returns a valid block, the API response's `elm
       "# Report\n\nLine 1\nLine 2\n",
       { "display_info": {
           "type":     "document",
-          "format":   "md",
-          "filename": "report.md"
+          "format":   "pdf",
+          "filename": "report.pdf"
       } }
     ]
   }
@@ -62,10 +62,22 @@ When `allowFile=true` and the LLM returns a valid block, the API response's `elm
 | Field in `display_info`     | Type    | Notes |
 |-----------------------------|---------|-------|
 | `type`                      | string  | Always the literal `"document"`. |
-| `format`                    | string  | One of `md`, `json`, `html`. |
-| `filename`                  | string  | **Optional**, **caller-suggested**, **unsanitised** — must be passed through `basename()` and null-byte stripped before any filesystem use. |
+| `format`                    | string  | **The file format the user asked for** — free-form, lowercased (`md`, `txt`, `pdf`, `docx`, `html`, `json`, `csv`, `svg`, `xlsx`, `excel`, …). Defaults to `md` when the model omits it. **This is the field that drives caller-side conversion** — trust it over the extension in `filename`. |
+| `filename`                  | string  | **Optional**, **caller-suggested**, **unsanitised** — must be passed through `basename()` and null-byte stripped before any filesystem use. The extension here is only a hint; the authoritative format is `format`. |
 
-**Content.** `elms["DOC$N"][0]` is the **literal file body** as a string — not a URL, not base64, not HTML to render. Caller is expected to turn it into an actual file (md→pdf, json save, etc.). Flussu does not render or persist the file.
+**Content.** `elms["DOC$N"][0]` is the **literal file body** as a string — not a URL, not base64. Flussu does **not** render, convert or persist the file: the caller does.
+- For convertible formats (`pdf`, `docx`, `xlsx`, `html`, …) the body is authored as **Markdown** — the caller converts md → the requested `format`.
+- For `md` / `txt` the body is plain text — save as-is.
+- For `json` / `csv` / `svg` the body is already the **raw** target content (not Markdown) — save as-is.
+
+**Caller conversion rule.** For each `elms` entry whose key starts with `DOC$`:
+
+1. read `display_info.format` → the target format requested by the user;
+2. take `[0]` → the file body;
+3. if `format` ∈ {`md`, `txt`, `json`, `csv`, `svg`} → write the body **verbatim**; otherwise (`pdf`, `docx`, `xlsx`, `html`, …) → the body is **Markdown**, convert it to `format`;
+4. name the file from `display_info.filename` (or your own), setting the extension from `format`.
+
+The `flussu-file` source block is already **stripped** from the conversational reply (`L$` / prose), so the raw body reaches the client only inside the `DOC$` element.
 
 **Difference vs. `display_info.type:"file"`.** The pre-existing `file` type carries a URL to a static asset hosted by Flussu. The new `document` type carries the body inline. They are distinct on purpose; clients should not conflate them.
 
@@ -83,9 +95,11 @@ When `allowFile=true`, the LLM is told (in English, via `CAPABILITY_PROMPT`):
 > {"format":"md","filename":"report.md","content":"<file body as a string>"}
 > ```
 > ```
-> Rules: `format` ∈ {md, json, html}, default `md`; `content` is the body as a string; `filename` is a suggestion. Prose before the block is the user-facing message.
+> Rules: set `format` to the format the user asked for — **free-form** (`md`, `txt`, `pdf`, `docx`, `html`, `json`, `csv`, `svg`, `xlsx`, …), default `md`. Write `content` as **Markdown** (the delivery layer converts it), except for `json`/`csv`/`svg` where you write the raw content directly. `filename` is a suggestion. Prose before the block is the user-facing message.
+>
+> **Images are not files:** never emit a `flussu-file` block for a raster image — those go through the `FLUSSU_IMG` marker instead, which routes to the configured image-generation provider.
 
-Flussu validates the payload:
+`format` is **not validated against an allow-list** — it is free-form metadata for the caller. Flussu only sanitises it (lowercase, alphanumeric, default `md`) and passes it through. The remaining payload validation:
 
 | Validation failure              | `reason` tag in log                 |
 |---------------------------------|-------------------------------------|
@@ -93,7 +107,6 @@ Flussu validates the payload:
 | `content` missing or non-string | `missing_or_nonstring_content`      |
 | `content` > 256 KB              | `oversize`                          |
 | `content` non-UTF-8             | `invalid_utf8` (defense-in-depth)   |
-| `format` not in allowed list    | `unknown_format`                    |
 
 On any validation failure: no `DOC$` element is emitted, the original reply (including the malformed block) is passed through, and a `[DOC_FILE_v1] parse_fail` line is logged.
 
