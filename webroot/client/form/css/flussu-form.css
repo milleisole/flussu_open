@@ -2,7 +2,7 @@
 Flussu Form CSS v4.0 - Modern Responsive Design
 Compatible with Flussu Server v4.2
 Typeform-inspired, mobile-first approach
-Copyright (C) 2021-2025 Mille Isole SRL - Palermo (Italy)
+Copyright (C) 2021-2026 Mille Isole SRL - Palermo (Italy)
 *************************************************************************/
 
 /* CSS Variables */
@@ -294,10 +294,9 @@ body.dark-mode .flussu-required {
 }
 
 .flussu-flag {
-    width: 48px;
-    height: 36px;
-    object-fit: cover;
-    border-radius: 4px;
+    font-size: 2rem;
+    line-height: 1;
+    display: inline-block;
 }
 
 /* Form Environment */
@@ -1711,10 +1710,19 @@ body.dark-mode .flussu-thank-you-text {
 }
 
 .flussu-flag-small {
-    width: 24px;
-    height: 18px;
-    object-fit: cover;
-    border-radius: 2px;
+    font-size: 1.1rem;
+    line-height: 1;
+    display: inline-block;
+}
+
+/* v5: titolo schermata selezione lingua (sostituisce le classi Tailwind) */
+.flussu-select-title {
+    font-size: calc(var(--fs-title) * var(--text-scale) * 0.7);
+    font-family: var(--font-title);
+    font-weight: 700;
+    text-align: center;
+    color: var(--c-ink);
+    margin: 0 0 var(--flussu-spacing-xl) 0;
 }
 
 /* iOS-style switch */

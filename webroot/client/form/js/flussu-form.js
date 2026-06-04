@@ -1,11 +1,11 @@
 /*************************************************************************
-Flussu Client Script v4.1 - Complete Implementation
-Compatible with Flussu Server v4.5
+Flussu Client Script v5.0 - Complete Implementation
+Compatible with Flussu Server v5.0
 Modern, responsive, Typeform-inspired interface
-Copyright (C) 2021-2025 Mille Isole SRL - Palermo (Italy)
+Copyright (C) 2021-2026 Mille Isole SRL - Palermo (Italy)
 *************************************************************************/
 
-console.log('[Flussu] Loading v4.0...');
+console.log('[Flussu] Loading v5.0...');
 
 // Platform detection
 window.mobileCheck = function() {
@@ -16,8 +16,8 @@ window.mobileCheck = function() {
 
 // Global variables
 const FlussuClient = {
-    version: "4.1",
-    serverVersion: "4.5",
+    version: "5.0",
+    serverVersion: "5.0",
     isMobile: window.mobileCheck(),
     config: {
         srv: location.protocol + "//" + window.location.host + "/",
@@ -69,6 +69,21 @@ const getUrlParam = (name) => {
 const FLUSSU_PREFS_KEY = 'flussu-prefs-v5';
 const FLUSSU_PRESETS = ['clinical-calm','editorial-noir','minimal-radical','swiss-brutalist','split-editorial'];
 let _prefsCache = null;
+
+// v5: stringhe client tradotte (REQUISITI 4.3.5 / R-NF-05). Fallback su 'it'.
+const CLIENT_I18N = {
+    it: { thankYou:'Grazie', selectLanguage:'Scegli la lingua', sessionExpired:'Sessione scaduta. Ricomincia.', workflowInactive:'Workflow non attivo.', genericError:'Si è verificato un errore.', loading:'Caricamento…', required:'obbligatorio' },
+    en: { thankYou:'Thank you', selectLanguage:'Select language', sessionExpired:'Session expired. Please start again.', workflowInactive:'Workflow not active.', genericError:'An error occurred.', loading:'Loading…', required:'required' },
+    fr: { thankYou:'Merci', selectLanguage:'Choisissez la langue', sessionExpired:'Session expirée. Veuillez recommencer.', workflowInactive:'Workflow inactif.', genericError:'Une erreur est survenue.', loading:'Chargement…', required:'requis' },
+    de: { thankYou:'Danke', selectLanguage:'Sprache wählen', sessionExpired:'Sitzung abgelaufen. Bitte neu starten.', workflowInactive:'Workflow nicht aktiv.', genericError:'Ein Fehler ist aufgetreten.', loading:'Wird geladen…', required:'erforderlich' },
+    es: { thankYou:'Gracias', selectLanguage:'Elige el idioma', sessionExpired:'Sesión caducada. Empieza de nuevo.', workflowInactive:'Workflow no activo.', genericError:'Se ha producido un error.', loading:'Cargando…', required:'obligatorio' }
+};
+function t(key) {
+    const lang = String(FlussuClient.state.lang || 'IT').toLowerCase();
+    return (CLIENT_I18N[lang] && CLIENT_I18N[lang][key]) || CLIENT_I18N.it[key] || key;
+}
+// v5: bandiere come emoji unicode (niente più dipendenza da flagcdn.com - HANDOFF 9)
+const FLAG_EMOJI = { IT:'🇮🇹', EN:'🇬🇧', FR:'🇫🇷', DE:'🇩🇪', ES:'🇪🇸' };
 
 function loadPrefs() {
     if (_prefsCache) return _prefsCache;
@@ -216,8 +231,6 @@ function buildInterface() {
     }
     
     const html = `
-    <!-- Tailwind CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="${FlussuClient.config.srv}client/form/css/flussu-form.css" rel="stylesheet">
     <!-- Favicon -->
@@ -504,25 +517,14 @@ function updateLanguageButtons(languages) {
         'DE': 'Deutsch',
         'ES': 'Español'
     };
-    
-    // Mapping corretti per le bandiere
-    const flagCodes = {
-        'IT': 'it',
-        'EN': 'gb',  // United Kingdom flag for English
-        'FR': 'fr',
-        'DE': 'de',
-        'ES': 'es'
-    };
-    
+
     languages.forEach(lang => {
         const isActive = lang === FlussuClient.state.lang;
-        const flagCode = flagCodes[lang] || lang.toLowerCase();
         html += `
-            <button class="flussu-lang-nav-btn ${isActive ? 'active' : ''}" 
+            <button class="flussu-lang-nav-btn ${isActive ? 'active' : ''}"
                     onclick="window.changeLanguage('${lang}')"
                     ${isActive ? 'disabled' : ''}>
-                <img src="https://flagcdn.com/24x18/${flagCode}.png" 
-                     alt="${lang}" class="flussu-flag-small">
+                <span class="flussu-flag-small" aria-hidden="true">${FLAG_EMOJI[lang] || ''}</span>
                 <span>${langNames[lang] || lang}</span>
             </button>
         `;
@@ -595,9 +597,9 @@ function loadDarkModePreference() {
 // Show language selection
 function showLanguageSelection(languages) {
     let html = '<div class="flussu-language-select">';
-    html += '<h2 class="text-2xl font-bold mb-6 text-center">Select Language</h2>';
+    html += '<h2 class="flussu-select-title">' + t('selectLanguage') + '</h2>';
     html += '<div class="flussu-lang-grid">';
-    
+
     const langNames = {
         'IT': 'Italiano',
         'EN': 'English',
@@ -605,22 +607,11 @@ function showLanguageSelection(languages) {
         'DE': 'Deutsch',
         'ES': 'Español'
     };
-    
-    // Mapping corretti per le bandiere
-    const flagCodes = {
-        'IT': 'it',
-        'EN': 'gb',  // United Kingdom flag for English
-        'FR': 'fr',
-        'DE': 'de',
-        'ES': 'es'
-    };
-    
+
     languages.forEach(lang => {
-        const flagCode = flagCodes[lang] || lang.toLowerCase();
         html += `
             <button class="flussu-lang-btn" onclick="window.startWorkflowWithLang('${lang}')">
-                <img src="https://flagcdn.com/48x36/${flagCode}.png" 
-                     alt="${lang}" class="flussu-flag">
+                <span class="flussu-flag" aria-hidden="true">${FLAG_EMOJI[lang] || ''}</span>
                 <span>${langNames[lang] || lang}</span>
             </button>
         `;
@@ -742,10 +733,12 @@ function processWorkflowResponse(data) {
         console.error('[Flussu] Server error:', data.error);
         if (data.error.includes('E89')) {
             clearSession();
-            showError('Session expired. Please start again.');
+            showError(t('sessionExpired'));
             setTimeout(() => location.reload(), 3000);
+        } else if (data.error.includes('E99')) {
+            showError(t('workflowInactive'));
         } else {
-            showError(data.error);
+            showError(t('genericError'));
         }
         return;
     }
@@ -789,7 +782,7 @@ function showThankYouScreen() {
     FlussuClient.ui.environment.style.display = 'flex';
     FlussuClient.ui.environment.innerHTML = `
         <div class="flussu-thank-you">
-            <h1 class="flussu-thank-you-text">GRAZIE</h1>
+            <h1 class="flussu-thank-you-text">${t('thankYou')}</h1>
         </div>
     `;
     
