@@ -85,6 +85,16 @@ function t(key) {
 // v5: bandiere come emoji unicode (niente più dipendenza da flagcdn.com - HANDOFF 9)
 const FLAG_EMOJI = { IT:'🇮🇹', EN:'🇬🇧', FR:'🇫🇷', DE:'🇩🇪', ES:'🇪🇸' };
 
+// v5: font Google per preset (CDN). Iniettati automaticamente da applyTheme se il
+// preset li richiede e la pagina non fornisce un fontUrl esplicito.
+// minimal-radical usa system-ui -> nessun font da caricare.
+const PRESET_FONTS = {
+    'clinical-calm':   'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap',
+    'editorial-noir':  'https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap',
+    'swiss-brutalist': 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap',
+    'split-editorial': 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&display=swap'
+};
+
 function loadPrefs() {
     if (_prefsCache) return _prefsCache;
     try {
@@ -111,8 +121,8 @@ function readThemeConfig() {
 }
 function injectFontLink(url) {
     if (!url) return;
-    if (document.querySelector('link[data-flussu-font]') &&
-        document.querySelector('link[data-flussu-font]').getAttribute('href') === url) return;
+    // dedup per href: più preset possono caricare font diversi nella stessa sessione
+    if (document.querySelector('link[data-flussu-font][href="' + url + '"]')) return;
     const l = document.createElement('link');
     l.rel = 'stylesheet'; l.href = url; l.setAttribute('data-flussu-font', '1');
     document.head.appendChild(l);
@@ -122,7 +132,10 @@ function applyTheme(cfg) {
     cfg = cfg || {};
     const html = document.documentElement;
     _setAttr(html, 'data-theme', cfg.preset || null);
-    if (cfg.typography && cfg.typography.fontUrl) injectFontLink(cfg.typography.fontUrl);
+    // font: fontUrl esplicito dal theme JSON ha precedenza; altrimenti il font Google
+    // del preset (CDN) viene caricato automaticamente.
+    const fontUrl = (cfg.typography && cfg.typography.fontUrl) || (cfg.preset && PRESET_FONTS[cfg.preset]) || null;
+    if (fontUrl) injectFontLink(fontUrl);
     if (cfg.typography && cfg.typography.fontFamily) html.style.setProperty('--font-sans', cfg.typography.fontFamily);
     if (cfg.colors && typeof cfg.colors === 'object') {
         const map = { primary:'--c-primary', primaryDark:'--c-primary-dark', primaryLight:'--c-primary-soft',

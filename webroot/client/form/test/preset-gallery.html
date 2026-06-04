@@ -142,6 +142,7 @@
         if (h.has('hc'))    { set('data-a11y-contrast','high'); document.getElementById('cb-hc').checked = true; }
         if (h.has('text'))  { set('data-a11y-textsize', h.get('text')); document.getElementById('sel-text').value = h.get('text'); }
         if (h.has('theme')) { set('data-theme', h.get('theme')); document.getElementById('sel-theme').value = h.get('theme'); }
+        if (h.has('motion')){ set('data-a11y-motion','reduced'); document.getElementById('cb-motion').checked = true; }
     })();
 </script>
 </body>

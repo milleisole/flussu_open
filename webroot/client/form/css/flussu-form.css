@@ -2247,4 +2247,60 @@ body.dark-mode[data-a11y-contrast="high"] {
 .flussu-textsize-btn[data-size="extra-large"] { font-size: 1.25rem; }
 body.dark-mode .flussu-preset-btn, body.dark-mode .flussu-textsize-btn { color: #e0e0e0; }
 
+/* =========================================================================
+   v5 — RIFINITURE STRUTTURALI per preset (fuori dal token-bridge)
+   Override mirati che vanno oltre la semplice ri-sorgente dei token.
+   ========================================================================= */
+
+/* ----- swiss-brutalist: stato SELEZIONATO in giallo accento -----
+   Il token-bridge mappa il selected su --c-primary (nero). Qui, solo per
+   questo preset, lo stato scelto usa il giallo (--c-accent) come da brief. */
+[data-theme="swiss-brutalist"] .flussu-option-card input:checked ~ .flussu-option-content {
+    background: var(--c-accent);
+    border-color: var(--c-ink);
+}
+[data-theme="swiss-brutalist"] .flussu-option-card input:checked ~ .flussu-option-content .flussu-option-check {
+    background: var(--c-ink);
+    border-color: var(--c-ink);
+}
+/* pallino interno (radio) e spunta (checkbox) in giallo, sul check nero */
+[data-theme="swiss-brutalist"] .flussu-option-card input:checked ~ .flussu-option-content .flussu-option-check::after {
+    background: var(--c-accent);
+}
+[data-theme="swiss-brutalist"] .flussu-option-card input[type="checkbox"]:checked ~ .flussu-option-content .flussu-option-check::after {
+    background: transparent;
+    border-color: var(--c-accent);
+}
+/* scala 1-5/1-10 selezionata in giallo */
+[data-theme="swiss-brutalist"] .flussu-scale-input:checked ~ .flussu-scale-dot {
+    background: var(--c-accent);
+    border-color: var(--c-ink);
+}
+
+/* ----- split-editorial: layout 2-colonne su desktop -----
+   Domanda (titolo + label) a sinistra, risposta (input/scelte/bottoni) a destra.
+   Sotto 880px torna a colonna unica (nessun compromesso responsive). */
+@media (min-width: 880px) {
+    [data-theme="split-editorial"] .flussu-content { max-width: 980px; }
+    [data-theme="split-editorial"] .flussu-block {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: clamp(2rem, 5vw, 5rem);
+        align-content: start;
+    }
+    /* colonna sinistra: la "domanda" (titolo e testi descrittivi) */
+    [data-theme="split-editorial"] .flussu-block > .flussu-label { grid-column: 1; align-self: start; }
+    /* colonna destra: la "risposta" (controlli) */
+    [data-theme="split-editorial"] .flussu-block > .flussu-input-group,
+    [data-theme="split-editorial"] .flussu-block > .flussu-selection-group,
+    [data-theme="split-editorial"] .flussu-block > .flussu-button-group { grid-column: 2; }
+    /* divisore verticale centrale (decorativo) */
+    [data-theme="split-editorial"] .flussu-block::before {
+        content: ""; grid-column: 1; grid-row: 1 / -1;
+        justify-self: end; width: 1px; height: 100%;
+        margin-right: calc(clamp(2rem, 5vw, 5rem) / -2);
+        background: var(--c-rule);
+    }
+}
+
 /* End of flussu-form-4.0.css */

@@ -16,3 +16,10 @@
 composer.lock
 *.BAK
 *.log
+
+# canonity.llm.router design docs (kept local, developed elsewhere)
+/Docs/FROM_FLUSSU_TO_CANONITY_LLM_ROUTER.md
+/Docs/IMPL_CANONITY_LLM_ROUTER.md
+
+# DB dumps di produzione/sviluppo (pesanti, tenuti solo in locale)
+/Docs/old_database/
