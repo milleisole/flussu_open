@@ -161,6 +161,33 @@ function initTheming() {
     applyA11yPrefs();
 }
 // Lettura TTS automatica del blocco corrente (se abilitata in preferenze)
+// Sceglie la voce MIGLIORE disponibile per una lingua: preferisce le voci neurali
+// /di qualità (Google, Natural, Neural, Premium, Enhanced, voci it note) e scarta
+// quelle robotiche (eSpeak, compact). Override manuale via prefs.voiceName.
+function pickBestVoice(synth, lang) {
+    const voices = synth.getVoices() || [];
+    if (!voices.length) return null;
+    const wanted = (loadPrefs().voiceName || '').trim();
+    if (wanted) {
+        const exact = voices.find(v => v.name === wanted);
+        if (exact) return exact;
+    }
+    const pref = lang.slice(0, 2).toLowerCase();
+    const byLang = voices.filter(v => (v.lang || '').toLowerCase().startsWith(pref));
+    const pool = byLang.length ? byLang : voices;
+    const score = (v) => {
+        const n = (v.name || '').toLowerCase();
+        let s = 0;
+        if (/natural|neural|premium|enhanced/.test(n)) s += 60;
+        if (/google/.test(n)) s += 50;
+        if (/\b(elsa|isabella|alice|federica|luca|cosimo|emma|giorgio|paola)\b/.test(n)) s += 25; // voci IT note di qualità
+        if (v.localService === false) s += 10; // voci di rete: spesso migliori
+        if (/espeak|festival|compact|e-speak/.test(n)) s -= 80;
+        return s;
+    };
+    return pool.slice().sort((a, b) => score(b) - score(a))[0] || null;
+}
+
 // Pronuncia un testo gestendo il caricamento ASINCRONO delle voci (causa #1 di
 // "non si sente nulla": speak() chiamato prima che getVoices() sia popolato).
 function speakText(text) {
@@ -174,12 +201,8 @@ function speakText(text) {
             const u = new SpeechSynthesisUtterance(text);
             u.lang = lang;
             u.rate = 1; u.pitch = 1; u.volume = 1;
-            const voices = synth.getVoices() || [];
-            const pref = lang.slice(0, 2);
-            const v = voices.find(x => (x.lang || '').toLowerCase().startsWith(pref))
-                   || voices.find(x => (x.lang || '').toLowerCase().startsWith('it'))
-                   || voices[0] || null;
-            if (v) u.voice = v;
+            const v = pickBestVoice(synth, lang);
+            if (v) { u.voice = v; u.lang = v.lang || lang; }
             synth.speak(u);
         } catch (e) { console.warn('[Flussu] TTS non disponibile', e); }
     };
@@ -237,6 +260,33 @@ window.toggleTtsAuto = function(cb) {
         window.speechSynthesis.cancel();
     }
 };
+// Selezione manuale della voce (persistita). Anteprima immediata.
+window.setVoice = function(sel) {
+    savePrefs({ voiceName: sel.value || '' });
+    if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (e) {} }
+    speakText(FlussuClient.state.lang && String(FlussuClient.state.lang).toLowerCase().startsWith('en')
+        ? 'Voice preview' : 'Anteprima della voce');
+};
+// Popola la tendina voci (le voci della lingua corrente in cima), con la voce
+// salvata/auto selezionata. Va richiamata anche su 'voiceschanged' (caricamento async).
+function populateVoiceSelect() {
+    const sel = document.getElementById('flussu-voice-select');
+    const synth = window.speechSynthesis;
+    if (!sel || !synth) return;
+    const voices = synth.getVoices() || [];
+    if (!voices.length) return;
+    const lang = String(FlussuClient.state.lang || 'IT').toLowerCase().startsWith('en') ? 'en' : 'it';
+    const match = voices.filter(v => (v.lang || '').toLowerCase().startsWith(lang));
+    const others = voices.filter(v => !(v.lang || '').toLowerCase().startsWith(lang));
+    const ordered = match.concat(others);
+    const saved = (loadPrefs().voiceName || '');
+    let html = '<option value="">Automatica (migliore)</option>';
+    ordered.forEach(v => {
+        const label = v.name + ' (' + v.lang + ')';
+        html += '<option value="' + v.name.replace(/"/g, '&quot;') + '"' + (v.name === saved ? ' selected' : '') + '>' + label + '</option>';
+    });
+    sel.innerHTML = html;
+}
 // Allinea lo stato dei controlli sidebar alle preferenze salvate
 function applyPrefsToUI() {
     const p = loadPrefs();
@@ -246,6 +296,12 @@ function applyPrefsToUI() {
     const hc = document.getElementById('a11yContrastToggle'); if (hc) hc.checked = p.contrast === 'high';
     const rm = document.getElementById('a11yMotionToggle'); if (rm) rm.checked = p.motion === 'reduced';
     const tts = document.getElementById('ttsAutoToggle'); if (tts) tts.checked = !!p.ttsAuto;
+    // tendina voci: popola ora e ad ogni (ri)caricamento async delle voci
+    populateVoiceSelect();
+    if (window.speechSynthesis && !window._flussuVoicesHooked) {
+        window._flussuVoicesHooked = true;
+        try { window.speechSynthesis.addEventListener('voiceschanged', populateVoiceSelect); } catch (e) {}
+    }
 }
 
 // Initialize when DOM is ready
@@ -406,6 +462,12 @@ function buildInterface() {
                                 <input type="checkbox" id="ttsAutoToggle" onchange="window.toggleTtsAuto(this)">
                                 <span class="flussu-switch-slider"></span>
                             </label>
+                        </div>
+                        <div class="flussu-nav-sub">
+                            <span class="flussu-nav-sublabel">Voce</span>
+                            <select id="flussu-voice-select" class="flussu-voice-select" onchange="window.setVoice(this)">
+                                <option value="">Automatica (migliore)</option>
+                            </select>
                         </div>
                     </div>
                 </nav>

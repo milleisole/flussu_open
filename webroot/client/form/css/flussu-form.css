@@ -1,5 +1,5 @@
 /*************************************************************************
-Flussu Form CSS v4.0 - Modern Responsive Design
+Flussu Form CSS v5.0.2 - Modern Responsive Design
 Compatible with Flussu Server v4.2
 Typeform-inspired, mobile-first approach
 Copyright (C) 2021-2026 Mille Isole SRL - Palermo (Italy)
@@ -2287,6 +2287,17 @@ body.dark-mode[data-a11y-contrast="high"] {
 .flussu-textsize-btn[data-size="large"] { font-size: 1.05rem; }
 .flussu-textsize-btn[data-size="extra-large"] { font-size: 1.25rem; }
 body.dark-mode .flussu-preset-btn, body.dark-mode .flussu-textsize-btn { color: #e0e0e0; }
+.flussu-voice-select {
+    width: 100%;
+    font-family: inherit;
+    font-size: var(--flussu-font-size-sm);
+    padding: 0.4rem 0.5rem;
+    color: var(--c-ink);
+    background: var(--flussu-surface);
+    border: 1px solid var(--c-rule);
+    border-radius: var(--r-sm);
+}
+body.dark-mode .flussu-voice-select { color: #e0e0e0; }
 
 /* =========================================================================
    v5 — RIFINITURE STRUTTURALI per preset (fuori dal token-bridge)
