@@ -358,6 +358,16 @@ TXT;
                 }
                 $status="Ok";
             }
+            // v5.x — SAFEGUARD: se il modello non ha prodotto alcuna prosa (turno
+            // andato a vuoto, es. web-research senza testo finale) NON lasciamo una
+            // risposta vuota / solo-envelope (che il client mostrerebbe grezza e/o
+            // troncata). Restituiamo un messaggio d'errore con invito a ritentare,
+            // saltando l'envelope. Solo per risposte non-comando e non in errore.
+            if ($status === "Ok" && !$res[0] && strlen(trim((string)$pReslt)) === 0) {
+                General::Log_nocaller('[AICHAT] empty reply -> retry message (sess=' . $sessId . ')', true);
+                $msg = "c'è stato un errore nella ricezione del risultato. Per piacere ritentare.";
+                return ["Ok", "{MD}" . $msg . "{/MD}", $tokenUsage];
+            }
             // v5.x — emit a <server_special_response> envelope when either the
             // client asked for server metadata (chat summary title, ...) or
             // server-side artefacts were produced this turn (e.g. a generated
