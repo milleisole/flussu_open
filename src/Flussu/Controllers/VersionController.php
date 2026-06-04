@@ -29,11 +29,18 @@
  * -------------------------------------------------------*
  * CREATED DATE:     (09.03.2023) - Aldus
  * FOR ALDUS BEAN:   Databroker.bean
- * VERSION REL.:     4.4.20250621
- * UPDATES DATE:     21.06:2025 
+ * VERSION REL.:     5.0.
+ * UPDATES DATE:     04.06:2026 
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
  * Releases/Updates:
  * Added version 11 - Error field in t20_block
+ * Added version 12 - allineamento "v11 con c20_error" (DB v11 drifted senza la colonna)
+ * (13,14 NON usate - si salta da 12 a 15)
+ * Added version 15 - schema corrente di sviluppo: t82_api_key, user-mgmt/auth
+ *                    (t81,t88,t92,t94,t96), pass indici performance,
+ *                    t205_work_var tracking (cols+idx)
+ * Added version 16 - normalizzazione drift: c01_email->varchar(65),
+ *                    pulizia default t05_app_lang (c05_langstart default 'it')
  * -------------------------------------------------------*/
 
  /*
@@ -411,8 +418,200 @@ use Flussu\Flussuserver\Request;
         } else {
             $res.="not needed";
         }
-        //if ($ret)
-        //   $res.="<hr>".$this->_checkVersion12();
+        if ($ret)
+           $res.="<hr>".$this->_checkVersion12();
+        return $res;
+    }
+
+    private function _checkVersion12(){
+        /* V12 - allineamento "v11 con colonna error".
+           Alcuni DB di produzione risultano registrati v11 ma SENZA la colonna
+           c20_error (la migrazione v11 era segnata ma non applicata). Questo step
+           rappresenta esattamente la differenza tra "v11 senza error" e "v11 con
+           error" e la applica in modo idempotente.
+           NB: si salta direttamente a V15 (13 e 14 non utilizzate). */
+        $newVer=12;
+        $res="Update V".$newVer.":";
+        $ret=true;
+        if ($this->_thisVers<$newVer){
+            $SQL="ALTER TABLE t20_block ADD COLUMN IF NOT EXISTS c20_error TEXT CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_unicode_ci' DEFAULT '' AFTER c20_note";
+            $ret=$this->_execVersion($newVer,null,[[$SQL,null]]);
+            $res.=($ret?"OK":"Error");
+        } else {
+            $res.="not needed";
+        }
+        if ($ret)
+           $res.="<hr>".$this->_checkVersion15(); // salto V13 e V14
+        return $res;
+    }
+
+    private function _checkVersion15(){
+        /* V15 - allineamento allo schema corrente di sviluppo (etichettato v15).
+           Porta un DB v12 a contenere tutto il delta v11->v15:
+             - t82_api_key (API key temporanee)
+                Rif: Docs/Install/unneeded-old-bak/migration_t82_api_key.sql
+             - sottosistema user-management/auth: t81_pwd_recovery, t88_wf_permissions,
+                t92_user_audit, t94_user_sessions, t96_user_invitations
+                Rif: Docs/Install/unneeded-old-bak/user_management_schema.sql
+             - pass di indici di performance su tabelle esistenti
+             - t205_work_var: colonne+indici di tracking ("hotness" variabili)
+           NOTA: seeding ruoli (t90_role) e admin di default NON inclusi: dati
+           ambiente-specifici, da gestire separatamente. Qui solo schema.
+           NOTA: alcune tabelle (t60,t100,t200) nel DB di sviluppo hanno DUE indici
+           equivalenti (residuo di due pass): replicati per fedeltà, ridondanti. */
+        $newVer=15;
+        $res="Update V".$newVer.":";
+        $ret=true;
+        if ($this->_thisVers<$newVer){
+            $scripts=[];
+            // --- API key ---
+            $scripts[]=["CREATE TABLE IF NOT EXISTS t82_api_key (
+                c82_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+                c82_user_id int(10) unsigned NOT NULL,
+                c82_key varchar(128) NOT NULL,
+                c82_created timestamp NOT NULL DEFAULT current_timestamp(),
+                c82_expires datetime NOT NULL,
+                c82_used datetime DEFAULT NULL,
+                PRIMARY KEY (c82_id),
+                UNIQUE KEY UNQ_ApiKey (c82_key),
+                KEY ix82_userid (c82_user_id),
+                KEY ix82_expires (c82_expires),
+                CONSTRAINT fk82_user FOREIGN KEY (c82_user_id) REFERENCES t80_user (c80_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",null];
+            // --- user-management / auth ---
+            $scripts[]=["CREATE TABLE IF NOT EXISTS t81_pwd_recovery (
+                c81_id int(10) unsigned NOT NULL AUTO_INCREMENT,
+                c81_user_id int(10) unsigned NOT NULL,
+                c81_token varchar(64) NOT NULL COMMENT 'Hashed recovery token',
+                c81_created timestamp NOT NULL DEFAULT current_timestamp(),
+                c81_expires timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+                c81_used tinyint(1) unsigned NOT NULL DEFAULT 0,
+                c81_used_at timestamp NULL DEFAULT NULL,
+                c81_ip_address varchar(45) DEFAULT NULL,
+                c81_user_agent varchar(255) DEFAULT NULL,
+                PRIMARY KEY (c81_id),
+                KEY idx_user_id (c81_user_id),
+                KEY idx_token (c81_token),
+                KEY idx_expires (c81_expires),
+                CONSTRAINT fk_pwd_recovery_user FOREIGN KEY (c81_user_id) REFERENCES t80_user (c80_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Password recovery tokens with 1-hour expiration'",null];
+            $scripts[]=["CREATE TABLE IF NOT EXISTS t88_wf_permissions (
+                c88_wf_id int(10) unsigned NOT NULL COMMENT 'ID workflow',
+                c88_usr_id int(10) unsigned NOT NULL COMMENT 'ID utente',
+                c88_permission varchar(10) NOT NULL DEFAULT 'R' COMMENT 'R=Read, W=Write, X=Execute, D=Delete, O=Owner',
+                c88_granted_by int(10) unsigned NOT NULL COMMENT 'ID utente che ha concesso il permesso',
+                c88_granted_at timestamp NOT NULL DEFAULT current_timestamp(),
+                PRIMARY KEY (c88_wf_id,c88_usr_id),
+                KEY ix_usr (c88_usr_id),
+                KEY ix_permission (c88_permission),
+                CONSTRAINT fk_wf_perm_user FOREIGN KEY (c88_usr_id) REFERENCES t80_user (c80_id) ON DELETE CASCADE,
+                CONSTRAINT fk_wf_perm_workflow FOREIGN KEY (c88_wf_id) REFERENCES t10_workflow (c10_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",null];
+            $scripts[]=["CREATE TABLE IF NOT EXISTS t92_user_audit (
+                c92_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+                c92_usr_id int(10) unsigned NOT NULL,
+                c92_action varchar(50) NOT NULL COMMENT 'login, logout, create_wf, edit_wf, delete_wf, ...',
+                c92_target_type varchar(20) DEFAULT NULL COMMENT 'workflow, user, project',
+                c92_target_id int(10) unsigned DEFAULT NULL COMMENT 'ID oggetto target',
+                c92_ip_address varchar(45) DEFAULT NULL,
+                c92_user_agent varchar(255) DEFAULT NULL,
+                c92_details text DEFAULT NULL COMMENT 'Dettagli aggiuntivi in JSON',
+                c92_timestamp timestamp NOT NULL DEFAULT current_timestamp(),
+                PRIMARY KEY (c92_id),
+                KEY ix_user (c92_usr_id,c92_timestamp),
+                KEY ix_action (c92_action),
+                KEY ix_timestamp (c92_timestamp)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",null];
+            $scripts[]=["CREATE TABLE IF NOT EXISTS t94_user_sessions (
+                c94_session_id varchar(64) NOT NULL,
+                c94_usr_id int(10) unsigned NOT NULL,
+                c94_api_key varchar(128) DEFAULT NULL COMMENT 'API key temporaneo',
+                c94_ip_address varchar(45) DEFAULT NULL,
+                c94_user_agent varchar(255) DEFAULT NULL,
+                c94_created_at timestamp NOT NULL DEFAULT current_timestamp(),
+                c94_expires_at timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+                c94_last_activity timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+                PRIMARY KEY (c94_session_id),
+                KEY ix_user (c94_usr_id),
+                KEY ix_expires (c94_expires_at),
+                KEY ix_api_key (c94_api_key)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",null];
+            $scripts[]=["CREATE TABLE IF NOT EXISTS t96_user_invitations (
+                c96_id int(10) unsigned NOT NULL AUTO_INCREMENT,
+                c96_email varchar(65) NOT NULL,
+                c96_role int(4) unsigned NOT NULL DEFAULT 0,
+                c96_invited_by int(10) unsigned NOT NULL,
+                c96_invitation_code varchar(64) NOT NULL,
+                c96_status tinyint(2) NOT NULL DEFAULT 0 COMMENT '0=pending, 1=accepted, 2=expired, 3=rejected',
+                c96_created_at timestamp NOT NULL DEFAULT current_timestamp(),
+                c96_expires_at timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+                c96_accepted_at timestamp NULL DEFAULT NULL,
+                PRIMARY KEY (c96_id),
+                UNIQUE KEY idx_code (c96_invitation_code),
+                KEY idx_email (c96_email),
+                KEY idx_status (c96_status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",null];
+            // --- pass indici di performance ---
+            $idx=[
+                ["t10_workflow","idx_workflow_active_deleted","(c10_active,c10_deleted,c10_id)"],
+                ["t20_block","idx_block_uuid_active","(c20_uuid,c20_flofoid,c20_deleted)"],
+                ["t25_blockexit","idx_blockexit_block_number","(c25_blockid,c25_nexit,c25_direction)"],
+                ["t30_blk_elm","idx_blkelm_block_order","(c30_blockid,c30_order,c30_deleted)"],
+                ["t40_element","idx_element_id_lang","(c40_id,c40_lang,c40_deleted)"],
+                ["t60_multi_flow","idx_multi_workflow_client","(c60_workflow_id,c60_user_id,c60_deleted)"],
+                ["t60_multi_flow","idx_multiflow_wid_user","(c60_workflow_id,c60_user_id,c60_deleted)"],
+                ["t100_timed_call","idx_timed_enabled_date","(c100_enabled,c100_call_date,c100_start_date)"],
+                ["t100_timed_call","idx_timedcall_enabled_date","(c100_enabled,c100_call_date,c100_start_date)"],
+                ["t200_worker","idx_session_uuid_active","(c200_sess_id,c200_wid,c200_start)"],
+                ["t200_worker","idx_worker_sess_wid","(c200_sess_id,c200_wid,c200_start)"],
+                ["t207_history","idx_history_session","(c207_sess_id)"],
+            ];
+            foreach($idx as $i){
+                $scripts[]=["ALTER TABLE ".$i[0]." ADD INDEX IF NOT EXISTS ".$i[1]." ".$i[2],null];
+            }
+            // --- t205_work_var tracking ---
+            $scripts[]=["ALTER TABLE t205_work_var ADD COLUMN IF NOT EXISTS c205_modified timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() AFTER c205_elm_val",null];
+            $scripts[]=["ALTER TABLE t205_work_var ADD COLUMN IF NOT EXISTS c205_access_count int(10) unsigned DEFAULT 0 AFTER c205_modified",null];
+            $scripts[]=["ALTER TABLE t205_work_var ADD COLUMN IF NOT EXISTS c205_last_access timestamp NULL DEFAULT NULL AFTER c205_access_count",null];
+            $scripts[]=["ALTER TABLE t205_work_var ADD COLUMN IF NOT EXISTS c205_data_size int(10) unsigned DEFAULT 0 AFTER c205_last_access",null];
+            $scripts[]=["ALTER TABLE t205_work_var ADD INDEX IF NOT EXISTS idx_vars_session (c205_sess_id,c205_elm_id)",null];
+            $scripts[]=["ALTER TABLE t205_work_var ADD INDEX IF NOT EXISTS idx_workvar_session (c205_sess_id)",null];
+            $scripts[]=["ALTER TABLE t205_work_var ADD INDEX IF NOT EXISTS idx_workvar_modified (c205_sess_id,c205_modified)",null];
+            $scripts[]=["ALTER TABLE t205_work_var ADD INDEX IF NOT EXISTS idx_workvar_hotness (c205_sess_id,c205_access_count DESC)",null];
+            $scripts[]=["ALTER TABLE t205_work_var ADD INDEX IF NOT EXISTS idx_workvar_lastaccess (c205_sess_id,c205_last_access)",null];
+
+            $ret=$this->_execVersion($newVer,null,$scripts);
+            $res.=($ret?"OK":"Error");
+        } else {
+            $res.="not needed";
+        }
+        if ($ret)
+           $res.="<hr>".$this->_checkVersion16();
+        return $res;
+    }
+
+    private function _checkVersion16(){
+        /* V16 - normalizzazione coerenza schema (correzione drift), la "prossima" versione.
+           - t01_app.c01_email: ripristina varchar(65) (era stato erroneamente ridotto
+             a 45 in sviluppo; ampliare non tronca dati esistenti).
+           - t05_app_lang: rimuove i default "spazzatura" (valori di esempio, uno non era
+             nemmeno JSON valido). c05_startprivacy/c05_errors -> nullable senza default;
+             c05_langstart -> default 'it'. Rilassare NOT NULL->NULL non fallisce mai. */
+        $newVer=16;
+        $res="Update V".$newVer.":";
+        $ret=true;
+        if ($this->_thisVers<$newVer){
+            $scripts=[
+                ["ALTER TABLE t01_app MODIFY COLUMN c01_email varchar(65) NOT NULL DEFAULT ''",null],
+                ["ALTER TABLE t05_app_lang MODIFY COLUMN c05_startprivacy mediumtext DEFAULT NULL",null],
+                ["ALTER TABLE t05_app_lang MODIFY COLUMN c05_errors mediumtext DEFAULT NULL",null],
+                ["ALTER TABLE t05_app_lang MODIFY COLUMN c05_langstart mediumtext DEFAULT 'it'",null],
+            ];
+            $ret=$this->_execVersion($newVer,null,$scripts);
+            $res.=($ret?"OK":"Error");
+        } else {
+            $res.="not needed";
+        }
         return $res;
     }
 
