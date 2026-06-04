@@ -2211,6 +2211,22 @@ body.dark-mode[data-a11y-contrast="high"] {
 [data-a11y-contrast="high"] * { box-shadow: none !important; }
 [data-a11y-contrast="high"] :focus-visible { outline: 4px solid var(--c-focus); outline-offset: 2px; }
 
+/* Alto contrasto: bottoni leggibili. Le regole legacy mescolano grigi aliasati
+   (gray-200 -> nero in HC) e non aliasati (gray-700 resta grigio scuro), creando
+   testo grigio su sfondo nero. Qui forziamo coppie sfondo/testo coerenti + bordo. */
+[data-a11y-contrast="high"] .flussu-btn-primary {
+    background: var(--c-ink); color: var(--c-paper); border: 2px solid var(--c-ink);
+}
+[data-a11y-contrast="high"] .flussu-btn-secondary {
+    background: var(--c-paper); color: var(--c-ink); border: 2px solid var(--c-ink);
+}
+[data-a11y-contrast="high"] .flussu-btn-secondary:hover {
+    background: var(--c-ink); color: var(--c-paper);
+}
+[data-a11y-contrast="high"] .flussu-btn-link {
+    background: var(--c-paper); color: var(--c-ink); border: 2px solid var(--c-ink);
+}
+
 [data-a11y-textsize="large"]       { --text-scale: 1.25; }
 [data-a11y-textsize="extra-large"] { --text-scale: 1.5; }
 
