@@ -7,11 +7,41 @@ Copyright (C) 2021-2025 Mille Isole SRL - Palermo (Italy)
 
 /* CSS Variables */
 :root {
-    /* Colors */
-    --flussu-primary: #5B5FCF;
-    --flussu-primary-dark: #4B4FBF;
-    --flussu-primary-light: #F5F3FF;
-    --flussu-secondary: #9333EA;
+    /* ===== v5 design-token layer (token-bridge) =====
+       Sorgente neutra del tema. I preset [data-theme] e gli a11y [data-a11y-*]
+       sovrascrivono SOLO questi token; le 2000 righe di regole sotto restano
+       invariate perché i --flussu-* storici sono aliasati qui sotto.
+       Default = look "flussu-classic" (lilla soft), identico al v4.1. */
+    --c-primary: #5B5FCF;
+    --c-primary-dark: #4B4FBF;
+    --c-primary-soft: #F5F3FF;
+    --c-accent: #9333EA;
+    --c-ink: #111827;
+    --c-ink-2: #4B5563;
+    --c-ink-muted: #6B7280;
+    --c-rule: #E5E7EB;
+    --c-paper: #FFFFFF;
+    --c-bg: #FFFFFF;
+    --c-focus: rgba(91,95,207,0.45);
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    --font-title: var(--font-sans);
+    --r: 0.5rem; --r-sm: 0.375rem; --r-lg: 0.75rem;
+    /* tipografia fluida (typeform-like) */
+    --fs-title: clamp(1.5rem, 1.15rem + 1.5vw, 2.5rem);
+    --fs-label: clamp(1rem, 0.92rem + 0.55vw, 1.3rem);
+    --fs-input: clamp(1.05rem, 0.95rem + 0.55vw, 1.35rem);
+    --fs-btn: clamp(0.98rem, 0.92rem + 0.3vw, 1.12rem);
+    /* a11y */
+    --text-scale: 1;
+
+    /* Colors — aliasati sul design-token layer */
+    --flussu-primary: var(--c-primary);
+    --flussu-primary-dark: var(--c-primary-dark);
+    --flussu-primary-light: var(--c-primary-soft);
+    --flussu-secondary: var(--c-accent);
+    --flussu-surface: var(--c-paper);
+    --flussu-bg: var(--c-bg);
+    --flussu-focus: var(--c-focus);
     --flussu-success: #10B981;
     --flussu-error: #EF4444;
     --flussu-warning: #F59E0B;
@@ -20,14 +50,14 @@ Copyright (C) 2021-2025 Mille Isole SRL - Palermo (Italy)
     /* Grays */
     --flussu-gray-50: #F9FAFB;
     --flussu-gray-100: #F3F4F6;
-    --flussu-gray-200: #E5E7EB;
+    --flussu-gray-200: var(--c-rule);
     --flussu-gray-300: #D1D5DB;
     --flussu-gray-400: #9CA3AF;
-    --flussu-gray-500: #6B7280;
-    --flussu-gray-600: #4B5563;
+    --flussu-gray-500: var(--c-ink-muted);
+    --flussu-gray-600: var(--c-ink-2);
     --flussu-gray-700: #374151;
     --flussu-gray-800: #1F2937;
-    --flussu-gray-900: #111827;
+    --flussu-gray-900: var(--c-ink);
     
     /* Spacing */
     --flussu-spacing-xs: 0.5rem;
@@ -38,7 +68,7 @@ Copyright (C) 2021-2025 Mille Isole SRL - Palermo (Italy)
     --flussu-spacing-2xl: 3rem;
     
     /* Typography */
-    --flussu-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    --flussu-font-family: var(--font-sans);
     --flussu-font-size-sm: 0.875rem;
     --flussu-font-size-base: 1rem;
     --flussu-font-size-lg: 1.125rem;
@@ -47,8 +77,8 @@ Copyright (C) 2021-2025 Mille Isole SRL - Palermo (Italy)
     --flussu-font-size-3xl: 1.875rem;
     
     /* Borders & Shadows */
-    --flussu-border-radius: 0.5rem;
-    --flussu-border-radius-lg: 0.75rem;
+    --flussu-border-radius: var(--r);
+    --flussu-border-radius-lg: var(--r-lg);
     --flussu-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --flussu-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     --flussu-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -141,12 +171,15 @@ body.dark-mode .flussu-required {
     display: flex;
     flex-direction: column;
     position: relative;
+    background: var(--flussu-bg);
+    color: var(--c-ink);
+    font-family: var(--font-sans);
 }
 
 /* Header */
 .flussu-header {
-    background: white;
-    border-bottom: 1px solid var(--flussu-gray-200);
+    background: var(--flussu-surface);
+    border-bottom: 1px solid var(--c-rule);
     position: sticky;
     top: 0;
     z-index: 40;
@@ -289,7 +322,8 @@ body.dark-mode .flussu-required {
 }
 
 .flussu-block-title {
-    font-size: var(--flussu-font-size-2xl);
+    font-size: calc(var(--fs-title) * var(--text-scale));
+    font-family: var(--font-title);
     font-weight: 700;
     color: var(--flussu-gray-900);
     margin: 0 0 var(--flussu-spacing-lg) 0;
@@ -297,7 +331,7 @@ body.dark-mode .flussu-required {
 
 /* Labels */
 .flussu-label {
-    font-size: var(--flussu-font-size-base); 
+    font-size: calc(var(--fs-label) * var(--text-scale));
     color: var(--flussu-gray-700);
     margin-bottom: var(--flussu-spacing-xs); 
     margin-top: var(--flussu-spacing-md); 
@@ -337,7 +371,7 @@ body.dark-mode .flussu-required {
 .flussu-input {
     width: 100%;
     padding: var(--flussu-spacing-sm) var(--flussu-spacing-md); /* Ridotto da md/lg */
-    font-size: var(--flussu-font-size-base);
+    font-size: calc(var(--fs-input) * var(--text-scale));
     font-family: inherit;
     background: var(--flussu-gray-50);
     border: 2px solid transparent;
@@ -470,7 +504,7 @@ body.dark-mode .flussu-required {
     align-items: center;
     justify-content: center;
     padding: var(--flussu-spacing-md) var(--flussu-spacing-xl);
-    font-size: var(--flussu-font-size-base);
+    font-size: calc(var(--fs-btn) * var(--text-scale));
     font-weight: 600;
     font-family: inherit;
     text-decoration: none;
@@ -2028,4 +2062,72 @@ body.dark-mode .flussu-language-select h2 {
 body.dark-mode .flussu-start-area {
     color: #e0e0e0;
 }
+
+/* =========================================================================
+   v5 — PRESET DI TEMA (data-theme) + ACCESSIBILITÀ (data-a11y-*)
+   Ogni preset sovrascrive SOLO il design-token layer (--c-*, --fs-*, --font-*,
+   --r). Le regole sopra continuano a funzionare via gli alias --flussu-*.
+   Estratti da Docs/flussu-new-form/mockup-*.html
+   ========================================================================= */
+
+/* ----- PRESET: clinical-calm (healthcare / prenotazioni / wellness) ----- */
+[data-theme="clinical-calm"] {
+    --c-bg: linear-gradient(180deg, #F4FBFA, #FFFFFF 70%);
+    --c-paper: #FFFFFF;
+    --c-ink: #0F2A2A;
+    --c-ink-2: #3F5B5C;
+    --c-ink-muted: #6E8788;
+    --c-rule: rgba(14,110,99,0.16);
+    --c-primary: #0E6E63;
+    --c-primary-dark: #08433C;
+    --c-primary-soft: rgba(14,110,99,0.08);
+    --c-accent: #0FA89A;
+    --c-focus: rgba(14,110,99,0.55);
+    --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    --font-title: var(--font-sans);
+    --r: 14px; --r-sm: 8px; --r-lg: 22px;
+}
+/* variante scura: confluisce nella classe body.dark-mode già usata dal client */
+body.dark-mode[data-theme="clinical-calm"] {
+    --c-bg: linear-gradient(180deg, #08171A, #0E2528);
+    --c-paper: #112C30;
+    --c-ink: #E8F1F1;
+    --c-ink-2: #B5CCCD;
+    --c-ink-muted: #7A9697;
+    --c-rule: rgba(173,221,217,0.16);
+    --c-primary: #5CC9BC;
+    --c-primary-dark: #34A99B;
+    --c-primary-soft: rgba(92,201,188,0.10);
+    --c-accent: #5CC9BC;
+    --c-focus: rgba(92,201,188,0.55);
+}
+
+/* ----- ACCESSIBILITÀ (indipendente dal preset) ----- */
+[data-a11y-contrast="high"] {
+    --c-bg: #fff; --c-paper: #fff;
+    --c-ink: #000; --c-ink-2: #000; --c-ink-muted: #000;
+    --c-rule: #000;
+    --c-primary: #000; --c-primary-dark: #000; --c-primary-soft: #ff0;
+    --c-accent: #000; --c-focus: #000;
+}
+body.dark-mode[data-a11y-contrast="high"] {
+    --c-bg: #000; --c-paper: #000;
+    --c-ink: #fff; --c-ink-2: #fff; --c-ink-muted: #fff;
+    --c-rule: #fff;
+    --c-primary: #fff; --c-primary-dark: #fff; --c-primary-soft: #00f;
+    --c-accent: #fff; --c-focus: #ff0;
+}
+[data-a11y-contrast="high"] * { box-shadow: none !important; }
+[data-a11y-contrast="high"] :focus-visible { outline: 4px solid var(--c-focus); outline-offset: 2px; }
+
+[data-a11y-textsize="large"]       { --text-scale: 1.25; }
+[data-a11y-textsize="extra-large"] { --text-scale: 1.5; }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+[data-a11y-motion="reduced"] *,
+[data-a11y-motion="reduced"] *::before,
+[data-a11y-motion="reduced"] *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+
 /* End of flussu-form-4.0.css */

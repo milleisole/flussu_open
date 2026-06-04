@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="clinical-calm">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flussu Forms v5 — Preset Gallery</title>
+<!-- Font del preset clinical-calm -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- Stylesheet reale del client (con token-bridge + preset v5) -->
+<link href="../css/flussu-form.css" rel="stylesheet">
+<style>
+    /* Solo per la pagina di test: barra controlli in alto */
+    #devbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+        display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;
+        padding: .5rem 1rem; background: #111; color: #fff; font: 13px system-ui; }
+    #devbar label { display: inline-flex; gap: .35rem; align-items: center; }
+    #devbar select { font: inherit; padding: .15rem; }
+    body { margin: 0; padding-top: 3rem; }
+</style>
+</head>
+<body>
+
+<!-- DEV ONLY: controlli di test, NON fanno parte del client -->
+<div id="devbar">
+    <strong>v5 gallery</strong>
+    <label>Tema
+        <select id="sel-theme">
+            <option value="">(default classic)</option>
+            <option value="clinical-calm" selected>clinical-calm</option>
+        </select>
+    </label>
+    <label><input type="checkbox" id="cb-dark"> Dark</label>
+    <label>Testo
+        <select id="sel-text">
+            <option value="">normale</option>
+            <option value="large">grande</option>
+            <option value="extra-large">molto grande</option>
+        </select>
+    </label>
+    <label><input type="checkbox" id="cb-hc"> Alto contrasto</label>
+    <label><input type="checkbox" id="cb-motion"> Riduci animazioni</label>
+</div>
+
+<!-- Struttura DOM identica a quella generata da flussu-form.js -->
+<div id="flussu-app" class="flussu-app">
+    <header class="flussu-header">
+        <div class="flussu-header-content">
+            <button class="flussu-menu-btn" aria-label="Menu">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+            <h1 class="flussu-title">Prenotazione visita</h1>
+        </div>
+        <div class="flussu-progress"><div class="flussu-progress-bar" style="width:40%"></div></div>
+    </header>
+
+    <main class="flussu-main">
+        <div class="flussu-content">
+            <div class="flussu-environment">
+                <div class="flussu-form-wrapper">
+                    <div class="flussu-block">
+
+                        <!-- L: titolo + label -->
+                        <div class="flussu-label"><h2 class="flussu-block-title">Iniziamo con i tuoi dati</h2></div>
+                        <div class="flussu-label">Compila i campi qui sotto. Le informazioni restano riservate.</div>
+
+                        <!-- ITT: text input -->
+                        <label class="flussu-label" for="x1">Nome e cognome</label>
+                        <div class="flussu-input-group">
+                            <input type="text" id="x1" class="flussu-input" placeholder="Es. Maria Rossi" value="">
+                        </div>
+
+                        <!-- ITT: email -->
+                        <label class="flussu-label" for="x2">Email</label>
+                        <div class="flussu-input-group">
+                            <input type="text" id="x2" class="flussu-input" placeholder="nome@esempio.it">
+                            <span class="flussu-required">* required</span>
+                        </div>
+
+                        <!-- ITS exclusive: radio -->
+                        <label class="flussu-label">Tipo di visita</label>
+                        <div class="flussu-selection-group">
+                            <div class="flussu-options-grid">
+                                <label class="flussu-option-card" for="o1">
+                                    <input type="radio" id="o1" name="$visita" checked>
+                                    <span class="flussu-option-content">
+                                        <span class="flussu-option-check"></span>
+                                        <span class="flussu-option-label">Prima visita</span>
+                                    </span>
+                                </label>
+                                <label class="flussu-option-card" for="o2">
+                                    <input type="radio" id="o2" name="$visita">
+                                    <span class="flussu-option-content">
+                                        <span class="flussu-option-check"></span>
+                                        <span class="flussu-option-label">Controllo periodico</span>
+                                    </span>
+                                </label>
+                                <label class="flussu-option-card" for="o3">
+                                    <input type="radio" id="o3" name="$visita">
+                                    <span class="flussu-option-content">
+                                        <span class="flussu-option-check"></span>
+                                        <span class="flussu-option-label">Urgenza</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- ITB: buttons -->
+                        <div class="flussu-button-group">
+                            <button class="flussu-btn flussu-btn-secondary">Indietro</button>
+                            <button class="flussu-btn flussu-btn-primary">Continua</button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    // DEV ONLY: cabla i controlli di test agli attributi reali del client
+    const html = document.documentElement;
+    const set = (attr, val) => { if (val) html.setAttribute(attr, val); else html.removeAttribute(attr); };
+    document.getElementById('sel-theme').addEventListener('change', e => set('data-theme', e.target.value));
+    document.getElementById('sel-text').addEventListener('change', e => set('data-a11y-textsize', e.target.value));
+    document.getElementById('cb-hc').addEventListener('change', e => set('data-a11y-contrast', e.target.checked ? 'high' : ''));
+    document.getElementById('cb-motion').addEventListener('change', e => set('data-a11y-motion', e.target.checked ? 'reduced' : ''));
+    document.getElementById('cb-dark').addEventListener('change', e => document.body.classList.toggle('dark-mode', e.target.checked));
+
+    // DEV ONLY: stato iniziale da hash, es. #dark, #hc, #text=large  (per screenshot)
+    (function initFromHash(){
+        const h = new URLSearchParams(location.hash.slice(1));
+        if (h.has('dark'))  { document.body.classList.add('dark-mode'); document.getElementById('cb-dark').checked = true; }
+        if (h.has('hc'))    { set('data-a11y-contrast','high'); document.getElementById('cb-hc').checked = true; }
+        if (h.has('text'))  { set('data-a11y-textsize', h.get('text')); document.getElementById('sel-text').value = h.get('text'); }
+        if (h.has('theme')) { set('data-theme', h.get('theme')); document.getElementById('sel-theme').value = h.get('theme'); }
+    })();
+</script>
+</body>
+</html>
