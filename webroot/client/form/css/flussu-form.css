@@ -221,6 +221,29 @@ body.dark-mode .flussu-required {
     color: var(--flussu-gray-900);
 }
 
+/* v5: hamburger flottante (mostrato quando l'header/titolo è nascosto) */
+.flussu-menu-float {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 1px solid var(--c-rule);
+    background: var(--c-paper);
+    color: var(--c-ink);
+    cursor: pointer;
+    border-radius: var(--r-sm);
+    box-shadow: var(--flussu-shadow-md);
+    transition: all var(--flussu-transition-fast);
+}
+.flussu-menu-float:hover { background: var(--c-primary); color: #fff; border-color: var(--c-primary); }
+.flussu-menu-float:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
+
 /* Progress Bar */
 .flussu-progress {
     height: 3px;

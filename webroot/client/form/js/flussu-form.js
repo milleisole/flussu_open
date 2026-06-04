@@ -266,6 +266,16 @@ function buildInterface() {
         })();
     </script>
     <div id="flussu-app" class="flussu-app">
+        <!-- Hamburger flottante: garantisce l'accesso al menu (lingua + accessibilità)
+             anche quando l'header/titolo è nascosto (displayTitle=false). -->
+        <button id="flussu-menu-float" class="flussu-menu-float" aria-label="Menu"
+                ${FlussuClient.config.displayTitle ? 'style="display:none;"' : ''}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
         <!-- Header -->
         <header class="flussu-header" ${!FlussuClient.config.displayTitle ? 'style="display:none;"' : ''}>
             <div class="flussu-header-content">
@@ -414,14 +424,14 @@ function buildInterface() {
 
 // Initialize event listeners
 function initializeEventListeners() {
-    // Menu button
-    const menuBtn = document.getElementById('flussu-menu');
-    if (menuBtn) {
-        menuBtn.addEventListener('click', () => {
+    // Menu button (header) + hamburger flottante (visibile quando l'header è nascosto)
+    ['flussu-menu', 'flussu-menu-float'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => {
             FlussuClient.ui.sidebar.classList.toggle('open');
         });
-    }
-    
+    });
+
     loadDarkModePreference();
 
     // Keyboard navigation
