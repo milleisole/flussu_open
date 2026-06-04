@@ -2213,4 +2213,30 @@ body.dark-mode[data-a11y-contrast="high"] {
 [data-a11y-motion="reduced"] *::before,
 [data-a11y-motion="reduced"] *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 
+/* ----- v5: controlli sidebar (preset grid + dimensione testo) ----- */
+.flussu-nav-sub { padding: var(--flussu-spacing-sm) 0; }
+.flussu-nav-sublabel {
+    display: block; font-size: var(--flussu-font-size-sm); font-weight: 600;
+    color: var(--flussu-gray-500); margin-bottom: var(--flussu-spacing-xs);
+}
+.flussu-preset-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;
+}
+.flussu-preset-btn, .flussu-textsize-btn {
+    font-family: inherit; cursor: pointer;
+    border: 1px solid var(--c-rule); background: var(--flussu-surface);
+    color: var(--c-ink); border-radius: var(--r-sm);
+    padding: 0.4rem 0.3rem; font-size: var(--flussu-font-size-sm);
+    transition: all var(--flussu-transition-fast);
+}
+.flussu-preset-btn:hover, .flussu-textsize-btn:hover { border-color: var(--c-primary); }
+.flussu-preset-btn.active, .flussu-textsize-btn.active {
+    background: var(--c-primary); color: #fff; border-color: var(--c-primary);
+}
+.flussu-textsize-row { display: flex; gap: 0.4rem; }
+.flussu-textsize-row .flussu-textsize-btn { flex: 1; }
+.flussu-textsize-btn[data-size="large"] { font-size: 1.05rem; }
+.flussu-textsize-btn[data-size="extra-large"] { font-size: 1.25rem; }
+body.dark-mode .flussu-preset-btn, body.dark-mode .flussu-textsize-btn { color: #e0e0e0; }
+
 /* End of flussu-form-4.0.css */

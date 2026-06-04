@@ -60,6 +60,129 @@ const getUrlParam = (name) => {
     return results ? decodeURI(results[1]) : null;
 };
 
+/* =========================================================================
+   v5 - Theming, preferenze e accessibilità (Task 5)
+   Preset = attributo data-theme su <html>; a11y = attributi data-a11y-*.
+   Preferenze persistite in localStorage['flussu-prefs-v5'] con fallback
+   in-memory (try/catch) per ambienti sandbox/iframe.
+   ========================================================================= */
+const FLUSSU_PREFS_KEY = 'flussu-prefs-v5';
+const FLUSSU_PRESETS = ['clinical-calm','editorial-noir','minimal-radical','swiss-brutalist','split-editorial'];
+let _prefsCache = null;
+
+function loadPrefs() {
+    if (_prefsCache) return _prefsCache;
+    try {
+        const raw = localStorage.getItem(FLUSSU_PREFS_KEY);
+        _prefsCache = raw ? JSON.parse(raw) : {};
+    } catch (e) { _prefsCache = {}; }
+    return _prefsCache;
+}
+function savePrefs(patch) {
+    _prefsCache = Object.assign(loadPrefs(), patch);
+    try { localStorage.setItem(FLUSSU_PREFS_KEY, JSON.stringify(_prefsCache)); } catch (e) {}
+    return _prefsCache;
+}
+function _setAttr(el, name, val) { if (val) el.setAttribute(name, val); else el.removeAttribute(name); }
+
+// Legge la configurazione tema dalla pagina ospite (precedenza: script JSON > global > data-attr)
+function readThemeConfig() {
+    const el = document.getElementById('flussu-theme');
+    if (el) { try { return JSON.parse(el.textContent) || {}; } catch (e) { console.warn('[Flussu] theme JSON non valido'); } }
+    if (window.flussuTheme && typeof window.flussuTheme === 'object') return window.flussuTheme;
+    const c = document.getElementById('flussu-form');
+    if (c && c.dataset && c.dataset.flussuTheme) return { preset: c.dataset.flussuTheme };
+    return {};
+}
+function injectFontLink(url) {
+    if (!url) return;
+    if (document.querySelector('link[data-flussu-font]') &&
+        document.querySelector('link[data-flussu-font]').getAttribute('href') === url) return;
+    const l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = url; l.setAttribute('data-flussu-font', '1');
+    document.head.appendChild(l);
+}
+// Applica un preset + eventuali override (font/colori) dal theme JSON
+function applyTheme(cfg) {
+    cfg = cfg || {};
+    const html = document.documentElement;
+    _setAttr(html, 'data-theme', cfg.preset || null);
+    if (cfg.typography && cfg.typography.fontUrl) injectFontLink(cfg.typography.fontUrl);
+    if (cfg.typography && cfg.typography.fontFamily) html.style.setProperty('--font-sans', cfg.typography.fontFamily);
+    if (cfg.colors && typeof cfg.colors === 'object') {
+        const map = { primary:'--c-primary', primaryDark:'--c-primary-dark', primaryLight:'--c-primary-soft',
+            accent:'--c-accent', text:'--c-ink', textSecondary:'--c-ink-2', textMuted:'--c-ink-muted',
+            surface:'--c-paper', border:'--c-rule', focusRing:'--c-focus' };
+        for (const k in map) if (cfg.colors[k]) html.style.setProperty(map[k], cfg.colors[k]);
+    }
+    FlussuClient.config.theme = cfg;
+}
+// Applica gli attributi a11y dalle preferenze salvate
+function applyA11yPrefs() {
+    const p = loadPrefs(), html = document.documentElement;
+    _setAttr(html, 'data-a11y-contrast', p.contrast === 'high' ? 'high' : null);
+    _setAttr(html, 'data-a11y-textsize', p.textsize || null);
+    _setAttr(html, 'data-a11y-motion', p.motion === 'reduced' ? 'reduced' : null);
+}
+// All'avvio: theme di pagina come base, eventuale preset scelto dall'utente vince
+function initTheming() {
+    const cfg = readThemeConfig();
+    const p = loadPrefs();
+    if (typeof p.preset !== 'undefined') cfg.preset = p.preset; // scelta utente persistita
+    applyTheme(cfg);
+    applyA11yPrefs();
+}
+// Lettura TTS automatica del blocco corrente (se abilitata in preferenze)
+function speakCurrentBlock() {
+    if (!loadPrefs().ttsAuto || !window.speechSynthesis) return;
+    const env = FlussuClient.ui && FlussuClient.ui.environment;
+    if (!env) return;
+    const parts = [];
+    env.querySelectorAll('.flussu-block-title, .flussu-label, .flussu-field-label, .flussu-option-label')
+        .forEach(n => { const t = n.textContent.trim(); if (t) parts.push(t); });
+    if (!parts.length) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(parts.join('. '));
+    u.lang = String(FlussuClient.state.lang || 'IT').toLowerCase() === 'it' ? 'it-IT' : 'en-US';
+    window.speechSynthesis.speak(u);
+}
+
+// ---- Handler dei controlli in sidebar (Task 6) ----
+window.setPreset = function(name) {
+    savePrefs({ preset: name || '' });
+    applyTheme(Object.assign(readThemeConfig(), { preset: name || '' }));
+    document.querySelectorAll('.flussu-preset-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.preset === (name || '')));
+};
+window.setTextSize = function(level) {
+    savePrefs({ textsize: level || '' });
+    _setAttr(document.documentElement, 'data-a11y-textsize', level || null);
+    document.querySelectorAll('.flussu-textsize-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.size === (level || '')));
+};
+window.toggleContrast = function(cb) {
+    const on = cb.checked; savePrefs({ contrast: on ? 'high' : '' });
+    _setAttr(document.documentElement, 'data-a11y-contrast', on ? 'high' : null);
+};
+window.toggleMotion = function(cb) {
+    const on = cb.checked; savePrefs({ motion: on ? 'reduced' : '' });
+    _setAttr(document.documentElement, 'data-a11y-motion', on ? 'reduced' : null);
+};
+window.toggleTtsAuto = function(cb) {
+    savePrefs({ ttsAuto: !!cb.checked });
+    if (!cb.checked && window.speechSynthesis) window.speechSynthesis.cancel();
+};
+// Allinea lo stato dei controlli sidebar alle preferenze salvate
+function applyPrefsToUI() {
+    const p = loadPrefs();
+    const active = (typeof p.preset !== 'undefined') ? p.preset : (FlussuClient.config.theme && FlussuClient.config.theme.preset) || '';
+    document.querySelectorAll('.flussu-preset-btn').forEach(b => b.classList.toggle('active', b.dataset.preset === active));
+    document.querySelectorAll('.flussu-textsize-btn').forEach(b => b.classList.toggle('active', b.dataset.size === (p.textsize || '')));
+    const hc = document.getElementById('a11yContrastToggle'); if (hc) hc.checked = p.contrast === 'high';
+    const rm = document.getElementById('a11yMotionToggle'); if (rm) rm.checked = p.motion === 'reduced';
+    const tts = document.getElementById('ttsAutoToggle'); if (tts) tts.checked = !!p.ttsAuto;
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[Flussu] DOM Ready');
@@ -71,7 +194,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Build interface
     buildInterface();
-    
+
+    // v5: applica tema di pagina + preset/a11y salvati, e allinea i controlli sidebar
+    initTheming();
+    applyPrefsToUI();
+
     // Auto-init if WID is already set
     if (FlussuClient.state.wid && !FlussuClient.state.isInit) {
         setTimeout(() => {
@@ -159,11 +286,51 @@ function buildInterface() {
                     </div>
                     
                     <div class="flussu-nav-section">
-                        <!--<h3 class="flussu-nav-title">Display</h3>-->
+                        <h3 class="flussu-nav-title">Display</h3>
                         <div class="flussu-nav-item">
                             <span>Dark Mode</span>
                             <label class="flussu-switch">
                                 <input type="checkbox" id="darkModeToggle" onchange="window.toggleDarkMode()">
+                                <span class="flussu-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="flussu-nav-sub">
+                            <span class="flussu-nav-sublabel">Tema</span>
+                            <div class="flussu-preset-grid">
+                                <button class="flussu-preset-btn" data-preset="" onclick="window.setPreset('')">Classic</button>
+                                <button class="flussu-preset-btn" data-preset="clinical-calm" onclick="window.setPreset('clinical-calm')">Clinical</button>
+                                <button class="flussu-preset-btn" data-preset="editorial-noir" onclick="window.setPreset('editorial-noir')">Editorial</button>
+                                <button class="flussu-preset-btn" data-preset="minimal-radical" onclick="window.setPreset('minimal-radical')">Minimal</button>
+                                <button class="flussu-preset-btn" data-preset="swiss-brutalist" onclick="window.setPreset('swiss-brutalist')">Swiss</button>
+                                <button class="flussu-preset-btn" data-preset="split-editorial" onclick="window.setPreset('split-editorial')">Split</button>
+                            </div>
+                        </div>
+                        <div class="flussu-nav-sub">
+                            <span class="flussu-nav-sublabel">Dimensione testo</span>
+                            <div class="flussu-textsize-row">
+                                <button class="flussu-textsize-btn" data-size="" onclick="window.setTextSize('')">A</button>
+                                <button class="flussu-textsize-btn" data-size="large" onclick="window.setTextSize('large')">A+</button>
+                                <button class="flussu-textsize-btn" data-size="extra-large" onclick="window.setTextSize('extra-large')">A++</button>
+                            </div>
+                        </div>
+                        <div class="flussu-nav-item">
+                            <span>Alto contrasto</span>
+                            <label class="flussu-switch">
+                                <input type="checkbox" id="a11yContrastToggle" onchange="window.toggleContrast(this)">
+                                <span class="flussu-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="flussu-nav-item">
+                            <span>Riduci animazioni</span>
+                            <label class="flussu-switch">
+                                <input type="checkbox" id="a11yMotionToggle" onchange="window.toggleMotion(this)">
+                                <span class="flussu-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="flussu-nav-item">
+                            <span>Lettura automatica</span>
+                            <label class="flussu-switch">
+                                <input type="checkbox" id="ttsAutoToggle" onchange="window.toggleTtsAuto(this)">
                                 <span class="flussu-switch-slider"></span>
                             </label>
                         </div>
@@ -739,6 +906,9 @@ function renderElements(elements) {
         // Focus first input
         const firstInput = document.querySelector('.flussu-input:not([readonly])');
         if (firstInput) firstInput.focus();
+
+        // v5: lettura automatica del blocco (se abilitata in preferenze)
+        speakCurrentBlock();
     }, 100);
 }
 
