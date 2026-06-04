@@ -164,15 +164,20 @@ function initTheming() {
 function speakCurrentBlock() {
     if (!loadPrefs().ttsAuto || !window.speechSynthesis) return;
     const env = FlussuClient.ui && FlussuClient.ui.environment;
-    if (!env) return;
+    if (!env || env.style.display === 'none') return;
     const parts = [];
-    env.querySelectorAll('.flussu-block-title, .flussu-label, .flussu-field-label, .flussu-option-label')
+    // NB: il titolo (.flussu-block-title) è dentro un .flussu-label, quindi NON va
+    // selezionato a parte o verrebbe letto due volte.
+    env.querySelectorAll('.flussu-label, .flussu-field-label, .flussu-option-label')
         .forEach(n => { const t = n.textContent.trim(); if (t) parts.push(t); });
     if (!parts.length) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(parts.join('. '));
-    u.lang = String(FlussuClient.state.lang || 'IT').toLowerCase() === 'it' ? 'it-IT' : 'en-US';
-    window.speechSynthesis.speak(u);
+    try {
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.resume(); // alcuni browser restano in pausa
+        const u = new SpeechSynthesisUtterance(parts.join('. '));
+        u.lang = String(FlussuClient.state.lang || 'IT').toLowerCase() === 'it' ? 'it-IT' : 'en-US';
+        window.speechSynthesis.speak(u);
+    } catch (e) { console.warn('[Flussu] TTS non disponibile', e); }
 }
 
 // ---- Handler dei controlli in sidebar (Task 6) ----
@@ -198,7 +203,13 @@ window.toggleMotion = function(cb) {
 };
 window.toggleTtsAuto = function(cb) {
     savePrefs({ ttsAuto: !!cb.checked });
-    if (!cb.checked && window.speechSynthesis) window.speechSynthesis.cancel();
+    if (cb.checked) {
+        // legge subito il blocco corrente (il click sul toggle è il gesto utente
+        // richiesto da speechSynthesis per poter partire).
+        speakCurrentBlock();
+    } else if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
 };
 // Allinea lo stato dei controlli sidebar alle preferenze salvate
 function applyPrefsToUI() {
