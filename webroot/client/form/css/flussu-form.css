@@ -2102,6 +2102,89 @@ body.dark-mode[data-theme="clinical-calm"] {
     --c-focus: rgba(92,201,188,0.55);
 }
 
+/* ----- PRESET: editorial-noir (legale/notarile premium, serif) ----- */
+[data-theme="editorial-noir"] {
+    --c-bg: #F4EFE6;
+    --c-paper: #FBF7EE;
+    --c-ink: #231910; --c-ink-2: #5C4A36; --c-ink-muted: #8A7458;
+    --c-rule: rgba(43,31,18,0.18);
+    --c-primary: #2B1F12; --c-primary-dark: #0F0A05; --c-primary-soft: rgba(43,31,18,0.06);
+    --c-accent: #7A1F2B; --c-focus: rgba(122,31,43,0.55);
+    --font-sans: 'EB Garamond', 'Times New Roman', serif;
+    --font-title: 'EB Garamond', 'Times New Roman', serif;
+    --r: 2px; --r-sm: 2px; --r-lg: 3px;
+}
+body.dark-mode[data-theme="editorial-noir"] {
+    --c-bg: #14110D; --c-paper: #1B1814;
+    --c-ink: #F1E9D8; --c-ink-2: #C4B59A; --c-ink-muted: #8C7E66;
+    --c-rule: rgba(241,233,216,0.18);
+    --c-primary: #F1E9D8; --c-primary-dark: #FFFFFF; --c-primary-soft: rgba(241,233,216,0.10);
+    --c-accent: #D38A95; --c-focus: rgba(211,138,149,0.6);
+}
+
+/* ----- PRESET: minimal-radical (B2B SaaS, system-ui, b/n) ----- */
+[data-theme="minimal-radical"] {
+    --c-bg: #FFFFFF;
+    --c-paper: #FFFFFF;
+    --c-ink: #000000; --c-ink-2: #1A1A1A; --c-ink-muted: #6B6B6B;
+    --c-rule: rgba(0,0,0,0.10);
+    --c-primary: #000000; --c-primary-dark: #000000; --c-primary-soft: rgba(0,0,0,0.04);
+    --c-accent: #000000; --c-focus: #000000;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --font-title: var(--font-sans);
+    --r: 0; --r-sm: 0; --r-lg: 0;
+}
+body.dark-mode[data-theme="minimal-radical"] {
+    --c-bg: #000000; --c-paper: #000000;
+    --c-ink: #FFFFFF; --c-ink-2: #F0F0F0; --c-ink-muted: #A0A0A0;
+    --c-rule: rgba(255,255,255,0.12);
+    --c-primary: #FFFFFF; --c-primary-dark: #FFFFFF; --c-primary-soft: rgba(255,255,255,0.05);
+    --c-accent: #FFFFFF; --c-focus: #FFFFFF;
+}
+
+/* ----- PRESET: swiss-brutalist (editoriale/fintech, Space Grotesk, accento giallo) ----- */
+[data-theme="swiss-brutalist"] {
+    --c-bg: #FAFAF7;
+    --c-paper: #FFFFFF;
+    --c-ink: #0A0A0A; --c-ink-2: #2B2B2B; --c-ink-muted: #6B6B6B;
+    --c-rule: rgba(10,10,10,0.14);
+    --c-primary: #0A0A0A; --c-primary-dark: #000000; --c-primary-soft: rgba(10,10,10,0.06);
+    --c-accent: #FFE500; --c-focus: #FFE500;
+    --font-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    --font-title: 'Space Grotesk', system-ui, sans-serif;
+    --r: 0; --r-sm: 0; --r-lg: 0;
+}
+body.dark-mode[data-theme="swiss-brutalist"] {
+    --c-bg: #0A0A0A; --c-paper: #141414;
+    --c-ink: #F2F2EC; --c-ink-2: #C8C8C0; --c-ink-muted: #7A7A72;
+    --c-rule: rgba(242,242,236,0.18);
+    --c-primary: #F2F2EC; --c-primary-dark: #FFFFFF; --c-primary-soft: rgba(242,242,236,0.08);
+    --c-accent: #FFE500; --c-focus: #FFE500;
+}
+
+/* ----- PRESET: split-editorial (workflow lunghi desktop, Newsreader+Inter) -----
+   NB: il layout 2-colonne del mockup non è replicato (modifica strutturale);
+   qui si applicano solo palette e tipografia. */
+[data-theme="split-editorial"] {
+    --c-bg: linear-gradient(180deg, #F6F2EA, #FAF7F1 80%);
+    --c-paper: rgba(255,253,248,0.65);
+    --c-ink: #1A1714; --c-ink-2: #5C534A; --c-ink-muted: #8C8278;
+    --c-rule: rgba(26,23,20,0.14);
+    --c-primary: #1A1714; --c-primary-dark: #000000; --c-primary-soft: rgba(26,23,20,0.06);
+    --c-accent: #B85C2E; --c-focus: rgba(184,92,46,0.5);
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-title: 'Newsreader', 'Times New Roman', serif;
+    --r: 14px; --r-sm: 8px; --r-lg: 22px;
+}
+body.dark-mode[data-theme="split-editorial"] {
+    --c-bg: linear-gradient(180deg, #14110D, #1B1814);
+    --c-paper: rgba(43,38,33,0.6);
+    --c-ink: #F1EADC; --c-ink-2: #C4B59E; --c-ink-muted: #8C7E68;
+    --c-rule: rgba(241,234,220,0.16);
+    --c-primary: #F1EADC; --c-primary-dark: #FFFFFF; --c-primary-soft: rgba(241,234,220,0.08);
+    --c-accent: #E89764; --c-focus: rgba(232,151,100,0.55);
+}
+
 /* ----- ACCESSIBILITÀ (indipendente dal preset) ----- */
 [data-a11y-contrast="high"] {
     --c-bg: #fff; --c-paper: #fff;
