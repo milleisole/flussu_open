@@ -365,7 +365,9 @@ TXT;
             // saltando l'envelope. Solo per risposte non-comando e non in errore.
             if ($status === "Ok" && !$res[0] && strlen(trim((string)$pReslt)) === 0) {
                 General::Log_nocaller('[AICHAT] empty reply -> retry message (sess=' . $sessId . ')', true);
-                $msg = "c'è stato un errore nella ricezione del risultato. Per piacere ritentare.";
+                // Messaggio d'errore in inglese per convenzione (vedi nota: le stringhe
+                // utente vanno localizzate, ma gli errori restano in EN).
+                $msg = "An error occurred while receiving the result. Please try again.";
                 return ["Ok", "{MD}" . $msg . "{/MD}", $tokenUsage];
             }
             // v5.x — emit a <server_special_response> envelope when either the
