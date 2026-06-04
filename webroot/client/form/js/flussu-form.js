@@ -1,5 +1,5 @@
 /*************************************************************************
-Flussu Client Script v5.0 - Complete Implementation
+Flussu Client Script v5.0.2 - Complete Implementation
 Compatible with Flussu Server v5.0
 Modern, responsive, Typeform-inspired interface
 Copyright (C) 2021-2026 Mille Isole SRL - Palermo (Italy)
@@ -161,6 +161,39 @@ function initTheming() {
     applyA11yPrefs();
 }
 // Lettura TTS automatica del blocco corrente (se abilitata in preferenze)
+// Pronuncia un testo gestendo il caricamento ASINCRONO delle voci (causa #1 di
+// "non si sente nulla": speak() chiamato prima che getVoices() sia popolato).
+function speakText(text) {
+    const synth = window.speechSynthesis;
+    if (!synth || !text) return;
+    const lang = String(FlussuClient.state.lang || 'IT').toLowerCase() === 'it' ? 'it-IT' : 'en-US';
+    const run = () => {
+        try {
+            synth.cancel();
+            synth.resume(); // alcuni browser restano in stato "paused"
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = lang;
+            u.rate = 1; u.pitch = 1; u.volume = 1;
+            const voices = synth.getVoices() || [];
+            const pref = lang.slice(0, 2);
+            const v = voices.find(x => (x.lang || '').toLowerCase().startsWith(pref))
+                   || voices.find(x => (x.lang || '').toLowerCase().startsWith('it'))
+                   || voices[0] || null;
+            if (v) u.voice = v;
+            synth.speak(u);
+        } catch (e) { console.warn('[Flussu] TTS non disponibile', e); }
+    };
+    if ((synth.getVoices() || []).length) {
+        run();
+    } else {
+        // voci non ancora caricate: attendi 'voiceschanged', con fallback a timeout
+        let done = false;
+        const once = () => { if (done) return; done = true; run(); };
+        try { synth.addEventListener('voiceschanged', once, { once: true }); } catch (e) {}
+        synth.getVoices(); // forza il caricamento
+        setTimeout(once, 300);
+    }
+}
 function speakCurrentBlock() {
     if (!loadPrefs().ttsAuto || !window.speechSynthesis) return;
     const env = FlussuClient.ui && FlussuClient.ui.environment;
@@ -170,14 +203,7 @@ function speakCurrentBlock() {
     // selezionato a parte o verrebbe letto due volte.
     env.querySelectorAll('.flussu-label, .flussu-field-label, .flussu-option-label')
         .forEach(n => { const t = n.textContent.trim(); if (t) parts.push(t); });
-    if (!parts.length) return;
-    try {
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.resume(); // alcuni browser restano in pausa
-        const u = new SpeechSynthesisUtterance(parts.join('. '));
-        u.lang = String(FlussuClient.state.lang || 'IT').toLowerCase() === 'it' ? 'it-IT' : 'en-US';
-        window.speechSynthesis.speak(u);
-    } catch (e) { console.warn('[Flussu] TTS non disponibile', e); }
+    if (parts.length) speakText(parts.join('. '));
 }
 
 // ---- Handler dei controlli in sidebar (Task 6) ----
