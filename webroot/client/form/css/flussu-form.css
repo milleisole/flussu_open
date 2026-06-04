@@ -2319,4 +2319,30 @@ body.dark-mode .flussu-preset-btn, body.dark-mode .flussu-textsize-btn { color: 
     }
 }
 
+/* ----- Alto contrasto: stato SELEZIONATO leggibile (deve vincere sui preset) -----
+   Posizionato dopo le rifiniture preset (es. swiss usa --c-accent, che in HC
+   diventa nero -> testo nero su nero). Qui forziamo un evidenziatore leggibile:
+   sfondo = --c-primary-soft (#ff0 in light HC / #00f in dark HC), testo/bordo = --c-ink. */
+[data-a11y-contrast="high"] .flussu-option-card input:checked ~ .flussu-option-content {
+    background: var(--c-primary-soft);
+    border-color: var(--c-ink);
+    color: var(--c-ink);
+}
+[data-a11y-contrast="high"] .flussu-option-card input:checked ~ .flussu-option-content .flussu-option-label,
+[data-a11y-contrast="high"] .flussu-option-card .flussu-option-label {
+    color: var(--c-ink);
+}
+[data-a11y-contrast="high"] .flussu-option-card input:checked ~ .flussu-option-content .flussu-option-check {
+    background: var(--c-ink);
+    border-color: var(--c-ink);
+}
+[data-a11y-contrast="high"] .flussu-option-card input:checked ~ .flussu-option-content .flussu-option-check::after {
+    background: var(--c-primary-soft);
+    border-color: var(--c-primary-soft);
+}
+[data-a11y-contrast="high"] .flussu-scale-input:checked ~ .flussu-scale-dot {
+    background: var(--c-primary-soft);
+    border-color: var(--c-ink);
+}
+
 /* End of flussu-form-4.0.css */
