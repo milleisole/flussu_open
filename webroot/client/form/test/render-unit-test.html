@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="it">
+<head><meta charset="UTF-8"><title>Flussu render unit test</title></head>
+<body>
+<div id="flussu-form"></div>
+<div id="results"></div>
+<script src="/client/form/js/flussu-form.js"></script>
+<script>
+window.addEventListener('load', function () {
+  function show(label, html){ const d=document.createElement('pre'); d.setAttribute('data-test',label); d.textContent = html; document.getElementById('results').appendChild(d); }
+  // ITB: 2 bottoni senza role -> entrambi secondary (fix bug Maschile/Femminile)
+  show('btn2_a', renderButton('0','Maschile', null, 2));
+  show('btn2_b', renderButton('1','Femminile', null, 2));
+  // ITB: 1 bottone -> primary automatico
+  show('btn1', renderButton('0','Ok', null, 1));
+  // ITB: role esplicito primary tra 2
+  show('btn_role', renderButton('1','Conferma', {display_info:{role:'primary'}}, 2));
+  // ITB: skip-validation
+  show('btn_skip', renderButton('2','Indietro', {display_info:{subtype:'skip-validation'}}, 2));
+  // ITT semantici
+  show('itt_email', renderTextInput('mail','Email', {display_info:{type:'email'}}, ''));
+  show('itt_date',  renderTextInput('d','Data',  {display_info:{type:'date'}}, ''));
+  show('itt_phone', renderTextInput('p','Tel',   {display_info:{type:'phone'}}, ''));
+  show('itt_plain', renderTextInput('x','Nome',  null, ''));
+});
+</script>
+</body>
+</html>

@@ -848,7 +848,7 @@ function renderElements(elements) {
             if (buttonGroup.length > 0) {
                 html += '<div class="flussu-button-group">';
                 buttonGroup.forEach(btn => {
-                    html += renderElement(btn);
+                    html += renderButton(btn.id, btn.value[0], btn.value[1], buttonGroup.length);
                 });
                 html += '</div>';
                 buttonGroup = [];
@@ -864,7 +864,7 @@ function renderElements(elements) {
     if (buttonGroup.length > 0) {
         html += '<div class="flussu-button-group">';
         buttonGroup.forEach(btn => {
-            html += renderElement(btn);
+            html += renderButton(btn.id, btn.value[0], btn.value[1], buttonGroup.length);
         });
         html += '</div>';
     }
@@ -994,7 +994,19 @@ function renderTextInput(id, placeholder, cssData, defaultValue) {
     
     const value = defaultValue && defaultValue.startsWith('[val]:') ? defaultValue.substring(6) : '';
     const css = typeof cssData === 'string' ? cssData : (cssData?.class || '');
-    
+
+    // v5: tipo semantico via display_info.type -> input type + attributi (REQUISITI 3.2)
+    const semType = (cssData && typeof cssData === 'object' && cssData.display_info)
+        ? (cssData.display_info.type || '') : '';
+    const typeMap = {
+        email:  { type: 'email',  attr: 'inputmode="email" autocomplete="email"' },
+        phone:  { type: 'tel',    attr: 'inputmode="tel" autocomplete="tel"' },
+        number: { type: 'number', attr: 'inputmode="numeric"' },
+        date:   { type: 'date',   attr: '' },
+        url:    { type: 'url',    attr: 'inputmode="url"' }
+    };
+    const t = typeMap[semType] || { type: 'text', attr: '' };
+
     if (isTextarea) {
         return `
             <div class="flussu-input-group">
@@ -1011,12 +1023,13 @@ function renderTextInput(id, placeholder, cssData, defaultValue) {
     
     return `
         <div class="flussu-input-group">
-            <input 
-                type="text" 
-                name="$${id}" 
+            <input
+                type="${t.type}"
+                name="$${id}"
                 placeholder="${placeholder}"
                 value="${value}"
                 class="flussu-input ${css} ${FlussuClient.state.bid}"
+                ${t.attr}
                 ${isMandatory ? 'required' : ''}
             />
             ${isMandatory ? '<span class="flussu-required">* required</span>' : ''}
@@ -1025,31 +1038,33 @@ function renderTextInput(id, placeholder, cssData, defaultValue) {
 }
 
 // Render Button
-function renderButton(id, text, cssData) {
+// groupSize = numero di ITB nel blocco corrente (per decidere il primary)
+function renderButton(id, text, cssData, groupSize = 1) {
     const css = typeof cssData === 'string' ? cssData : (cssData?.class || '');
-    const isPrimary = id === '0';
-    
-    // Controlla se cssData ha display_info come stringa o oggetto
-    let isSkipValidation = false;
+
+    // Normalizza display_info (può essere oggetto o stringa JSON)
+    let di = {};
     if (cssData && cssData.display_info) {
-        // Se display_info è una stringa, prova a parsarla
         if (typeof cssData.display_info === 'string') {
-            try {
-                const displayInfo = JSON.parse(cssData.display_info);
-                isSkipValidation = displayInfo.subtype === 'skip-validation';
-            } catch (e) {
-                // Se non è JSON valido, lascia false
-            }
+            try { di = JSON.parse(cssData.display_info); } catch (e) { di = {}; }
         } else {
-            // Se è già un oggetto
-            isSkipValidation = cssData.display_info.subtype === 'skip-validation';
+            di = cssData.display_info;
         }
     }
-    
-    console.log('[Flussu] Button render:', id, text, 'Skip validation:', isSkipValidation, cssData);
-    
+    const isSkipValidation = di.subtype === 'skip-validation';
+    const role = di.role || null; // 'primary' | 'secondary' | 'tertiary' (opt-in)
+
+    // v5 (REQUISITI 4.1.1): niente più primary hardcoded su id==0.
+    // - se il workflow designer specifica display_info.role, vince quello;
+    // - altrimenti è primary SOLO se è l'unico bottone del blocco
+    //   (scelte multiple es. "Maschile/Femminile" restano simmetriche).
+    let isPrimary;
+    if (role === 'primary') isPrimary = true;
+    else if (role === 'secondary' || role === 'tertiary') isPrimary = false;
+    else isPrimary = (groupSize <= 1);
+
     return `
-        <button 
+        <button
             class="flussu-btn ${isPrimary ? 'flussu-btn-primary' : 'flussu-btn-secondary'} ${css}"
             onclick="window.submitForm('$ex!${id}', '${text.replace(/'/g, "\\'")}', ${isSkipValidation})"
         >
