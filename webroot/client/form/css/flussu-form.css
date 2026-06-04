@@ -221,9 +221,11 @@ body.dark-mode .flussu-required {
     color: var(--flussu-gray-900);
 }
 
-/* v5: hamburger flottante (mostrato quando l'header/titolo è nascosto) */
+/* v5: hamburger flottante (mostrato quando l'header/titolo è nascosto).
+   position:absolute -> ancorato a .flussu-app (l'area del widget), NON al viewport:
+   così non finisce sotto l'eventuale navbar fissa della pagina ospite. */
 .flussu-menu-float {
-    position: fixed;
+    position: absolute;
     top: 1rem;
     left: 1rem;
     z-index: 50;
