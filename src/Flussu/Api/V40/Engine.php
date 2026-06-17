@@ -325,6 +325,23 @@ class Engine {
             // ------------------------------------------
 
             // -----------------------------------------
+            //  $check_for_files - v5.x (file-request detection authorization)
+            //  Riconosce e RIMUOVE la chiave dal TRM PRIMA che il Worker la
+            //  trasformi in variabile di template (pushValue->assignVars), cosi'
+            //  non finisce MAI nel prompt. Il valore viene portato fino a
+            //  Executor::sendToAi via flag di sessione (NON una var).
+            //    true / assente -> comportamento attuale (rileva richieste file)
+            //    false          -> Executor OMETTE le istruzioni di emissione file
+            //  Vedi: contratto $check_for_files (2026-06-17).
+            // -----------------------------------------
+            if (array_key_exists('$check_for_files', $terms)) {
+                $cff = filter_var($terms['$check_for_files'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                $wSess->setCheckForFiles($cff === null ? true : $cff);
+                unset($terms['$check_for_files']);
+            }
+            // ------------------------------------------
+
+            // -----------------------------------------
             //  DOCUMENT SPACE - v4.6 / v5.x
             //  v5.x: il "glob dsp_*" automatico è stato rimosso. Era pensato come
             //  fallback per upload anonimi senza SID, ma causava cross-session

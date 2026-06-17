@@ -311,9 +311,15 @@ class Executor{
 
                         // v5.x - AI File Emission capability (opt-in via 4th sendToAi param).
                         // Prepended LAST so the capability rules are the first thing the model reads.
-                        if ($allowFile) {
+                        // $check_for_files (TRM, stripped+stashed in Engine) is the source-level
+                        // gate: false => OMETTI le istruzioni anche se il composer le abiliterebbe
+                        // ($allowFile). true/assente => comportamento attuale. La guardia $allowFile
+                        // resta come difesa in profondita'. Vedi: contratto $check_for_files.
+                        if ($allowFile && $Sess->getCheckForFiles()) {
                             $sendText = FlussuFileBlock::CAPABILITY_PROMPT . "\n\n" . $sendText;
                             $Sess->recLog("AI File Emission: capability ON");
+                        } else if ($allowFile) {
+                            $Sess->recLog("AI File Emission: suppressed by \$check_for_files=false");
                         }
 
                         $Sess->recLog("call AI: ".$sendText);
@@ -382,28 +388,35 @@ class Executor{
                         // this, getContextForAi only injects a "[image available]" placeholder and
                         // the LLM correctly reports it cannot see anything.
                         $imagePaths = $docSpace->getImagePaths();
+                        // v5.x — route to vision ONLY for a freshly-uploaded image. A stale image
+                        // left in the session must not hijack an unrelated text/document request
+                        // (combined with the file-emission prompt it also made small models refuse).
+                        // The textual doc context still persists every turn via getContextForAi.
+                        $freshImages = $docSpace->getNewImagePaths();
                         // [DIAG_VISION_v1] log the routing decision every turn — both branches
                         \Flussu\General::Log_nocaller('[DIAG_VISION_v1] sendToAi decision sess=' . $Sess->getId()
                             . ' platform=' . $platform->name
                             . ' hasDocs=' . ($docSpace->hasDocuments() ? 'yes' : 'no')
                             . ' imgCount=' . count($imagePaths)
-                            . ' branch=' . (!empty($imagePaths) ? 'vision' : 'text-only'), true);
-                        if (!empty($imagePaths)) {
+                            . ' imgFresh=' . count($freshImages)
+                            . ' branch=' . (!empty($freshImages) ? 'vision' : 'text-only'), true);
+                        if (!empty($freshImages)) {
                             $mediaCtrl = new AiMediaController($platform);
                             if ($mediaCtrl->canAnalyze()) {
-                                $Sess->recLog("DocSpace: " . count($imagePaths) . " image(s) found, routing to analyzeMedia");
+                                $Sess->recLog("DocSpace: " . count($freshImages) . " fresh image(s), routing to analyzeMedia");
                                 // [DIAG_VISION_v1] confirm vision routing path + image presence
                                 \Flussu\General::Log_nocaller('[DIAG_VISION_v1] route=analyzeMedia platform=' . $platform->name
                                     . ' sess=' . $Sess->getId()
-                                    . ' imgCount=' . count($imagePaths)
-                                    . ' firstImg=' . $imagePaths[0]
-                                    . ' firstImgExists=' . (file_exists($imagePaths[0]) ? 'yes' : 'NO')
-                                    . ' firstImgBytes=' . (file_exists($imagePaths[0]) ? filesize($imagePaths[0]) : 0)
+                                    . ' imgFresh=' . count($freshImages)
+                                    . ' firstImg=' . $freshImages[0]
+                                    . ' firstImgExists=' . (file_exists($freshImages[0]) ? 'yes' : 'NO')
+                                    . ' firstImgBytes=' . (file_exists($freshImages[0]) ? filesize($freshImages[0]) : 0)
                                     . ' promptLen=' . strlen($sendText), true);
-                                if (count($imagePaths) > 1) {
+                                if (count($freshImages) > 1) {
                                     $Sess->recLog("DocSpace: only first image will be sent this turn (single-media flow)");
                                 }
-                                $reslt = $mediaCtrl->analyzeMedia($Sess->getId(), $imagePaths[0], $sendText);
+                                $reslt = $mediaCtrl->analyzeMedia($Sess->getId(), $freshImages[0], $sendText);
+                                $docSpace->markImagesProcessed();
                                 // [DIAG_VISION_v1] response status + token usage from vision call
                                 \Flussu\General::Log_nocaller('[DIAG_VISION_v1] analyzeMedia DONE platform=' . $platform->name
                                     . ' status=' . ($reslt[0] ?? '?')
@@ -435,25 +448,30 @@ class Executor{
                         if (is_string($reslt[1])) {
                             $fb = FlussuFileBlock::parse($reslt[1]);
                             if ($fb['found']) {
-                                if ($allowFile && $fb['valid']) {
+                                if ($allowFile) {
+                                    // Deterministic: strip the block(s) from the prose even when the
+                                    // payload is invalid, so the raw source never leaks to the user.
                                     $replyForVar = $fb['stripped'];
-                                    $docElm = [
-                                        $fb['payload']['content'],
-                                        ['display_info' => array_filter([
-                                            'type'     => 'document',
-                                            'format'   => $fb['payload']['format'],
-                                            'filename' => $fb['payload']['filename'] ?? null,
-                                        ], fn($v) => $v !== null)],
-                                    ];
-                                    $Sess->pushPendingElm('DOC', $docElm);
-                                    General::Log_nocaller('[DOC_FILE_v1] emit sess=' . $Sess->getId()
-                                        . ' fmt=' . $fb['payload']['format']
-                                        . ' bytes=' . strlen($fb['payload']['content'])
-                                        . ' extras=' . $fb['extras']
-                                        . ' trailing=' . ($fb['trailing'] ? 'yes' : 'no'), true);
-                                } elseif ($allowFile && !$fb['valid']) {
-                                    General::Log_nocaller('[DOC_FILE_v1] parse_fail sess=' . $Sess->getId()
-                                        . ' reason=' . $fb['reason'], true);
+                                    if ($fb['valid']) {
+                                        $docElm = [
+                                            $fb['payload']['content'],
+                                            ['display_info' => array_filter([
+                                                'type'     => 'document',
+                                                'format'   => $fb['payload']['format'],
+                                                'filename' => $fb['payload']['filename'] ?? null,
+                                            ], fn($v) => $v !== null)],
+                                        ];
+                                        $Sess->pushPendingElm('DOC', $docElm);
+                                        General::Log_nocaller('[DOC_FILE_v1] emit sess=' . $Sess->getId()
+                                            . ' fmt=' . $fb['payload']['format']
+                                            . ' bytes=' . strlen($fb['payload']['content'])
+                                            . ' extras=' . $fb['extras']
+                                            . ' trailing=' . ($fb['trailing'] ? 'yes' : 'no'), true);
+                                    } else {
+                                        General::Log_nocaller('[DOC_FILE_v1] parse_fail sess=' . $Sess->getId()
+                                            . ' reason=' . $fb['reason']
+                                            . ' (stripped from prose, no leak)', true);
+                                    }
                                 } else {
                                     // capability OFF but the model emitted anyway — log and pass through unchanged
                                     General::Log_nocaller('[DOC_FILE_v1] unsolicited_block sess=' . $Sess->getId()

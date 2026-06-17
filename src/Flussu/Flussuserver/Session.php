@@ -716,7 +716,25 @@ class Session {
         $dt=$this->getVarValue("$"."_dtc_lastCall");
         if (!empty($dt))
             return $dt;
-        return null; 
+        return null;
+    }
+
+    // --------------------------------------------------------------------
+    //  v5.x - $check_for_files (file-request detection authorization)
+    //  Carried as a session flag (NOT a template var) so the upstream TRM
+    //  key never leaks into the LLM prompt. Set from Engine after stripping
+    //  the key from the TRM; consumed by Executor::sendToAi to gate the
+    //  file-emission CAPABILITY_PROMPT. Default true == current "always try"
+    //  behavior, so an absent field stays retro-compatible.
+    //  See: contratto $check_for_files (2026-06-17).
+    // --------------------------------------------------------------------
+    public function setCheckForFiles($value=true){
+        $_SESSION["checkForFiles"]=(bool)$value;
+    }
+    public function getCheckForFiles(){
+        if (isset($_SESSION["checkForFiles"]))
+            return (bool)$_SESSION["checkForFiles"];
+        return true;
     }
 
 // >>>>>>>>>> ENTRAMBI DIFFERIBILI <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
