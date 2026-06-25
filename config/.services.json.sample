@@ -118,7 +118,8 @@
         "auth_key":"sk-ant-your-anthropic-api-key-here",
         "model":"claude-haiku-4-5",
         "chat-model":"claude-haiku-4-5",
-        "default_temperature": 0.7
+        "default_temperature": 0.7,
+        "prompt_cache": true
       },
       "zeroone_ai":{
         "auth_key":"your-01ai-api-key-here",
@@ -128,15 +129,15 @@
       },
       "kimi":{
         "auth_key":"sk-your-kimi-api-key-here",
-        "model":"kimi-k2-0905-preview",
-        "chat-model":"kimi-k2-0905-preview",
+        "model":"kimi-k2.6",
+        "chat-model":"kimi-k2.6",
         "default_temperature": 0.3
       },
       "qwen":{
         "auth_key":"sk-your-dashscope-api-key-here",
-        "model":"qwen-turbo",
-        "chat-model":"qwen-turbo",
-        "image-model":"wan2.2-t2i-flash",
+        "model":"qwen3.5-plus",
+        "chat-model":"qwen3.5-plus",
+        "image-model":"qwen-image-plus",
         "default_temperature": 0.7
       },
       "huggingface":{
@@ -162,8 +163,8 @@
       },
       "zai_glm":{
         "auth_key":"sk-your-zai-api-key-here",
-        "model":"glm-4.5v",
-        "chat-model":"glm-4.6",
+        "model":"glm-5.1v",
+        "chat-model":"glm-5.1",
         "image-model":"cogView-4-250304",
         "default_temperature": 0.6
       },
