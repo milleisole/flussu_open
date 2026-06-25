@@ -45,6 +45,7 @@ use Flussu\Api\Ai\FlussuStabilityAi;
 use Flussu\Api\Ai\FlussuMistralAi;
 use Flussu\Api\Ai\FlussuZaiGlmAi;
 use Flussu\Api\Ai\FlussuTogetherAi;
+use Flussu\Api\Ai\FlussuAi;
 use Log;
 
 class AiChatController
@@ -105,6 +106,10 @@ class AiChatController
                 break;
             case Platform::TOGETHER:
                 $this->_aiClient= new FlussuTogetherAi($model, $chat_model);
+                $this->_linkify=0;
+                break;
+            case Platform::FLUSSU:
+                $this->_aiClient= new FlussuAi($model, $chat_model);
                 $this->_linkify=0;
                 break;
         }
@@ -533,7 +538,7 @@ TXT;
 
     /**
      * v5.x — Service-model factory. Reads `services.ai_provider.service_model`
-     * (default: "mistral") and returns a fresh provider instance for internal
+     * (default: "flussu") and returns a fresh provider instance for internal
      * tasks: chat-summary titles, filename generation, future server-side
      * helpers. Operators can switch the underlying model without touching
      * code by editing config/.services.json.
@@ -542,7 +547,7 @@ TXT;
      * missing API key); callers must tolerate that path.
      */
     private function _getServiceProvider(): ?IAiProvider {
-        $modelKey = strtolower(trim((string) config('services.ai_provider.service_model', 'mistral')));
+        $modelKey = strtolower(trim((string) config('services.ai_provider.service_model', 'flussu')));
         try {
             switch ($modelKey) {
                 case 'mistral':                              return new FlussuMistralAi();
@@ -557,11 +562,12 @@ TXT;
                 case 'zeroone_ai': case 'zeroone': case '01ai':
                                                              return new FlussuZeroOneAi();
                 case 'zai_glm': case 'zai': case 'glm':      return new FlussuZaiGlmAi();
+                case 'flussu':                               return new FlussuAi();
                 case 'together':                             return new FlussuTogetherAi();
                 case 'huggingface':                          return new FlussuHuggingFaceAi();
                 default:
-                    General::Log_nocaller('service_model: unknown identifier "' . $modelKey . '", falling back to mistral', true);
-                    return new FlussuMistralAi();
+                    General::Log_nocaller('service_model: unknown identifier "' . $modelKey . '", falling back to flussu', true);
+                    return new FlussuAi();
             }
         } catch (\Throwable $e) {
             General::Log_nocaller('service_model: instantiation of "' . $modelKey . '" failed: ' . $e->getMessage(), true);

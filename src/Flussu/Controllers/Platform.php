@@ -31,6 +31,7 @@ enum Platform: int {
     case MISTRAL = 10;
     case ZAI_GLM = 11;
     case TOGETHER = 12;  // v5.0 - Together.ai - chat (Llama, Mixtral, ...) + image generation (FLUX.1)
+    case FLUSSU = 99;    // v5.0 - "modello flussu" - chat/agentico text-only economico su z.ai (GLM)
 
     /**
      * v5.0 — Some chat providers cannot (or no longer) generate images themselves.
@@ -42,7 +43,7 @@ enum Platform: int {
      * different model for image generation; we apply the same logic uniformly.
      *
      * Provider redirected → TOGETHER:
-     *   GROK, DEEPSEEK, CLAUDE, HUGGINGFACE, ZEROONE, KIMI, MISTRAL
+     *   GROK, DEEPSEEK, CLAUDE, HUGGINGFACE, ZEROONE, KIMI, MISTRAL, FLUSSU
      *
      * Image-capable providers (passthrough — generate their own images):
      *   CHATGPT, GEMINI, STABILITY, QWEN, ZAI_GLM, TOGETHER
@@ -56,7 +57,8 @@ enum Platform: int {
             self::HUGGINGFACE,
             self::ZEROONE,
             self::KIMI,
-            self::MISTRAL    => self::TOGETHER,
+            self::MISTRAL,
+            self::FLUSSU     => self::TOGETHER,
             default          => $this,
         };
     }
@@ -67,7 +69,7 @@ enum Platform: int {
      * Providers redirected → GEMINI (google_search grounding):
      *   CHATGPT      — openai-php/client v0.10.3 has no responses() method
      *   DEEPSEEK     — chat_WebPreview is a plain chat call, no web tool (false positive)
-     *   HUGGINGFACE, ZEROONE, KIMI, STABILITY, MISTRAL, TOGETHER — no native web tool
+     *   HUGGINGFACE, ZEROONE, KIMI, STABILITY, MISTRAL, TOGETHER, FLUSSU — no native web tool
      *
      * Providers kept on their native path (with Gemini runtime fallback in
      * AiWebController if the native call fails):
@@ -83,7 +85,8 @@ enum Platform: int {
             self::KIMI,
             self::STABILITY,
             self::MISTRAL,
-            self::TOGETHER  => self::GEMINI,
+            self::TOGETHER,
+            self::FLUSSU    => self::GEMINI,
             default         => $this,
         };
     }
