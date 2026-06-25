@@ -50,6 +50,17 @@ use Log;
 
 class AiChatController
 {
+    /**
+     * v5.x — Promemoria di lingua iniettato ad OGNI turno nel payload inviato
+     * all'LLM (in coda al messaggio utente, per massima recency). Rinforza la
+     * regola del system-prompt iniziale, che su conversazioni lunghe si diluisce:
+     * è il motivo per cui un prompt in inglese poteva ottenere risposte in
+     * italiano. NON viene persistito nella cronologia (vedi chat()), così non
+     * inquina la history né è visibile all'utente. In inglese by design, come gli
+     * altri prompt-istruzione (indipendente dalla lingua della conversazione).
+     */
+    private const LANG_REMINDER = "\n\n[System reminder: reply in the SAME language as the user's message above; detect that language and use it. Do not switch language unless the user does.]";
+
     private $_linkify=0;
     private IAiProvider $_aiClient;
     private Platform $_platform;
@@ -119,8 +130,10 @@ class AiChatController
     function initAgent($sessId,$initChatText="") {
 $today = (new \DateTime('now', new \DateTimeZone('Europe/Rome')))->format('l, j F Y');
 $initChatText2=<<<TXT
-    You are a standard AI assistant designed to assist users answering in the same language the users write the questions, if the user writes the questions, so if the user writes in italian, you should reply in italian, if the user writes in english, you should reply in english, and so on.
-    Your name is Flussu-AI and be aware of your responses, it should be clear, concise, and helpful.
+    You are a standard AI assistant named Flussu-AI.
+    # LANGUAGE RULE (highest priority):
+    Always reply in the SAME language as the user's CURRENT message. Detect the language of each new user message and answer in that exact language, regardless of the language of these instructions, of the examples below, or of any previous message in this conversation. These instructions are written in English only for your convenience: they do NOT mean you must reply in English or in Italian. If the user writes in English, reply in English; if in Italian, reply in Italian; if in French, German, Spanish, etc., reply in that language; and so on. Never switch the reply language unless the user switches first.
+    Be aware of your responses, they should be clear, concise, and helpful.
     Today's date is $today.
     # When asked to generate images:
     ## If the user asks for a chart, diagram, schematic or anything structural that fits SVG, produce it as inline SVG.
@@ -239,10 +252,26 @@ TXT;
             if (!$this->_aiClient->canBrowseWeb()){
                 $sendText=$this->sostituisciURLconHTML($sendText);
             }
+            // v5.x — il promemoria di lingua va SOLO nel payload inviato all'LLM,
+            // non nella cronologia persistita: usiamo $apiSendText per la chiamata
+            // e ripristiniamo il testo utente pulito ($sendText) in $result[0] qui sotto.
+            $apiSendText = $sendText . self::LANG_REMINDER;
             if (!$webPreview)
-                $result=$this->_aiClient->Chat($preChat,$sendText, $role);
+                $result=$this->_aiClient->Chat($preChat,$apiSendText, $role);
             else
-                $result=$this->_aiClient->Chat_WebPreview($sendText, $sessId,$maxTokens,$temperature);
+                $result=$this->_aiClient->Chat_WebPreview($apiSendText, $sessId,$maxTokens,$temperature);
+
+            // v5.x — rimuovi il promemoria dalla cronologia che verrà persistita:
+            // ovunque compaia $apiSendText (l'ultimo messaggio utente), ripristina
+            // il testo pulito. Così la history salvata non contiene il reminder.
+            if (is_array($result) && isset($result[0]) && is_array($result[0])) {
+                foreach ($result[0] as &$_histMsg) {
+                    if (isset($_histMsg['content']) && $_histMsg['content'] === $apiSendText) {
+                        $_histMsg['content'] = $sendText;
+                    }
+                }
+                unset($_histMsg);
+            }
 
             // Extract token usage from result (third element if available)
             if (is_array($result) && isset($result[2])) {
