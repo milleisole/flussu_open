@@ -114,6 +114,8 @@ class FlussuAi implements IAiProvider
                 return ['https://dashscope-intl.aliyuncs.com/compatible-mode/v1/', 'qwen', 'qwen'];
             case 'deepseek':
                 return ['https://api.deepseek.com/v1/', 'none', 'deepseek'];
+            case 'xai_grok': case 'grok':
+                return ['https://api.x.ai/v1/', 'none', 'xai_grok'];
             default:
                 // unknown backend: require an explicit base-uri; share the auth_key
                 // from a config block named exactly like 'inherit'.

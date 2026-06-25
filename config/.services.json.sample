@@ -169,7 +169,7 @@
         "default_temperature": 0.6
       },
       "flussu":{
-        "_comment":"Modello interno 'flussu' (Platform 99): backend selezionabile via 'inherit' tra zai_glm|qwen|deepseek (un nome diverso richiede 'base-uri' esplicito). Chiave API ed endpoint sono CONDIVISI dal backend scelto (es. inherit=zai_glm usa zai_glm.auth_key); 'model'/'chat-model' e 'default_temperature' sono invece propri di flussu. Reasoning disattivato di default per la velocita': aggiungi 'thinking':true per riattivarlo, oppure 'base-uri' per un endpoint OpenAI-compatibile custom.",
+        "_comment":"Modello interno 'flussu' (Platform 99): backend selezionabile via 'inherit' tra zai_glm|qwen|deepseek|xai_grok (un nome diverso richiede 'base-uri' esplicito). Chiave API ed endpoint sono CONDIVISI dal backend scelto (es. inherit=zai_glm usa zai_glm.auth_key); 'model'/'chat-model' e 'default_temperature' sono invece propri di flussu. Reasoning disattivato di default per la velocita': aggiungi 'thinking':true per riattivarlo, oppure 'base-uri' per un endpoint OpenAI-compatibile custom.",
         "inherit":"zai_glm",
         "model":"glm-4.5-flash",
         "chat-model":"glm-4.5-flash",
