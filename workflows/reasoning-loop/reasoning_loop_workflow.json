@@ -32,7 +32,7 @@
                             "d_type": "MESSAGE",
                             "e_order": "0",
                             "exit_num": "",
-                            "css": {},
+                            "css": [],
                             "note": "",
                             "langs": {
                                 "EN": {
@@ -52,7 +52,7 @@
                             "d_type": "INPUT",
                             "e_order": "1",
                             "exit_num": "",
-                            "css": {},
+                            "css": [],
                             "note": "",
                             "langs": {
                                 "EN": {
@@ -72,7 +72,7 @@
                             "d_type": "BUTTON",
                             "e_order": "2",
                             "exit_num": "0",
-                            "css": {},
+                            "css": [],
                             "note": "",
                             "langs": {
                                 "EN": {
@@ -90,6 +90,32 @@
                         {
                             "exit_num": 0,
                             "exit_dir": "b2a00002-rsn1-4a01-b002-000000000001"
+                        }
+                    ]
+                },
+                {
+                    "block_id": "b2a00002-rsn1-4a01-b002-000000000001",
+                    "description": "TRIAGE - harvest, classify, route",
+                    "is_start": 0,
+                    "x_pos": 320,
+                    "y_pos": 80,
+                    "note": "",
+                    "error": "",
+                    "type": "",
+                    "exec": "<?php\nif (!function_exists('estraiJson')) {\n  function estraiJson($s){ $s=(string)$s; $start=strpos($s,'{'); if($start===false) return \"\"; $d=0;$i=$start;$len=strlen($s);$in=false;$e=false;\n    for(;$i<$len;$i++){ $c=$s[$i];\n      if($in){ if($e){$e=false;} elseif($c==='\\\\'){$e=true;} elseif($c==='\"'){$in=false;} continue; }\n      if($c==='\"'){$in=true;} elseif($c==='{'){$d++;} elseif($c==='}'){$d--; if($d===0){$cand=substr($s,$start,$i-$start+1); return (json_decode($cand)!==null)?$cand:\"\";}} }\n    return \"\"; }\n}\n// 1) harvest previous round's answers (if it asked for data), then clear slots\nif ($triage != \"\") {\n  $prev = json_decode(estraiJson($triage), true);\n  if (is_array($prev) && ($prev['status'] ?? '') == 'servono_dati') {\n    $miss = $prev['dati_mancanti'] ?? array();\n    $idx = 1;\n    foreach ($miss as $f) {\n      $slot = 'clar'.$idx;\n      $val = isset($$slot) ? $$slot : '';\n      if ($val !== '' && $val !== null) $context .= \"\\nQ: \".($f['label'] ?? '').\"\\nA: \".$val;\n      $idx++;\n    }\n  }\n  for ($s = 1; $s <= $MAX_SLOTS; $s++) { $slot = 'clar'.$s; $$slot = ''; }\n}\n// 2) new triage call\n$round = $round + 1;\n$sys = \"You are a triage classifier. Decide if a user question can be answered now, needs deeper internal reasoning, or needs more data from the user. \".$DOMINIO.\" Reply ONLY with valid JSON, no prose, in EXACTLY this shape: {\\\"status\\\":\\\"chiaro|serve_ragionamento|servono_dati\\\",\\\"ragionamento\\\":\\\"short internal note\\\",\\\"focus\\\":\\\"if serve_ragionamento: what to deepen\\\",\\\"dati_mancanti\\\":[{\\\"var\\\":\\\"slotN\\\",\\\"label\\\":\\\"question in the user's language\\\",\\\"tipo\\\":\\\"testo|testo_lungo|scelta\\\",\\\"opzioni\\\":[\\\"..\\\"],\\\"obbligatorio\\\":true}]}. Use at most \".$MAX_SLOTS.\" items in dati_mancanti. Write label/opzioni in language code: \".$lang.\".\";\nwofoEnv->initAiAgent($sys);\n$usr = \"QUESTION:\\n\".$userQuestion.\"\\n\\nCONTEXT SO FAR:\\n\".$context;\nwofoEnv->sendToAi($usr, '$triage', $PROV_TRIAGE);\n// 3) parse + route\n$t = json_decode(estraiJson($triage), true);\n$status = (is_array($t) && isset($t['status'])) ? $t['status'] : 'servono_dati';\nif ($round > $MAX_ROUNDS)                 { wofoEnv->setExit(0); }\nelseif ($status == 'chiaro')              { wofoEnv->setExit(0); }\nelseif ($status == 'serve_ragionamento')  { wofoEnv->setExit(1); }\nelse                                      { wofoEnv->setExit(2); }\n?>",
+                    "elements": [],
+                    "exits": [
+                        {
+                            "exit_num": 0,
+                            "exit_dir": "b2a00005-rsn1-4a01-b005-000000000001"
+                        },
+                        {
+                            "exit_num": 1,
+                            "exit_dir": "b2a00003-rsn1-4a01-b003-000000000001"
+                        },
+                        {
+                            "exit_num": 2,
+                            "exit_dir": "b2a00004-rsn1-4a01-b004-000000000001"
                         }
                     ]
                 }
