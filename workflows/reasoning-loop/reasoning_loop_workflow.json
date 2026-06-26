@@ -136,6 +136,24 @@
                             "exit_dir": "b2a00002-rsn1-4a01-b002-000000000001"
                         }
                     ]
+                },
+                {
+                    "block_id": "b2a00004-rsn1-4a01-b004-000000000001",
+                    "description": "ASK - dynamic clarification fields",
+                    "is_start": 0,
+                    "x_pos": 560,
+                    "y_pos": 160,
+                    "note": "",
+                    "error": "",
+                    "type": "",
+                    "exec": "<?php\nif (!function_exists('estraiJson')) {\n  function estraiJson($s){ $s=(string)$s; $start=strpos($s,'{'); if($start===false) return \"\"; $d=0;$i=$start;$len=strlen($s);$in=false;$e=false;\n    for(;$i<$len;$i++){ $c=$s[$i];\n      if($in){ if($e){$e=false;} elseif($c==='\\\\'){$e=true;} elseif($c==='\"'){$in=false;} continue; }\n      if($c==='\"'){$in=true;} elseif($c==='{'){$d++;} elseif($c==='}'){$d--; if($d===0){$cand=substr($s,$start,$i-$start+1); return (json_decode($cand)!==null)?$cand:\"\";}} }\n    return \"\"; }\n}\n$t = json_decode(estraiJson($triage), true);\n$fields = (is_array($t) && !empty($t['dati_mancanti'])) ? $t['dati_mancanti'] : array();\nif (empty($fields)) {\n  $fields = array(array('label' => ($lang=='IT' ? 'Puoi fornire qualche dettaglio in piu\\'?' : 'Could you provide a bit more detail?'), 'tipo' => 'testo', 'obbligatorio' => true));\n}\n$idx = 1;\nforeach ($fields as $f) {\n  if ($idx > $MAX_SLOTS) break;\n  $slot = '$clar'.$idx;\n  $label = isset($f['label']) ? $f['label'] : '...';\n  $tipo = isset($f['tipo']) ? $f['tipo'] : 'testo';\n  $mand = !empty($f['obbligatorio']);\n  if ($tipo == 'scelta' && !empty($f['opzioni'])) {\n    wofoEnv->createSelect($slot, 'SE', $f['opzioni'], $mand);\n  } elseif ($tipo == 'testo_lungo') {\n    wofoEnv->createInputMultirow($slot, '', $label, $mand);\n  } else {\n    wofoEnv->createInputStandard($slot, '', $label, $mand);\n  }\n  $idx++;\n}\nwofoEnv->createButton('$ask_btn', '1', ($lang=='IT' ? 'Invia' : 'Send'), 0);\n?>",
+                    "elements": [],
+                    "exits": [
+                        {
+                            "exit_num": 0,
+                            "exit_dir": "b2a00002-rsn1-4a01-b002-000000000001"
+                        }
+                    ]
                 }
             ]
         }
