@@ -118,6 +118,24 @@
                             "exit_dir": "b2a00004-rsn1-4a01-b004-000000000001"
                         }
                     ]
+                },
+                {
+                    "block_id": "b2a00003-rsn1-4a01-b003-000000000001",
+                    "description": "REASON - internal deepening",
+                    "is_start": 0,
+                    "x_pos": 560,
+                    "y_pos": 20,
+                    "note": "",
+                    "error": "",
+                    "type": "",
+                    "exec": "<?php\nif (!function_exists('estraiJson')) {\n  function estraiJson($s){ $s=(string)$s; $start=strpos($s,'{'); if($start===false) return \"\"; $d=0;$i=$start;$len=strlen($s);$in=false;$e=false;\n    for(;$i<$len;$i++){ $c=$s[$i];\n      if($in){ if($e){$e=false;} elseif($c==='\\\\'){$e=true;} elseif($c==='\"'){$in=false;} continue; }\n      if($c==='\"'){$in=true;} elseif($c==='{'){$d++;} elseif($c==='}'){$d--; if($d===0){$cand=substr($s,$start,$i-$start+1); return (json_decode($cand)!==null)?$cand:\"\";}} }\n    return \"\"; }\n}\n$t = json_decode(estraiJson($triage), true);\n$focus = (is_array($t) && isset($t['focus'])) ? $t['focus'] : '';\n$sys = \"You are an analyst. Think step by step to clarify the question's context. Produce a concise analysis (no final answer yet), surfacing assumptions and what would make the answer precise.\";\nwofoEnv->initAiAgent($sys);\n$usr = \"QUESTION:\\n\".$userQuestion.\"\\n\\nFOCUS:\\n\".$focus.\"\\n\\nCONTEXT SO FAR:\\n\".$context;\nwofoEnv->sendToAi($usr, '$reasonOut', $PROV_TRIAGE);\n$context = $context.\"\\n[ANALYSIS]: \".$reasonOut;\nwofoEnv->setExit(0);\n?>",
+                    "elements": [],
+                    "exits": [
+                        {
+                            "exit_num": 0,
+                            "exit_dir": "b2a00002-rsn1-4a01-b002-000000000001"
+                        }
+                    ]
                 }
             ]
         }
