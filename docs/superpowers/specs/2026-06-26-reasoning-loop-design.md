@@ -244,6 +244,9 @@ wofoEnv->setExit(0); // → END
 2. **Importable flow** (`workflows/reasoning-loop/reasoning_loop_workflow.json`):
    spec-format (like `workflows/medical-research/...`) with the 5 blocks,
    elements, exits and UUIDs; importable via `C=RD` / designer import.
+   **Example `DOMINIO` = generic assistant** (a broadly-useful Q&A assistant,
+   no vertical specialization), so the flow is a clean starting template the
+   author can re-point to any domain.
 
 ## 10. Out of scope
 
