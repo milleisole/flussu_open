@@ -500,14 +500,14 @@ $sys = "You are a helpful general-purpose assistant. Answer the user's question 
 wofoEnv->initAiAgent($sys);
 $usr = "QUESTION:\n".$userQuestion."\n\nCONTEXT:\n".$context;
 wofoEnv->sendToAi($usr, '$answer', $PROV_ANSWER);
-if (substr((string)$answer, 0, 5) === "Error") {
+if (substr((string)$answer, 0, 5) === "Error" || trim((string)$answer) === "") {
   $answer = "Sorry, something went wrong producing the answer. Please try again.";
 }
 wofoEnv->setExit(0);
 ?>
 ```
 
-JSON block object (escape exec; a MESSAGE element bound to `$answer`; exit `0` ends the flow with `exit_dir` `"0"`):
+JSON block object (escape exec; a MESSAGE element that DISPLAYS `$answer` — the engine renders a MESSAGE by substituting variables into its `label`, so the label MUST be `"$answer"` (var_name alone does not render); exit `0` ends the flow with `exit_dir` `"0"`):
 
 ```json
 {
@@ -530,7 +530,7 @@ JSON block object (escape exec; a MESSAGE element bound to `$answer`; exit `0` e
       "exit_num": "",
       "css": {},
       "note": "",
-      "langs": { "EN": { "label": "", "uri": "" }, "IT": { "label": "", "uri": "" } }
+      "langs": { "EN": { "label": "$answer", "uri": "" }, "IT": { "label": "$answer", "uri": "" } }
     }
   ],
   "exits": [
@@ -657,4 +657,4 @@ The structural checks above are static. A real import/run requires a running Flu
 - **Spec coverage:** triage JSON (Task 4) ✓, internal reasoning loop (Task 5) ✓, dynamic clarification fields (Task 6) ✓, round cap + best-effort (Tasks 4 & 7) ✓, internal reasoning not shown (no MESSAGE for reasoning) ✓, importable JSON + blueprint (Tasks 2–9) ✓.
 - **Open verifications from spec §11:** `json_decode` in sandbox → RESOLVED (eval). `createButton` signature → RESOLVED (6 args, Task 6). Import envelope → RESOLVED (`C=RD`, top-level `workflow[0].blocks[]`).
 - **Type/name consistency:** block UUIDs, exit indices (0/1/2), var names (`$round`, `$context`, `$triage`, `$userQuestion`, `$clar1..$clar6`, `$MAX_ROUNDS`, `$MAX_SLOTS`, `$PROV_TRIAGE`, `$PROV_ANSWER`, `$DOMINIO`, `$answer`, `$reasonOut`) used consistently across Tasks 3–7.
-- **Residual risk:** whether a MESSAGE element with `var_name` renders the variable's value (Task 7 display) — mirrors the medical-research `$result_html` idiom; if it doesn't, fall back to `wofoEnv->createLabel($answer);` inside the ANSWER exec. Flagged for Task 10.
+- **Residual risk (RESOLVED in review):** a MESSAGE element renders its `label` (with `$var` substitution), NOT its `var_name`. The ANSWER MESSAGE label is therefore `"$answer"` (matches the medical-research `$result_html` idiom). Empty answers are also guarded.
