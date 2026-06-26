@@ -1,0 +1,19 @@
+{
+  "workflow": [
+    {
+      "name": "Reasoning / Clarification Loop",
+      "description": "Triages a user question with an LLM (JSON verdict), then answers, reasons more, or asks the user for missing data. Bounded rounds with best-effort fallback. Domain: generic assistant.",
+      "lang": "EN",
+      "supp_langs": "EN,IT",
+      "is_active": 1,
+      "userId": "1",
+      "valid_from": "1899-12-31 23:59:59",
+      "valid_until": "2100-01-01 00:00:00",
+      "svc1": "",
+      "svc2": "",
+      "svc3": "",
+      "start_block_id": "b2a00001-rsn1-4a01-b001-000000000001",
+      "blocks": []
+    }
+  ]
+}
