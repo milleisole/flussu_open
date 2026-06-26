@@ -164,7 +164,7 @@
                     "note": "",
                     "error": "",
                     "type": "",
-                    "exec": "<?php\n$sys = \"You are a helpful general-purpose assistant. Answer the user's question clearly and concisely in language code \".$lang.\". If the context is incomplete, give the best possible answer with the information available and briefly state the assumptions you made.\";\nwofoEnv->initAiAgent($sys);\n$usr = \"QUESTION:\\n\".$userQuestion.\"\\n\\nCONTEXT:\\n\".$context;\nwofoEnv->sendToAi($usr, '$answer', $PROV_ANSWER);\nif (substr((string)$answer, 0, 5) === \"Error\") {\n  $answer = \"Sorry, something went wrong producing the answer. Please try again.\";\n}\nwofoEnv->setExit(0);\n?>",
+                    "exec": "<?php\n$sys = \"You are a helpful general-purpose assistant. Answer the user's question clearly and concisely in language code \".$lang.\". If the context is incomplete, give the best possible answer with the information available and briefly state the assumptions you made.\";\nwofoEnv->initAiAgent($sys);\n$usr = \"QUESTION:\\n\".$userQuestion.\"\\n\\nCONTEXT:\\n\".$context;\nwofoEnv->sendToAi($usr, '$answer', $PROV_ANSWER);\nif (substr((string)$answer, 0, 5) === \"Error\" || trim((string)$answer) === \"\") {\n  $answer = \"Sorry, something went wrong producing the answer. Please try again.\";\n}\nwofoEnv->setExit(0);\n?>",
                     "elements": [
                         {
                             "elem_id": "e2a00005-rsn1-4a01-e001-000000000001",
@@ -173,15 +173,15 @@
                             "d_type": "MESSAGE",
                             "e_order": "0",
                             "exit_num": "",
-                            "css": {},
+                            "css": [],
                             "note": "",
                             "langs": {
                                 "EN": {
-                                    "label": "",
+                                    "label": "$answer",
                                     "uri": ""
                                 },
                                 "IT": {
-                                    "label": "",
+                                    "label": "$answer",
                                     "uri": ""
                                 }
                             }
