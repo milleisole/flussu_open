@@ -154,6 +154,45 @@
                             "exit_dir": "b2a00002-rsn1-4a01-b002-000000000001"
                         }
                     ]
+                },
+                {
+                    "block_id": "b2a00005-rsn1-4a01-b005-000000000001",
+                    "description": "ANSWER - final / best-effort",
+                    "is_start": 0,
+                    "x_pos": 320,
+                    "y_pos": 260,
+                    "note": "",
+                    "error": "",
+                    "type": "",
+                    "exec": "<?php\n$sys = \"You are a helpful general-purpose assistant. Answer the user's question clearly and concisely in language code \".$lang.\". If the context is incomplete, give the best possible answer with the information available and briefly state the assumptions you made.\";\nwofoEnv->initAiAgent($sys);\n$usr = \"QUESTION:\\n\".$userQuestion.\"\\n\\nCONTEXT:\\n\".$context;\nwofoEnv->sendToAi($usr, '$answer', $PROV_ANSWER);\nif (substr((string)$answer, 0, 5) === \"Error\") {\n  $answer = \"Sorry, something went wrong producing the answer. Please try again.\";\n}\nwofoEnv->setExit(0);\n?>",
+                    "elements": [
+                        {
+                            "elem_id": "e2a00005-rsn1-4a01-e001-000000000001",
+                            "var_name": "$answer",
+                            "c_type": "0",
+                            "d_type": "MESSAGE",
+                            "e_order": "0",
+                            "exit_num": "",
+                            "css": {},
+                            "note": "",
+                            "langs": {
+                                "EN": {
+                                    "label": "",
+                                    "uri": ""
+                                },
+                                "IT": {
+                                    "label": "",
+                                    "uri": ""
+                                }
+                            }
+                        }
+                    ],
+                    "exits": [
+                        {
+                            "exit_num": 0,
+                            "exit_dir": "0"
+                        }
+                    ]
                 }
             ]
         }
