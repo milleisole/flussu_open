@@ -1,19 +1,99 @@
 {
-  "workflow": [
-    {
-      "name": "Reasoning / Clarification Loop",
-      "description": "Triages a user question with an LLM (JSON verdict), then answers, reasons more, or asks the user for missing data. Bounded rounds with best-effort fallback. Domain: generic assistant.",
-      "lang": "EN",
-      "supp_langs": "EN,IT",
-      "is_active": 1,
-      "userId": "1",
-      "valid_from": "1899-12-31 23:59:59",
-      "valid_until": "2100-01-01 00:00:00",
-      "svc1": "",
-      "svc2": "",
-      "svc3": "",
-      "start_block_id": "b2a00001-rsn1-4a01-b001-000000000001",
-      "blocks": []
-    }
-  ]
+    "workflow": [
+        {
+            "name": "Reasoning / Clarification Loop",
+            "description": "Triages a user question with an LLM (JSON verdict), then answers, reasons more, or asks the user for missing data. Bounded rounds with best-effort fallback. Domain: generic assistant.",
+            "lang": "EN",
+            "supp_langs": "EN,IT",
+            "is_active": 1,
+            "userId": "1",
+            "valid_from": "1899-12-31 23:59:59",
+            "valid_until": "2100-01-01 00:00:00",
+            "svc1": "",
+            "svc2": "",
+            "svc3": "",
+            "start_block_id": "b2a00001-rsn1-4a01-b001-000000000001",
+            "blocks": [
+                {
+                    "block_id": "b2a00001-rsn1-4a01-b001-000000000001",
+                    "description": "START - Question + config",
+                    "is_start": "1",
+                    "x_pos": 80,
+                    "y_pos": 80,
+                    "note": "",
+                    "error": "",
+                    "type": "",
+                    "exec": "<?php\nwofoEnv->init();\n$round = 0;\n$context = \"\";\n$triage = \"\";\n$MAX_ROUNDS = 3;\n$MAX_SLOTS = 6;\n$PROV_TRIAGE = 99;\n$PROV_ANSWER = 4;\n$DOMINIO = \"You are a general-purpose assistant. A question is COMPLETE when it can be answered accurately without guessing the user's intent, scope, constraints or any essential specifics. Otherwise essential specifics are missing.\";\nwofoEnv->setExit(0);\n?>",
+                    "elements": [
+                        {
+                            "elem_id": "e2a00001-rsn1-4a01-e001-000000000001",
+                            "var_name": "",
+                            "c_type": "0",
+                            "d_type": "MESSAGE",
+                            "e_order": "0",
+                            "exit_num": "",
+                            "css": {},
+                            "note": "",
+                            "langs": {
+                                "EN": {
+                                    "label": "Ask me anything:",
+                                    "uri": ""
+                                },
+                                "IT": {
+                                    "label": "Fammi una domanda:",
+                                    "uri": ""
+                                }
+                            }
+                        },
+                        {
+                            "elem_id": "e2a00001-rsn1-4a01-e002-000000000001",
+                            "var_name": "$userQuestion",
+                            "c_type": "1",
+                            "d_type": "INPUT",
+                            "e_order": "1",
+                            "exit_num": "",
+                            "css": {},
+                            "note": "",
+                            "langs": {
+                                "EN": {
+                                    "label": "Type your question...",
+                                    "uri": ""
+                                },
+                                "IT": {
+                                    "label": "Scrivi la tua domanda...",
+                                    "uri": ""
+                                }
+                            }
+                        },
+                        {
+                            "elem_id": "e2a00001-rsn1-4a01-e003-000000000001",
+                            "var_name": "$start_btn",
+                            "c_type": "2",
+                            "d_type": "BUTTON",
+                            "e_order": "2",
+                            "exit_num": "0",
+                            "css": {},
+                            "note": "",
+                            "langs": {
+                                "EN": {
+                                    "label": "Send",
+                                    "uri": ""
+                                },
+                                "IT": {
+                                    "label": "Invia",
+                                    "uri": ""
+                                }
+                            }
+                        }
+                    ],
+                    "exits": [
+                        {
+                            "exit_num": 0,
+                            "exit_dir": "b2a00002-rsn1-4a01-b002-000000000001"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
 }
