@@ -50,9 +50,34 @@ class DocumentSpace
     // forced the conservative cap; with streaming the budget can cover real
     // business-plan workbooks (12 months × multi-year projections).
     private const MAX_SPREADSHEET_ROWS = 5000;
-    private const MAX_SPREADSHEET_SHEETS = 30;
+    // v5.x — bumped from 30 to 128. A real 54-sheet financial-plan workbook
+    // ("FP su 5 anni Canonity.xlsx") was silently truncated to 30 sheets,
+    // dropping the detail tables (investments, payroll, sales, taxes) that sit
+    // after the dashboard/graph sheets. Full extraction of all 54 sheets is
+    // ~511K chars (~127K tokens) — comfortably under the 200K-token context
+    // budget below, which (via char-based water-filling) remains the real
+    // limiter. With OpenSpout's streaming reader memory is constant regardless
+    // of sheet count, so this cap now only guards against pathological files
+    // with hundreds of sheets (slow iteration), not memory.
+    private const MAX_SPREADSHEET_SHEETS = 128;
     private const MAX_TEXT_BYTES = 500000; // 500KB per file
-    private const MAX_CONTEXT_CHARS = 50000;
+
+    // v5.x — context budget. Previously a flat 50.000 chars (~12K tokens): the
+    // first documents ate the budget and the rest were truncated, which is the
+    // "non vedo tutti i dati" symptom on multi-sheet workbooks. We now target a
+    // 200K-token ceiling (system invariant, intentionally NOT in .services.json)
+    // converted to characters with a prudent ~4 char/token ratio. getContextForAi
+    // then fair-shares this budget across documents (water-filling) so a small
+    // .txt no longer starves a large .xlsx.
+    private const MAX_CONTEXT_TOKENS    = 200000;
+    private const CONTEXT_CHARS_PER_TOKEN = 4;
+    private const MAX_CONTEXT_CHARS = self::MAX_CONTEXT_TOKENS * self::CONTEXT_CHARS_PER_TOKEN; // 800.000
+
+    // v5.x — small-model guard: models flagged "small" in config reject file
+    // attachments entirely (upload.SRV.php) and have their prompt capped to this
+    // many characters (Executor::sendToAi). Public so Executor is the single
+    // reference point for the cap.
+    public const MAX_SMALL_MODEL_CHARS = 65535;
 
     private const TYPE_MAP = [
         'pdf'  => 'pdf',
@@ -70,6 +95,7 @@ class DocumentSpace
         'js'   => 'text',
         'xlsx' => 'spreadsheet',
         'ods'  => 'spreadsheet',
+        'pptx' => 'presentation',
         'csv'  => 'csv',
         'jpg'  => 'image',
         'jpeg' => 'image',
@@ -128,20 +154,19 @@ class DocumentSpace
 
         try {
             $content = match ($docType) {
-                'pdf'         => $this->_processPdf($filePath),
-                'docx'        => $this->_processDocx($filePath),
-                'text'        => $this->_processText($filePath),
-                'spreadsheet' => $this->_processSpreadsheet($filePath),
-                'csv'         => $this->_processCsv($filePath),
-                'image'       => $this->_processImage($filePath, $docId, $ext),
+                'pdf'          => $this->_processPdf($filePath),
+                'docx'         => $this->_processDocx($filePath),
+                'text'         => $this->_processText($filePath),
+                'spreadsheet'  => $this->_processSpreadsheet($filePath),
+                'presentation' => $this->_processPptx($filePath),
+                'csv'          => $this->_processCsv($filePath),
+                'image'        => $this->_processImage($filePath, $docId, $ext),
             };
 
-            // Save processed content
-            if ($docType === 'image') {
-                $out = $this->_baseDir . $docId . ".b64";
-            } else {
-                $out = $this->_baseDir . $docId . ".json";
-            }
+            // Save processed content. v5.x — images now store their OCR text
+            // (same .json container as every other doc); the raw bytes live in
+            // the separate .orig copy. The old .b64 dump was write-only/dead.
+            $out = $this->_baseDir . $docId . ".json";
             file_put_contents($out, $content);
             @chmod($out, 0664);
 
@@ -151,10 +176,13 @@ class DocumentSpace
                 'originalName'  => $originalName,
                 'type'          => $docType,
                 'extension'     => $ext,
-                'processedFile' => $docId . ($docType === 'image' ? '.b64' : '.json'),
+                'processedFile' => $docId . '.json',
                 'addedAt'       => date('c'),
                 'sizeBytes'     => filesize($filePath),
             ];
+            if ($docType === 'image') {
+                $entry['ocrChars'] = strlen($content);
+            }
             $this->_updateManifest($entry);
 
             $this->_touchSidDate();
@@ -166,6 +194,7 @@ class DocumentSpace
             // Distinct from the generic-failure path below which keeps the
             // file in the session with an extractionError placeholder.
             General::Log_nocaller("DocSpace::addDocument encrypted workbook rejected ($originalName, sid={$this->_sessId})", true);
+            $this->_docErrLog("REJECT encrypted_workbook", $originalName, $ext, filesize($filePath));
             $result['success'] = false;
             $result['error']   = 'ENCRYPTED_WORKBOOK';
             $result['reason']  = 'encrypted_workbook';
@@ -176,6 +205,7 @@ class DocumentSpace
             // so processing errors would silently never reach disk. Use
             // Log_nocaller(..., true) directly so failures are always recorded.
             General::Log_nocaller("DocSpace::addDocument error processing $originalName (sid={$this->_sessId}): $errMsg", true);
+            $this->_docErrLog("ERROR extraction_failed: " . $errMsg, $originalName, $ext, @filesize($filePath) ?: 0);
 
             // v5.x — design rule: even when extraction fails (e.g. password-
             // protected PDF, corrupted docx, parser regression) the file must
@@ -247,65 +277,145 @@ class DocumentSpace
 
     /**
      * Build a text context string from all documents for AI prompt injection.
+     *
+     * v5.x — fair-share budget. The previous loop was first-come-first-served:
+     * early documents consumed the whole cap and later ones were truncated to
+     * nothing (the "non vedo tutti i dati" symptom on a workbook that follows a
+     * big .txt in the manifest). We now water-fill: documents under their equal
+     * share are included in full and release their surplus to the larger ones,
+     * so every attachment gets a fair slice of the (much larger) budget.
      */
     public function getContextForAi(int $maxChars = self::MAX_CONTEXT_CHARS): string
     {
         $manifest = $this->_loadManifest();
         if (empty($manifest)) return '';
 
-        $context = "--- DOCUMENTI ALLEGATI ---\n";
-        $totalChars = strlen($context) + 30; // reserve for closing tag
-        $included = 0;
+        $open  = "--- DOCUMENTI ALLEGATI ---\n";
+        $close = "--- FINE DOCUMENTI ALLEGATI ---";
 
-        foreach ($manifest as $entry) {
-            // v5.x — extraction-failed documents: still render a header so the
-            // LLM is aware the attachment exists in the session, even though
-            // no text content is available.
+        // Build a render unit per entry: fixed framing (header/footer) + an
+        // optional truncatable body. Light entries (image / extraction-failed)
+        // are framing-only and never truncated.
+        $units = [];
+        foreach ($manifest as $idx => $entry) {
+            $name = $entry['originalName'];
             if (!empty($entry['extractionError'])) {
                 $reason = self::_humanizeExtractionError((string)$entry['extractionError']);
-                $line  = "[Documento: " . $entry['originalName'] . " (" . strtoupper($entry['extension']) . ", " . $this->_formatBytes($entry['sizeBytes']) . ")]\n";
-                $line .= "[Contenuto testuale non disponibile — $reason]\n";
-                $line .= "[Il file è presente nella sessione e può essere referenziato per nome.]\n";
-                $line .= "[Fine Documento: " . $entry['originalName'] . "]\n\n";
-                if ($totalChars + strlen($line) > $maxChars) break;
-                $context .= $line;
-                $totalChars += strlen($line);
-                $included++;
+                $block  = "[Documento: $name (" . strtoupper($entry['extension']) . ", " . $this->_formatBytes($entry['sizeBytes']) . ")]\n";
+                $block .= "[Contenuto testuale non disponibile — $reason]\n";
+                $block .= "[Il file è presente nella sessione e può essere referenziato per nome.]\n";
+                $block .= "[Fine Documento: $name]\n\n";
+                $units[] = ['idx' => $idx, 'fixed' => $block, 'body' => '', 'name' => $name, 'light' => true];
                 continue;
             }
-            if ($entry['type'] === 'image') {
-                // Images: just note their presence for text-only context
-                $line = "[Documento: " . $entry['originalName'] . " (Immagine, " . $this->_formatBytes($entry['sizeBytes']) . ")]\n";
-                $line .= "[Immagine disponibile per analisi visiva]\n";
-                $line .= "[Fine Documento: " . $entry['originalName'] . "]\n\n";
-                if ($totalChars + strlen($line) > $maxChars) break;
-                $context .= $line;
-                $totalChars += strlen($line);
-            } else {
-                $content = $this->_loadProcessedContent($entry['id'], $entry['type']);
-                $header = "[Documento: " . $entry['originalName'] . " (" . strtoupper($entry['extension']) . ", " . $this->_formatBytes($entry['sizeBytes']) . ")]\n";
-                $footer = "\n[Fine Documento: " . $entry['originalName'] . "]\n\n";
-                $available = $maxChars - $totalChars - strlen($header) - strlen($footer);
-                if ($available <= 0) break;
-
-                if (strlen($content) > $available) {
-                    $content = substr($content, 0, $available) . "\n... [troncato]";
+            if (($entry['type'] ?? '') === 'image') {
+                // v5.x — OCR primary: the image's recognized text is its body and
+                // is budgeted/truncated like any other document. An image with no
+                // recognizable text stays a light awareness-only entry.
+                $ocr = $this->_loadProcessedContent($entry['id'], 'image');
+                if (trim($ocr) === '') {
+                    $block  = "[Documento: $name (Immagine, " . $this->_formatBytes($entry['sizeBytes']) . ")]\n";
+                    $block .= "[Nessun testo riconoscibile nell'immagine (OCR vuoto).]\n";
+                    $block .= "[Fine Documento: $name]\n\n";
+                    $units[] = ['idx' => $idx, 'fixed' => $block, 'body' => '', 'name' => $name, 'light' => true];
+                    continue;
                 }
-
-                $context .= $header . $content . $footer;
-                $totalChars += strlen($header) + strlen($content) + strlen($footer);
+                $header = "[Documento: $name (Immagine, " . $this->_formatBytes($entry['sizeBytes']) . " — testo estratto via OCR)]\n";
+                $footer = "\n[Fine Documento: $name]\n\n";
+                $units[] = [
+                    'idx'   => $idx,
+                    'fixed' => $header,
+                    'foot'  => $footer,
+                    'body'  => $ocr,
+                    'name'  => $name,
+                    'light' => false,
+                ];
+                continue;
             }
-            $included++;
+            $header = "[Documento: $name (" . strtoupper($entry['extension']) . ", " . $this->_formatBytes($entry['sizeBytes']) . ")]\n";
+            $footer = "\n[Fine Documento: $name]\n\n";
+            $body   = $this->_loadProcessedContent($entry['id'], $entry['type']);
+            $units[] = [
+                'idx'   => $idx,
+                'fixed' => $header,           // header; footer kept separate below
+                'foot'  => $footer,
+                'body'  => $body,
+                'name'  => $name,
+                'light' => false,
+            ];
         }
 
-        $remaining = count($manifest) - $included;
-        if ($remaining > 0) {
-            $context .= "[$remaining documenti omessi per limite dimensione]\n";
+        $budget = $maxChars - strlen($open) - strlen($close);
+
+        // Light units always render (tiny, mandatory awareness markers); reserve
+        // their cost up front.
+        foreach ($units as $u) {
+            if ($u['light']) $budget -= strlen($u['fixed']);
+        }
+        if ($budget < 0) $budget = 0;
+
+        // Water-fill the remaining budget across content units. Process in
+        // ascending desired-size order so small docs take only what they need
+        // and hand the surplus to the larger ones.
+        $content = array_values(array_filter($units, fn($u) => !$u['light']));
+        usort($content, function ($a, $b) {
+            return $this->_unitDesired($a) <=> $this->_unitDesired($b);
+        });
+
+        $alloc      = [];   // idx => body char allowance
+        $remaining  = $budget;
+        $countLeft  = count($content);
+        foreach ($content as $u) {
+            $framing = strlen($u['fixed']) + strlen($u['foot']);
+            $desired = $framing + strlen($u['body']);
+            $share   = $countLeft > 0 ? intdiv($remaining, $countLeft) : 0;
+            if ($desired <= $share) {
+                $alloc[$u['idx']] = strlen($u['body']);   // full body
+                $remaining -= $desired;
+            } else {
+                $bodyAllow = $share - $framing;
+                $alloc[$u['idx']] = max(0, $bodyAllow);
+                $remaining -= ($framing + $alloc[$u['idx']]);
+            }
+            if ($remaining < 0) $remaining = 0;
+            $countLeft--;
         }
 
-        $context .= "--- FINE DOCUMENTI ALLEGATI ---";
+        // Render in original manifest order.
+        $out = $open;
+        $truncatedDocs = [];
+        foreach ($units as $u) {
+            if ($u['light']) {
+                $out .= $u['fixed'];
+                continue;
+            }
+            $body  = $u['body'];
+            $allow = $alloc[$u['idx']] ?? 0;
+            if (strlen($body) > $allow) {
+                $shown = $allow > 0 ? substr($body, 0, $allow) : '';
+                $body  = $shown . "\n... [troncato: mostrati " . strlen($shown) . " di " . strlen($u['body']) . " caratteri]";
+                $truncatedDocs[] = $u['name'];
+                $this->_docErrLog(
+                    "CONTEXT_TRUNCATED shown=" . strlen($shown) . " of=" . strlen($u['body']) . " budget=" . $maxChars,
+                    $u['name'], (string)($manifest[$u['idx']]['extension'] ?? ''), (int)($manifest[$u['idx']]['sizeBytes'] ?? 0)
+                );
+            }
+            $out .= $u['fixed'] . $body . $u['foot'];
+        }
+
+        if (!empty($truncatedDocs)) {
+            $out .= "[" . count($truncatedDocs) . " documento/i troncato/i per limite di contesto: " . implode(', ', $truncatedDocs) . "]\n";
+        }
+
+        $out .= $close;
         $this->_touchSidDate();
-        return $context;
+        return $out;
+    }
+
+    /** Desired full rendered size of a content render unit (header + body + footer). */
+    private function _unitDesired(array $u): int
+    {
+        return strlen($u['fixed']) + strlen($u['foot'] ?? '') + strlen($u['body']);
     }
 
     /**
@@ -327,6 +437,77 @@ class DocumentSpace
         return $paths;
     }
 
+    /**
+     * v5.x — image paths added SINCE the last vision turn (markImagesProcessed()).
+     * Vision (sending image bytes) is a one-shot on upload: a stale image left in
+     * the session must not keep hijacking later, unrelated text/document requests.
+     * The textual context (getContextForAi) still persists every turn, so follow-up
+     * questions rely on that plus the model's earlier description.
+     */
+    public function getNewImagePaths(): array
+    {
+        $watermark = $this->_readVisionWatermark();
+        $wmTs = $watermark !== '' ? strtotime($watermark) : 0;
+        $manifest = $this->_loadManifest();
+        $paths = [];
+        foreach ($manifest as $entry) {
+            if (($entry['type'] ?? '') !== 'image') continue;
+            $added = $entry['addedAt'] ?? '';
+            if ($wmTs > 0 && $added !== '' && strtotime($added) <= $wmTs) {
+                continue; // already present at/before the last vision turn → not new
+            }
+            $origFiles = glob($this->_baseDir . $entry['id'] . ".orig.*");
+            if (!empty($origFiles)) {
+                $paths[] = $origFiles[0];
+            }
+        }
+        return $paths;
+    }
+
+    /** v5.x — mark all images currently in the space as "seen" by a vision turn. */
+    public function markImagesProcessed(): void
+    {
+        @file_put_contents($this->_baseDir . "vision_watermark.txt", date('c'));
+    }
+
+    /** v5.x — read the vision watermark timestamp (ISO 8601) or '' if none. */
+    private function _readVisionWatermark(): string
+    {
+        $f = $this->_baseDir . "vision_watermark.txt";
+        return is_file($f) ? trim((string)@file_get_contents($f)) : '';
+    }
+
+    /**
+     * [DIAG_MULTIIMG_v1] TEMPORARY diagnostic — enumerate every image entry in
+     * the manifest and classify it against the vision watermark exactly the way
+     * getNewImagePaths() does. Lets a single log line show, per turn: how many
+     * images exist, how many are "fresh" (would be sent), how many are excluded
+     * as stale, plus each one's name / addedAt / original-bytes presence.
+     * Investigating: a 3-image upload where only the first reaches the model.
+     * Remove with: grep -rln 'DIAG_MULTIIMG_v1' src/ and delete tagged blocks.
+     */
+    public function debugImageManifest(): string
+    {
+        $watermark = $this->_readVisionWatermark();
+        $wmTs = $watermark !== '' ? strtotime($watermark) : 0;
+        $manifest = $this->_loadManifest();
+        $total = 0; $fresh = 0; $stale = 0; $rows = [];
+        foreach ($manifest as $entry) {
+            if (($entry['type'] ?? '') !== 'image') continue;
+            $total++;
+            $added = $entry['addedAt'] ?? '';
+            $hasOrig = !empty(glob($this->_baseDir . ($entry['id'] ?? '') . ".orig.*"));
+            $isStale = ($wmTs > 0 && $added !== '' && strtotime($added) <= $wmTs);
+            if ($isStale) $stale++; else $fresh++;
+            $rows[] = ($entry['originalName'] ?? '?') . '(added=' . ($added !== '' ? $added : '?')
+                . ',orig=' . ($hasOrig ? 'yes' : 'NO')
+                . ',' . ($isStale ? 'STALE' : 'fresh') . ')';
+        }
+        return 'images_total=' . $total . ' fresh=' . $fresh . ' stale=' . $stale
+            . ' watermark=' . ($watermark !== '' ? $watermark : '(none)')
+            . ' entries=[' . implode('; ', $rows) . ']';
+    }
+
     public function hasDocuments(): bool
     {
         $manifest = $this->_loadManifest();
@@ -342,6 +523,43 @@ class DocumentSpace
             }
         }
         return $size;
+    }
+
+    // ========================
+    //  PUBLIC: Active model gate
+    // ========================
+
+    /**
+     * v5.x — Record the AI model active for this session. Written by
+     * Executor::sendToAi on every turn (cheap scratch file, same pattern as
+     * sid_date / vision_watermark). upload.SRV.php reads it back to decide
+     * whether file attachments are allowed: "small" models reject uploads and
+     * have their prompt capped (MAX_SMALL_MODEL_CHARS).
+     */
+    public function setActiveModel(string $platformName, ?string $configKey, bool $isSmall, string $modelId = ''): void
+    {
+        $data = [
+            'platform'  => $platformName,
+            'configKey' => $configKey,
+            'small'     => $isSmall,
+            'model'     => $modelId,
+            'at'        => date('c'),
+        ];
+        @file_put_contents($this->_baseDir . 'active_model.json', json_encode($data, JSON_UNESCAPED_UNICODE));
+        @chmod($this->_baseDir . 'active_model.json', 0664);
+    }
+
+    /**
+     * v5.x — true if the session's active model is flagged "small" (no file
+     * attachments). Fail-open: if no model has been recorded yet (upload before
+     * the first sendToAi) we cannot know, so we allow the attachment.
+     */
+    public function activeModelIsSmall(): bool
+    {
+        $f = $this->_baseDir . 'active_model.json';
+        if (!is_file($f)) return false;
+        $data = json_decode((string)@file_get_contents($f), true);
+        return is_array($data) && !empty($data['small']);
     }
 
     // ========================
@@ -834,7 +1052,216 @@ class DocumentSpace
             $reader->close();
         }
 
-        return json_encode(['sheets' => $sheetsData], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        // v5.x — store raw CSV delimited per sheet instead of JSON_PRETTY_PRINT.
+        // The old JSON encoding bloated the payload (escaped quotes/newlines +
+        // indentation) so multi-sheet workbooks were truncated against the
+        // context cap — the "Excel non vede tutti i dati / i CSV singoli sì"
+        // symptom. Each sheet is now a named CSV block, exactly the shape that
+        // worked when users uploaded the per-sheet CSVs by hand.
+        $out = '';
+        foreach ($sheetsData as $sd) {
+            $out .= "=== FOGLIO: " . $sd['name'] . " (" . $sd['rows'] . " righe × " . $sd['cols'] . " col) ===\n";
+            $out .= $sd['csv'];
+            if ($sd['truncated']) {
+                $out .= "... [foglio troncato a " . self::MAX_SPREADSHEET_ROWS . " righe]\n";
+                $this->_docErrLog(
+                    "TRUNCATED sheet '" . $sd['name'] . "' to " . self::MAX_SPREADSHEET_ROWS . " rows",
+                    basename($filePath), $ext, @filesize($filePath) ?: 0
+                );
+            }
+            $out .= "\n";
+        }
+        if (count($sheetsData) >= self::MAX_SPREADSHEET_SHEETS) {
+            $out .= "... [workbook troncato a " . self::MAX_SPREADSHEET_SHEETS . " fogli]\n";
+            $this->_docErrLog(
+                "TRUNCATED workbook to " . self::MAX_SPREADSHEET_SHEETS . " sheets",
+                basename($filePath), $ext, @filesize($filePath) ?: 0
+            );
+        }
+        return $out;
+    }
+
+    // DrawingML / PresentationML namespaces (stable URIs; the prefix in the file
+    // — usually a:/p:/r: — may vary, so we always match by namespace URI).
+    private const NS_DRAWINGML       = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+    private const NS_PRESENTATIONML  = 'http://schemas.openxmlformats.org/presentationml/2006/main';
+    private const NS_RELATIONSHIPS   = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+    /**
+     * v5.x — PowerPoint (.pptx) → Markdown via ZipArchive (no new dependency,
+     * same approach as the DOCX raw fallback). Fixes the "vede solo la prima
+     * slide e poi solo i titoli" symptom: the old path had no real pptx support
+     * (users were converting to PDF, where Smalot got body text from slide 1 and
+     * only titles afterwards). Here EVERY text run of EVERY slide is captured,
+     * grouped per paragraph, plus tables and speaker notes.
+     */
+    private function _processPptx(string $filePath): string
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($filePath) !== true) {
+            throw new \RuntimeException('Cannot open PPTX container (corrupt or not a zip)');
+        }
+
+        try {
+            $slidePaths = $this->_pptxSlideOrder($zip);
+            if (empty($slidePaths)) {
+                return "[Presentazione senza slide leggibili]";
+            }
+
+            $md = '';
+            $n = 0;
+            foreach ($slidePaths as $slidePath) {
+                $xml = $zip->getFromName($slidePath);
+                if ($xml === false || $xml === '') continue;
+                $n++;
+                $md .= "## Slide $n\n\n";
+
+                $dom = new \DOMDocument();
+                // PPTX XML is well-formed; suppress libxml warnings on exotic content.
+                if (@$dom->loadXML($xml)) {
+                    $lines = [];
+                    $this->_pptxWalk($dom->documentElement, $lines);
+                    $md .= ($lines ? implode("\n", $lines) : "_[slide senza testo]_") . "\n\n";
+                } else {
+                    $md .= "_[slide non parsabile]_\n\n";
+                }
+
+                // Speaker notes — convention ppt/notesSlides/notesSlideN.xml,
+                // keyed by the same number as the slide file.
+                if (preg_match('#slide(\d+)\.xml$#', $slidePath, $m)) {
+                    $notesXml = $zip->getFromName('ppt/notesSlides/notesSlide' . $m[1] . '.xml');
+                    if ($notesXml !== false && $notesXml !== '') {
+                        $ndom = new \DOMDocument();
+                        if (@$ndom->loadXML($notesXml)) {
+                            $nlines = [];
+                            $this->_pptxWalk($ndom->documentElement, $nlines);
+                            // Notes XML repeats the slide-number placeholder; keep only
+                            // lines with real prose (length > 1) to avoid noise.
+                            $nlines = array_values(array_filter($nlines, fn($l) => mb_strlen(trim($l)) > 1));
+                            if ($nlines) {
+                                $md .= "### Note\n\n" . implode("\n", $nlines) . "\n\n";
+                            }
+                        }
+                    }
+                }
+            }
+            return $this->_truncateText(trim($md));
+        } finally {
+            $zip->close();
+        }
+    }
+
+    /**
+     * Resolve slide rendering order: the authoritative source is the
+     * <p:sldIdLst> in ppt/presentation.xml, whose r:id entries map (via
+     * ppt/_rels/presentation.xml.rels) to slide targets. Falls back to numeric
+     * ordering of ppt/slides/slideN.xml when those parts are missing/unreadable.
+     * @return string[] zip entry paths in display order
+     */
+    private function _pptxSlideOrder(\ZipArchive $zip): array
+    {
+        $presXml = $zip->getFromName('ppt/presentation.xml');
+        $relsXml = $zip->getFromName('ppt/_rels/presentation.xml.rels');
+
+        if ($presXml !== false && $relsXml !== false) {
+            $relMap = [];
+            $rdom = new \DOMDocument();
+            if (@$rdom->loadXML($relsXml)) {
+                foreach ($rdom->getElementsByTagName('Relationship') as $rel) {
+                    $id = $rel->getAttribute('Id');
+                    $target = $rel->getAttribute('Target');
+                    if ($id !== '' && $target !== '') $relMap[$id] = $target;
+                }
+            }
+            $pdom = new \DOMDocument();
+            if (@$pdom->loadXML($presXml) && !empty($relMap)) {
+                $order = [];
+                foreach ($pdom->getElementsByTagNameNS(self::NS_PRESENTATIONML, 'sldId') as $sldId) {
+                    $rid = $sldId->getAttributeNS(self::NS_RELATIONSHIPS, 'id');
+                    if ($rid !== '' && isset($relMap[$rid])) {
+                        $order[] = $this->_pptxNormalizeTarget($relMap[$rid]);
+                    }
+                }
+                if (!empty($order)) return $order;
+            }
+        }
+
+        // Fallback: numeric sort of slide parts.
+        $slides = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = $zip->getNameIndex($i);
+            if ($name !== false && preg_match('#^ppt/slides/slide(\d+)\.xml$#', $name, $m)) {
+                $slides[(int)$m[1]] = $name;
+            }
+        }
+        ksort($slides);
+        return array_values($slides);
+    }
+
+    /** Normalize a presentation.xml.rels Target (e.g. "slides/slide1.xml") to a zip entry path. */
+    private function _pptxNormalizeTarget(string $target): string
+    {
+        $target = ltrim($target, '/');
+        // Targets are relative to ppt/; collapse a leading "../" if present.
+        if (str_starts_with($target, '../')) {
+            return ltrim(substr($target, 3), '/');
+        }
+        return 'ppt/' . $target;
+    }
+
+    /**
+     * Walk a slide/notes DOM in document order, emitting one Markdown line per
+     * paragraph (<a:p>) and a Markdown grid per table (<a:tbl>). Tables are not
+     * recursed into as paragraphs, so cell text isn't duplicated.
+     */
+    private function _pptxWalk(\DOMNode $node, array &$lines): void
+    {
+        foreach ($node->childNodes as $child) {
+            if ($child->nodeType !== XML_ELEMENT_NODE) continue;
+            $ln = $child->localName;
+            if ($ln === 'tbl') {
+                $this->_pptxTableToMarkdown($child, $lines);
+                continue;
+            }
+            if ($ln === 'p') {
+                $text = $this->_pptxParagraphText($child);
+                if (trim($text) !== '') $lines[] = $text;
+                continue;
+            }
+            $this->_pptxWalk($child, $lines);
+        }
+    }
+
+    /** Concatenate every text run (<a:t>) inside a paragraph, in order. */
+    private function _pptxParagraphText(\DOMNode $p): string
+    {
+        $text = '';
+        foreach ($p->getElementsByTagNameNS(self::NS_DRAWINGML, 't') as $t) {
+            $text .= $t->textContent;
+        }
+        return $text;
+    }
+
+    /** Render an <a:tbl> as a Markdown table, appending its rows to $lines. */
+    private function _pptxTableToMarkdown(\DOMNode $tbl, array &$lines): void
+    {
+        $first = true;
+        foreach ($tbl->getElementsByTagNameNS(self::NS_DRAWINGML, 'tr') as $tr) {
+            $cellTexts = [];
+            foreach ($tr->getElementsByTagNameNS(self::NS_DRAWINGML, 'tc') as $tc) {
+                $cell = '';
+                foreach ($tc->getElementsByTagNameNS(self::NS_DRAWINGML, 't') as $t) {
+                    $cell .= $t->textContent;
+                }
+                $cellTexts[] = str_replace('|', '\\|', trim($cell));
+            }
+            if (empty($cellTexts)) continue;
+            $lines[] = '| ' . implode(' | ', $cellTexts) . ' |';
+            if ($first) {
+                $lines[] = '| ' . implode(' | ', array_fill(0, count($cellTexts), '---')) . ' |';
+                $first = false;
+            }
+        }
     }
 
     private function _processCsv(string $filePath): string
@@ -845,12 +1272,58 @@ class DocumentSpace
 
     private function _processImage(string $filePath, string $docId, string $ext): string
     {
-        // Copy original for multimodal use
+        // Keep the original bytes on disk (re-download / future vision use).
         $orig = $this->_baseDir . $docId . ".orig." . $ext;
         copy($filePath, $orig);
         @chmod($orig, 0664);
-        // Return base64
-        return base64_encode(file_get_contents($filePath));
+        // v5.x — OCR primary: extract the text so ANY model (vision-capable or
+        // not) can read image content via getContextForAi. The bytes remain in
+        // .orig; the OCR text becomes the document's textual content. Empty
+        // string when the image carries no recognizable text (e.g. a photo).
+        $text = $this->_runOcr($filePath);
+        if ($text === '') {
+            $this->_docErrLog("OCR_EMPTY", basename($filePath), $ext, @filesize($filePath) ?: 0);
+        }
+        return $text;
+    }
+
+    /**
+     * v5.x — Run Tesseract OCR on an image and return the extracted UTF-8 text.
+     * Shells out to the tesseract binary (no PHP wrapper dependency). Fails soft:
+     * returns '' on any error so a non-OCR'able image never breaks ingestion.
+     */
+    private function _runOcr(string $imagePath): string
+    {
+        $bin = is_executable('/usr/bin/tesseract')
+            ? '/usr/bin/tesseract'
+            : trim((string)@shell_exec('command -v tesseract 2>/dev/null'));
+        if ($bin === '' || !is_executable($bin)) {
+            $this->_docErrLog("OCR_NO_BINARY", basename($imagePath), '', 0);
+            return '';
+        }
+        $langs = $this->_ocrLangs($bin);
+        $cmd = escapeshellarg($bin) . ' ' . escapeshellarg($imagePath) . ' stdout'
+            . ($langs !== '' ? ' -l ' . escapeshellarg($langs) : '')
+            . ' 2>/dev/null';
+        $out = @shell_exec($cmd);
+        return $out === null ? '' : trim((string)$out);
+    }
+
+    /**
+     * v5.x — Pick the OCR language string for tesseract. Prefers "ita+eng"
+     * (the documents are predominantly Italian) but degrades to whatever is
+     * actually installed, so a missing language pack never aborts OCR.
+     * Cached per request (tesseract --list-langs is a fork).
+     */
+    private function _ocrLangs(string $bin): string
+    {
+        static $cached = null;
+        if ($cached !== null) return $cached;
+        $list = (string)@shell_exec(escapeshellarg($bin) . ' --list-langs 2>/dev/null');
+        $have = array_map('trim', preg_split('/\r?\n/', $list) ?: []);
+        $want = array_values(array_filter(['ita', 'eng'], fn($l) => in_array($l, $have, true)));
+        $cached = implode('+', $want); // "ita+eng" | "eng" | "" (let tesseract default)
+        return $cached;
     }
 
     // ========================
@@ -870,9 +1343,9 @@ class DocumentSpace
 
     private function _loadProcessedContent(string $docId, string $type): string
     {
-        if ($type === 'image') {
-            return '[base64 image data]';
-        }
+        // v5.x — images store their OCR text in the same .json container as
+        // every other document (the legacy "[base64 image data]" placeholder is
+        // gone; image bytes live in the .orig copy).
         $file = $this->_baseDir . $docId . ".json";
         if (file_exists($file)) {
             return file_get_contents($file);
@@ -970,6 +1443,50 @@ class DocumentSpace
         if ($bytes >= 1048576) return round($bytes / 1048576, 1) . 'MB';
         if ($bytes >= 1024) return round($bytes / 1024, 1) . 'KB';
         return $bytes . 'B';
+    }
+
+    /**
+     * v5.x — Daily document-diagnostics log: Logs/docerr_DD.log where DD is the
+     * day of month (01..31). Rolling 31-day retention "azzerato mensilmente":
+     * the first write of a new month overwrites the same-numbered file left over
+     * from the previous month instead of appending to it. One grep-able line per
+     * event (extraction error, encrypted reject, truncation, small-model reject)
+     * so an operator can see what happened when a user complains about a file.
+     *
+     * Purposely independent from General::Log (which is debug-gated and rotates
+     * by date(d-M-Y)); this log must always be written regardless of debug flags.
+     */
+    private function _docErrLog(string $event, string $fileName, string $ext, int $sizeBytes): void
+    {
+        try {
+            $logDir = !empty($_SERVER['DOCUMENT_ROOT'])
+                ? rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/../Logs/'
+                : dirname(__DIR__, 3) . '/Logs/';
+            if (!is_dir($logDir)) @mkdir($logDir, 0775, true);
+
+            $file = $logDir . 'docerr_' . date('d') . '.log';
+
+            // Monthly rollover: if the existing file was last written in a
+            // different month, truncate it before this write.
+            $mode = 'a';
+            if (is_file($file) && date('Y-m', (int)@filemtime($file)) !== date('Y-m')) {
+                $mode = 'w';
+            }
+            $line = '[' . date('Y-m-d H:i:s') . '] sid=' . $this->_sessId
+                  . ' ' . $event
+                  . ' file="' . $fileName . '"'
+                  . ' ext=' . strtoupper($ext)
+                  . ' size=' . $this->_formatBytes($sizeBytes) . "\n";
+
+            $fp = @fopen($file, $mode);
+            if ($fp) {
+                @fwrite($fp, $line);
+                @fclose($fp);
+                @chmod($file, 0664);
+            }
+        } catch (\Throwable $e) {
+            // Diagnostics must never break ingestion.
+        }
     }
 
     /**
