@@ -145,7 +145,7 @@ class FlussuFastwebAi implements IAiProvider
     public function canAnalyzeMedia(): bool { return $this->_fw_vision; }
     public function analyzeMedia($preChat, $mediaPath, $prompt, $role="user"): array {
         if (!$this->_fw_vision)
-            return [[], "Error: model '".$this->_fw_chat_model."' does not accept media (config '".$this->_configKey."' has vision disabled)", null];
+            return [[], "Error: model '".$this->_fw_model."' does not accept media (config '".$this->_configKey."' has vision disabled)", null];
         try {
             $mimeTypes = [
                 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
@@ -188,7 +188,8 @@ class FlussuFastwebAi implements IAiProvider
                 'model' => $this->_fw_model,
                 'messages' => $preChat,
                 'max_tokens' => $this->_fw_max_tokens,
-                'temperature' => (float) Config::init()->aiTemperature($this->_configKey)
+                'temperature' => (float) Config::init()->aiTemperature($this->_configKey),
+                'stream' => false
             ];
 
             $response = $this->client->post('chat/completions', [
