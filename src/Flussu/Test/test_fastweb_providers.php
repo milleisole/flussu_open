@@ -26,12 +26,18 @@ $models = [
     'fw_27001_gpt'  => Platform::FW_GPT,
 ];
 
-// 2x2 red PNG for the vision probe
+// 128x128 red PNG for the vision probe, generated with GD: a hardcoded
+// base64 blob proved fragile (a corrupt IDAT made the endpoint reject the
+// image and masked the real vision capability of the model).
 $tmpImg = sys_get_temp_dir() . '/fw_vision_probe.png';
-file_put_contents($tmpImg, base64_decode(
-    'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGP8z8DwnwEKAB' .
-    'UZAf1t107cAAAAAElFTkSuQmCC'
-));
+if (!function_exists('imagecreatetruecolor')) {
+    echo "[WARN] GD extension missing: vision probes will be skipped\n";
+} else {
+    $probe = imagecreatetruecolor(128, 128);
+    imagefilledrectangle($probe, 0, 0, 127, 127, imagecolorallocate($probe, 220, 30, 30));
+    imagepng($probe, $tmpImg);
+    imagedestroy($probe);
+}
 
 $pass = 0; $fail = 0;
 foreach ($models as $cfgKey => $platform) {
@@ -53,7 +59,7 @@ foreach ($models as $cfgKey => $platform) {
 
     // --- vision probe: only when the config flag is on; the result tells
     // the user whether the flag value is right for that model.
-    if ($ai->canAnalyzeMedia()) {
+    if ($ai->canAnalyzeMedia() && file_exists($tmpImg)) {
         [$h2, $vReply, $vUsage] = $ai->analyzeMedia([], $tmpImg, "What color is this image? One word.");
         echo "[INFO] vision probe: " . substr(trim((string)$vReply), 0, 120) . "\n";
     } else {
