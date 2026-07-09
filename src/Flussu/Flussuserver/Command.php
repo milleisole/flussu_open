@@ -342,13 +342,23 @@ class Command {
     public static function htmlSanitize($message,$suppressSpecial=false) {
         if (!empty($message)){
 
+            // v5.x - Proteggi gli SVG inline dal Markdown. Parsedown, ANCHE in
+            // safe mode, escapa i tag <svg> (-> &lt;svg&gt;) ma continua ad
+            // applicare le trasformazioni strutturali: autolink dell'URL "nudo"
+            // dell'attributo xmlns (-> <a href>), paragrafi (-> <p>) e
+            // indented-code (-> <pre><code>). Risultato: l'SVG esce spezzato e
+            // non renderizzabile. Estraiamo <svg>...</svg> PRIMA di qualsiasi
+            // elaborazione e li reinseriamo VERBATIM dopo (placeholder inerte).
+            $svgStore = [];
+            $message = self::_protectSvgBlocks($message, $svgStore);
+
             // MARKDOWN format
             if (strpos($message,"{MD}")===0 && strpos($message,"{/MD}")===strlen($message)-5){
                 // E' tutto testo MD:
                 $message=substr($message,4,strlen($message)-9);
                 $Parsedown = new \Parsedown();
                 $Parsedown->setSafeMode(true);
-                return $Parsedown->text($message);
+                return self::_restoreSvgBlocks($Parsedown->text($message), $svgStore);
             }
             $MD_FLUSSU_PART="";
             // Contiene testo MD?
@@ -525,10 +535,38 @@ class Command {
                 $Parsedown->setSafeMode(true);
                 $elabMD=$Parsedown->text($MD_FLUSSU_PART);
                 $message = str_replace("@.@.@.MD-flussu-PART.@.@.@",$elabMD,$message);
-            } 
+            }
 
+            $message = self::_restoreSvgBlocks($message, $svgStore);
         }
-        return $message; 
+        return $message;
+    }
+
+    /**
+     * v5.x - Estrae i blocchi <svg>...</svg> sostituendoli con un placeholder
+     * alfanumerico inerte (immune a htmlentities e alle trasformazioni Parsedown).
+     * Gli SVG originali vengono conservati verbatim in $store per il ripristino.
+     */
+    private static function _protectSvgBlocks($message, array &$store) {
+        return preg_replace_callback('/<svg[\s\S]*?<\/svg>/i', function ($m) use (&$store) {
+            $i = count($store);
+            $store[] = $m[0];
+            return "FLUSSUSVGPROTECTED" . $i . "ENDSVG";
+        }, $message);
+    }
+
+    /**
+     * v5.x - Reinserisce gli SVG verbatim al posto dei placeholder. Rimuove
+     * anche l'eventuale wrapping <p>...</p> che Parsedown mette attorno al
+     * placeholder, così l'SVG non resta annidato in un paragrafo.
+     */
+    private static function _restoreSvgBlocks($html, array $store) {
+        foreach ($store as $i => $svg) {
+            $token = "FLUSSUSVGPROTECTED" . $i . "ENDSVG";
+            $html = preg_replace('/<p>\s*' . $token . '\s*<\/p>/', $svg, $html);
+            $html = str_replace($token, $svg, $html);
+        }
+        return $html;
     }
 
 
