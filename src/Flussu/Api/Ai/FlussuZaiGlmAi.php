@@ -33,6 +33,8 @@ class FlussuZaiGlmAi implements IAiProvider
     private $_zai_glm_key="";
     private $_zai_glm_model="";
     private $_zai_glm_chat_model="";
+    private $_zai_glm_thinking="disabled"; // 'enabled' | 'disabled' | 'omit'
+    private $_zai_glm_max_tokens=4000;
     private $client;
 
     public function canBrowseWeb(){
@@ -59,6 +61,19 @@ class FlussuZaiGlmAi implements IAiProvider
                 else
                     $this->_zai_glm_chat_model = "glm-4.6";
             }
+            // v5.x - GLM-4.5/4.6 sono reasoning model: il reasoning erode il budget
+            // di output e tronca gli SVG/output lunghi. Reasoning OFF di default
+            // (dialetto Zhipu: thinking:{type}). Override da config:
+            //   zai_glm.thinking = true|"enabled"  -> reasoning attivo
+            //   zai_glm.thinking = "omit"|"none"   -> non invia il parametro
+            $tk = config("services.ai_provider.zai_glm.thinking");
+            if ($tk === true || $tk === "true" || $tk === "enabled" || $tk === 1 || $tk === "1")
+                $this->_zai_glm_thinking = "enabled";
+            elseif ($tk === "omit" || $tk === "none")
+                $this->_zai_glm_thinking = "omit";
+            $mt = (int) config("services.ai_provider.zai_glm.max_tokens");
+            if ($mt > 0)
+                $this->_zai_glm_max_tokens = $mt;
             $this->client = new Client([
                 'base_uri' => 'https://api.z.ai/api/paas/v4/',
                 'timeout'  => 10.0,
@@ -85,9 +100,11 @@ class FlussuZaiGlmAi implements IAiProvider
         $payload = [
             'model' => $this->_zai_glm_chat_model,
             'messages' => $arrayText,
-            'max_tokens' => 2000,
+            'max_tokens' => $this->_zai_glm_max_tokens,
             'temperature' => (float) Config::init()->aiTemperature('zai_glm')
         ];
+        if ($this->_zai_glm_thinking !== "omit")
+            $payload['thinking'] = ['type' => $this->_zai_glm_thinking];
         try {
             $response = $this->client->post('chat/completions', [
                 'headers' => [

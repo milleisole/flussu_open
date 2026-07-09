@@ -55,6 +55,7 @@ class FlussuAi implements IAiProvider
     private $_flussu_chat_model="";
     private $_baseUri="";
     private $_thinkingDialect="none"; // 'zai' | 'qwen' | 'none'
+    private $_flussu_max_tokens=4000;
     private $client;
 
     public function canBrowseWeb(){
@@ -93,6 +94,12 @@ class FlussuAi implements IAiProvider
             $this->_baseUri = $defaultBase;
         if ($this->_baseUri === "")
             throw new Exception("Flussu AI: unknown 'inherit' \"" . $inherit . "\" and no 'base-uri' set. Provide an explicit 'base-uri' in config services.ai_provider.flussu");
+
+        // headroom di output: 2000 tronca gli SVG/output lunghi una volta spento
+        // il reasoning (il cap viene rispettato). Override: flussu.max_tokens
+        $mt = (int) config("services.ai_provider.flussu.max_tokens");
+        if ($mt > 0)
+            $this->_flussu_max_tokens = $mt;
 
         $this->client = new Client([
             'base_uri' => $this->_baseUri,
@@ -142,7 +149,7 @@ class FlussuAi implements IAiProvider
         $payload = [
             'model' => $this->_flussu_chat_model,
             'messages' => $arrayText,
-            'max_tokens' => 2000,
+            'max_tokens' => $this->_flussu_max_tokens,
             'temperature' => (float) Config::init()->aiTemperature('flussu')
         ];
         // "Modello flussu" è pensato per operazioni agentiche piccole e VELOCI:

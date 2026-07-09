@@ -33,6 +33,7 @@ class FlussuMistralAi implements IAiProvider
     private $_mistral_ai_key="";
     private $_mistral_ai_model="";
     private $_mistral_chat_model="";
+    private $_mistral_max_tokens=4000;
     private $client;
 
     public function canBrowseWeb(){
@@ -59,6 +60,10 @@ class FlussuMistralAi implements IAiProvider
                 else
                     $this->_mistral_chat_model = $this->_mistral_ai_model;
             }
+            // headroom di output: 2000 tronca gli SVG/output lunghi. Override: mistral.max_tokens
+            $mt = (int) config("services.ai_provider.mistral.max_tokens");
+            if ($mt > 0)
+                $this->_mistral_max_tokens = $mt;
             $this->client = new Client([
                 'base_uri' => 'https://api.mistral.ai/v1/',
                 'timeout'  => 10.0,
@@ -85,7 +90,7 @@ class FlussuMistralAi implements IAiProvider
         $payload = [
             'model' => $this->_mistral_chat_model,
             'messages' => $arrayText,
-            'max_tokens' => 2000,
+            'max_tokens' => $this->_mistral_max_tokens,
             'temperature' => (float) Config::init()->aiTemperature('mistral')
         ];
         try {

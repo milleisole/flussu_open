@@ -35,6 +35,7 @@ class FlussuGrokAi implements IAiProvider
     private $_grok_ai_key="";
     private $_grok_ai_model="";
     private $_grok_chat_model="";
+    private $_grok_max_tokens=4000;
     private $client;
 
     public function canBrowseWeb(){
@@ -59,6 +60,10 @@ class FlussuGrokAi implements IAiProvider
                 else
                     $this->_grok_chat_model = $this->_grok_ai_model;
             }
+            // headroom di output: 2000 tronca gli SVG/output lunghi. Override: xai_grok.max_tokens
+            $mt = (int) config("services.ai_provider.xai_grok.max_tokens");
+            if ($mt > 0)
+                $this->_grok_max_tokens = $mt;
             $this->client = new Client([
                 'base_uri' => 'https://api.x.ai/v1/',
                 'timeout'  => 10.0,
@@ -85,7 +90,7 @@ class FlussuGrokAi implements IAiProvider
         $payload = [
             'model' => $this->_grok_chat_model,
             'messages' => $arrayText,
-            'max_tokens' => 2000,
+            'max_tokens' => $this->_grok_max_tokens,
             'temperature' => (float) Config::init()->aiTemperature('xai_grok')
         ];
         try {

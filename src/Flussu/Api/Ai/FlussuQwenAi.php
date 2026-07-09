@@ -34,6 +34,8 @@ class FlussuQwenAi implements IAiProvider
     private $_qwen_ai_key="";
     private $_qwen_ai_model="";
     private $_qwen_chat_model="";
+    private $_qwen_enable_thinking=false;
+    private $_qwen_max_tokens=4000;
     private $client;
 
     public function canBrowseWeb(){
@@ -57,6 +59,17 @@ class FlussuQwenAi implements IAiProvider
                 if (!empty(config("services.ai_provider.qwen.chat-model")))
                     $this->_qwen_chat_model=config("services.ai_provider.qwen.chat-model");
             }
+            // v5.x - i modelli qwen3.x (qwen3.5-plus, qwen3.7-plus) sono reasoning
+            // model con "thinking" ATTIVO di default su DashScope: il reasoning
+            // divora il budget di output e tronca gli SVG/output lunghi
+            // (finish_reason=length, nessun </svg>). Spegniamo il thinking di
+            // default e diamo headroom al max_tokens. Entrambi override-abili da
+            // config services.ai_provider.qwen.{enable_thinking,max_tokens}.
+            $et = config("services.ai_provider.qwen.enable_thinking");
+            $this->_qwen_enable_thinking = ($et === true || $et === "true" || $et === 1 || $et === "1");
+            $mt = (int) config("services.ai_provider.qwen.max_tokens");
+            if ($mt > 0)
+                $this->_qwen_max_tokens = $mt;
             $this->client = new Client([
                 'base_uri' => 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/',
                 'timeout'  => 10.0,
@@ -83,8 +96,11 @@ class FlussuQwenAi implements IAiProvider
         $payload = [
             'model' => $this->_qwen_chat_model,
             'messages' => $arrayText,
-            'max_tokens' => 2000,
-            'temperature' => (float) Config::init()->aiTemperature('qwen')
+            'max_tokens' => $this->_qwen_max_tokens,
+            'temperature' => (float) Config::init()->aiTemperature('qwen'),
+            // top-level (NON extra_body: l'endpoint compatible-mode ignora la
+            // forma annidata). false = niente reasoning che erode il budget.
+            'enable_thinking' => $this->_qwen_enable_thinking
         ];
         // [DIAG_QWEN_v1] outbound payload introspection
         $diagRoles = [];
