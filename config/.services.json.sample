@@ -99,7 +99,8 @@
         "model":"grok-4-fast-non-reasoning",
         "chat-model":"grok-4-fast-non-reasoning",
         "image-model":"grok-imagine-image",
-        "default_temperature": 0.7
+        "default_temperature": 0.7,
+        "max_tokens": 4000
       },
       "ggl_gemini":{
         "auth_key":"your-gemini-api-key-here",
@@ -138,7 +139,9 @@
         "model":"qwen3.5-plus",
         "chat-model":"qwen3.5-plus",
         "image-model":"qwen-image-plus",
-        "default_temperature": 0.7
+        "default_temperature": 0.7,
+        "enable_thinking": false,
+        "max_tokens": 4000
       },
       "huggingface":{
         "auth_token":"hf-your-huggingface-token-here",
@@ -159,28 +162,34 @@
         "auth_key":"sk-insert-your-mistral-api-key",
         "model":"mistral-large-latest",
         "chat-model":"mistral-large-latest",
-        "default_temperature": 0.7
+        "default_temperature": 0.7,
+        "max_tokens": 4000
       },
       "zai_glm":{
+        "_comment":"GLM-4.5/4.6 sono reasoning model: 'thinking' e' disattivato di default (il reasoning erode il budget di output e tronca gli SVG lunghi). Metti 'thinking':true per riattivarlo, 'omit' per non inviare il parametro. 'max_tokens' e' l'headroom di output (2000 tronca gli SVG grandi).",
         "auth_key":"sk-your-zai-api-key-here",
         "model":"glm-5.1v",
         "chat-model":"glm-5.1",
         "image-model":"cogView-4-250304",
-        "default_temperature": 0.6
+        "default_temperature": 0.6,
+        "thinking": false,
+        "max_tokens": 4000
       },
       "flussu":{
         "_comment":"Modello interno 'flussu' (Platform 99): backend selezionabile via 'inherit' tra zai_glm|qwen|deepseek|xai_grok (un nome diverso richiede 'base-uri' esplicito). Chiave API ed endpoint sono CONDIVISI dal backend scelto (es. inherit=zai_glm usa zai_glm.auth_key); 'model'/'chat-model' e 'default_temperature' sono invece propri di flussu. Reasoning disattivato di default per la velocita': aggiungi 'thinking':true per riattivarlo, oppure 'base-uri' per un endpoint OpenAI-compatibile custom.",
         "inherit":"zai_glm",
         "model":"glm-4.5-flash",
         "chat-model":"glm-4.5-flash",
-        "default_temperature": 0.6
+        "default_temperature": 0.6,
+        "max_tokens": 4000
       },
       "together":{
         "auth_key":"your-together-api-key-here",
         "model":"meta-llama/Llama-3.3-70B-Instruct-Turbo",
         "chat-model":"meta-llama/Llama-3.3-70B-Instruct-Turbo",
         "image-model":"black-forest-labs/FLUX.1-schnell",
-        "default_temperature": 0.7
+        "default_temperature": 0.7,
+        "max_tokens": 4000
       }
     },
     "web_research":{
